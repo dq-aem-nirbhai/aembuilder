@@ -1,4 +1,4 @@
 package com.aem.builder.service;
 
-public class HomeService {
+public interface HomeService {
 }
