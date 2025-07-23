@@ -1,8 +1,12 @@
 package com.aem.builder.controller;
 
+import com.aem.builder.model.AemProjectModel;
+import com.aem.builder.model.TemplateModel;
 import com.aem.builder.service.TemplateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -52,4 +56,16 @@ public class TemplateController {
     }
 
 
+
+    @PostMapping("/add-template/{projectname}")
+    public String addTemplateToExistingProject(@PathVariable  String projectname,@RequestBody List<String>templatelist){
+        try{
+            templateService.copySelectedTemplatesToGeneratedProject(projectname,templatelist);
+            return "dashboard";
+
+        } catch (IOException e) {
+            return "create";
+
+        }
+    }
 }

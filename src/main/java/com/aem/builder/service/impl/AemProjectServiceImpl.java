@@ -3,6 +3,8 @@ package com.aem.builder.service.impl;
 import com.aem.builder.model.AemProjectModel;
 import com.aem.builder.model.ProjectDetails;
 import com.aem.builder.service.AemProjectService;
+import com.aem.builder.service.ComponentService;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
@@ -19,8 +21,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@AllArgsConstructor
 @Slf4j
 public class AemProjectServiceImpl implements AemProjectService {
+
+    private final ComponentService componentService;
+
 
     private static final String PROJECTS_DIR = "generated-projects";
 
@@ -90,6 +96,14 @@ public class AemProjectServiceImpl implements AemProjectService {
             } else {
                 System.out.println(" AEM project generation failed with exit code: " + exitCode);
             }
+
+            // Step 1: Copy selected components to ui.apps
+            String componentsTargetPath = baseDir + appId + "/ui.apps/src/main/content/jcr_root/apps/" + appId + "/components/content/";
+            File contentFolder = new File(componentsTargetPath);
+            if (!contentFolder.exists()) {
+                contentFolder.mkdirs(); // Create the content folder
+            }
+            componentService.copySelectedComponents(aemProjectModel.getSelectedComponents(), componentsTargetPath);
 
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
