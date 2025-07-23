@@ -17,6 +17,8 @@ public class AemProjectModel {
     private String version;       // aemVersion
     private String packageName;//packageName
     private List<String> selectedComponents;
+    private List<String> selectedTemplates;
+
 }
 
 
