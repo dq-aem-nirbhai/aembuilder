@@ -2,6 +2,7 @@ package com.aem.builder.controller;
 
 import com.aem.builder.model.AemProjectModel;
 import com.aem.builder.service.TemplateService;
+import com.aem.builder.service.TemplateService;
 import com.aem.builder.service.impl.AemProjectServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -9,6 +10,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
 import java.util.List;
@@ -28,14 +30,16 @@ public class AemProjectController {
         return "create";
     }
 
-    @PostMapping("/save")
-    public String saveConfig(@ModelAttribute AemProjectModel aemProjectModel, Model model) throws IOException {
-        aemProjectService.generateAemProject(aemProjectModel);
-        model.addAttribute("message", "AEM Project created successfully under generated-projects directory.");
-        templateService.copySelectedTemplatesToGeneratedProject(
-                aemProjectModel.getProjectName(),
-                aemProjectModel.getSelectedTemplates()
-        );
-        return "dashboard";
-    }
+//    @PostMapping("/save")
+//    public String saveConfig(@ModelAttribute AemProjectModel aemProjectModel, Model model) throws IOException {
+//        aemProjectService.generateAemProject(aemProjectModel);
+//        model.addAttribute("message", "AEM Project created successfully under generated-projects directory.");
+//        templateService.copySelectedTemplatesToGeneratedProject(
+//                aemProjectModel.getProjectName(),
+//                aemProjectModel.getSelectedTemplates()
+//        );
+//        return "dashboard";
+//        redirectAttributes.addFlashAttribute("message" , "AEM Project created successfully under generated-projects directory.");
+//        return "redirect:/";
+//    }
 }
