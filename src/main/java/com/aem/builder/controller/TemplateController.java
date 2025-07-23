@@ -1,11 +1,13 @@
 package com.aem.builder.controller;
 
 import com.aem.builder.model.AemProjectModel;
+import com.aem.builder.model.TemplateModel;
 import com.aem.builder.service.TemplateService;
 import com.aem.builder.service.impl.AemProjectServiceImpl;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -28,5 +30,17 @@ public class TemplateController {
         model.addAttribute("common", common);
         model.addAttribute("distinct",distinct);
         return "dashboard";
+    }
+
+    @PostMapping("/add-template/{projectname}")
+    public String addTemplateToExistingProject(@PathVariable  String projectname,@RequestBody List<String>templatelist){
+        try{
+            templateService.copySelectedTemplatesToGeneratedProject(projectname,templatelist);
+            return "dashboard";
+
+        } catch (IOException e) {
+            return "create";
+
+        }
     }
 }
