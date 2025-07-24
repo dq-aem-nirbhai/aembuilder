@@ -33,16 +33,16 @@ public class AemProjectController {
         return "create";
     }
 
-//    @PostMapping("/save")
-//    public String saveConfig(@ModelAttribute AemProjectModel aemProjectModel, Model model) throws IOException {
-//        aemProjectService.generateAemProject(aemProjectModel);
-//        model.addAttribute("message", "AEM Project created successfully under generated-projects directory.");
-//        templateService.copySelectedTemplatesToGeneratedProject(
-//                aemProjectModel.getProjectName(),
-//                aemProjectModel.getSelectedTemplates()
-//        );
+    @PostMapping("/save")
+    public String saveConfig(@ModelAttribute AemProjectModel aemProjectModel, Model model) throws IOException {
+        aemProjectService.generateAemProject(aemProjectModel);
+        model.addAttribute("message", "AEM Project created successfully under generated-projects directory.");
+        templateService.copySelectedTemplatesToGeneratedProject(
+                aemProjectModel.getProjectName(),
+                aemProjectModel.getSelectedTemplates()
+        );
 //        return "dashboard";
 //        redirectAttributes.addFlashAttribute("message" , "AEM Project created successfully under generated-projects directory.");
-//        return "redirect:/";
-//    }
+        return "redirect:/";
+    }
 }

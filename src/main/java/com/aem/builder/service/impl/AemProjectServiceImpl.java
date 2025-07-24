@@ -98,10 +98,10 @@ public class AemProjectServiceImpl implements AemProjectService {
             }
 
             // Step 1: Copy selected components to ui.apps
-            String componentsTargetPath = baseDir + appId + "/ui.apps/src/main/content/jcr_root/apps/" + appId + "/components/content/";
+            String componentsTargetPath = baseDir + appId + "/ui.apps/src/main/content/jcr_root/apps/" + appId + "/components/";
             File contentFolder = new File(componentsTargetPath);
             if (!contentFolder.exists()) {
-                contentFolder.mkdirs(); // Create the content folder
+                contentFolder.mkdirs();
             }
             componentService.copySelectedComponents(aemProjectModel.getSelectedComponents(), componentsTargetPath);
 
