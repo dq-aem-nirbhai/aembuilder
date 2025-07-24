@@ -33,32 +33,15 @@ public class TemplateController {
         Map<String, List<String>> response = new HashMap<>();
         response.put("unique", distinct);
         response.put("duplicate", common);
-        System.out.println("unique"+ distinct);
-        System.out.println("duplicate"+ common);
         return response;
     }
 
 
-
-
-
-    @PostMapping("/{projectName}/templates/save")
-    @ResponseBody
-    public Map<String, Object> saveTemplates(@PathVariable String projectName,
-                                             @RequestBody List<String> selectedTemplates) {
-
-
-
-   log.info( projectName);
-   log.info(selectedTemplates.toString());
-
-        return Map.of("projectName", "", "templates", new ArrayList<>());
-    }
-
-
-
     @PostMapping("/add-template/{projectname}")
     public String addTemplateToExistingProject(@PathVariable  String projectname,@RequestBody List<String>templatelist){
+
+        log.info( projectname);
+  log.info(templatelist.toString());
         try{
             templateService.copySelectedTemplatesToGeneratedProject(projectname,templatelist);
             return "dashboard";

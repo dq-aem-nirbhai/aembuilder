@@ -8,23 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Service
-public class ComponentServiceImpl implements ComponentService {
 
-    private static final String PROJECTS_DIR = "generated-projects";
-
-    @Override
-    public List<String> fetchComponentsFromGeneratedProjects(String projectName) {
-        File componentsDir = new File(PROJECTS_DIR, projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components");
-        if (componentsDir.exists()) {
-            return Arrays.stream(componentsDir.listFiles(File::isDirectory))
-                    .map(File::getName)
-                    .collect(Collectors.toList());
-        }
-        return List.of();
-    }
-
-}
 import com.aem.builder.service.ComponentService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FileUtils;
@@ -43,6 +27,20 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ComponentServiceImpl implements ComponentService {
+
+    private static final String PROJECTS_DIR = "generated-projects";
+
+    @Override
+    public List<String> fetchComponentsFromGeneratedProjects(String projectName) {
+        File componentsDir = new File(PROJECTS_DIR, projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components");
+        if (componentsDir.exists()) {
+            return Arrays.stream(componentsDir.listFiles(File::isDirectory))
+                    .map(File::getName)
+                    .collect(Collectors.toList());
+        }
+        return List.of();
+    }
+
 
     @Override
     public List<String> getAllComponents() throws IOException {
@@ -91,7 +89,7 @@ public class ComponentServiceImpl implements ComponentService {
         for (String project : projects) {
             String componentDirPath = System.getProperty("user.dir") +
                     "/generated-projects/" + project +
-                    "/ui.apps/src/main/content/jcr_root/apps/" + project + "/components/content";
+                    "/ui.apps/src/main/content/jcr_root/apps/" + project + "/components";
 
             File componentDir = new File(componentDirPath);
             if (componentDir.exists() && componentDir.isDirectory()) {
@@ -118,22 +116,22 @@ public class ComponentServiceImpl implements ComponentService {
         try {
             String baseDir = System.getProperty("user.dir") + "/generated-projects/";
             String contentFolderPath = baseDir + projectName +
-                    "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components/content";
+                    "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
 
-            File content = new File(contentFolderPath);
-            if (!content.exists()) {
-                boolean created = content.mkdirs();
-                if (!created) {
-                    System.err.println("Failed to create content folder for components.");
-                    return;
-                }
-            }
+//            File content = new File(contentFolderPath);
+//            if (!content.exists()) {
+//                boolean created = content.mkdirs();
+//                if (!created) {
+//                    System.err.println("Failed to create content folder for components.");
+//                    return;
+//                }
+//            }
 
             copySelectedComponents(selectedComponents, contentFolderPath);
 
-            System.out.println("✅ Selected components copied to content folder in project: " + projectName);
+            System.out.println(" Selected components copied to content folder in project: " + projectName);
         } catch (Exception e) {
-            System.err.println("❌ Error while adding components to project.");
+            System.err.println(" Error while adding components to project.");
             e.printStackTrace();
         }
     }

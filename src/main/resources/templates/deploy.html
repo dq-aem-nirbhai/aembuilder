@@ -417,7 +417,7 @@
 
     function openComponentModal() {
         const projectName = getProjectName();
-        fetch(`/api/components/${projectName}`)
+        fetch(`/fetch-components/${projectName}`)
             .then(res => res.json())
             .then(data => {
                 renderList('componentList', data, selectedComponents, 'component');
@@ -501,20 +501,22 @@
         const promises = [];
 
         if (selectedComponents.length > 0) {
-            promises.push(fetch(`/${projectName}/components/save`, {
+            promises.push(fetch(`/add-components/${projectName}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(selectedComponents)
             }));
         }
 
-        if (selectedTemplates.length > 0) {
-            promises.push(fetch(`/${projectName}/templates/save`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(selectedTemplates)
-            }));
-        }
+
+       if (selectedTemplates.length > 0) {
+    promises.push(fetch(`/add-template/${projectName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(selectedTemplates)
+    }));
+}
+
 
         Promise.all(promises).then(() => {
             const msg = document.getElementById('successMessage');
