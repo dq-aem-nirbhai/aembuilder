@@ -1,19 +1,34 @@
 package com.aem.builder.service.impl;
 
 import com.aem.builder.model.AemProjectModel;
+import com.aem.builder.model.ProjectDetails;
 import com.aem.builder.service.AemProjectService;
 import com.aem.builder.service.ComponentService;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
+import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class AemProjectServiceImpl implements AemProjectService {
 
     private final ComponentService componentService;
+
+
+    private static final String PROJECTS_DIR = "generated-projects";
 
     @Override
     public void generateAemProject(AemProjectModel aemProjectModel) {
@@ -94,6 +109,58 @@ public class AemProjectServiceImpl implements AemProjectService {
             e.printStackTrace();
         }
     }
+
+
+
+
+
+
+    @Override
+    public List<ProjectDetails> getAllProjects() {
+        File projectsFolder = new File(PROJECTS_DIR);
+        String[] projectNames = projectsFolder.list((dir, name) -> new File(dir, name).isDirectory());
+
+        List<ProjectDetails> projects = new ArrayList<>();
+        if (projectNames != null) {
+            for (String name : projectNames) {
+                File pomFile = new File(projectsFolder, name + "/pom.xml");
+                String version = "Unknown";
+                String groupId = "Unknown";
+                String createdDate = "Unknown";
+                String path = new File(projectsFolder, name).getPath();
+
+                try {
+                    if (pomFile.exists()) {
+                        var builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+                        Document doc = builder.parse(pomFile);
+                        NodeList dependencies = doc.getElementsByTagName("dependency");
+
+                        for (int i = 0; i < dependencies.getLength(); i++) {
+                            Element dependency = (Element) dependencies.item(i);
+                            String group = dependency.getElementsByTagName("groupId").item(0).getTextContent();
+                            String artifact = dependency.getElementsByTagName("artifactId").item(0).getTextContent();
+                            if ("com.adobe.aem".equals(group) && "uber-jar".equals(artifact)) {
+                                version = dependency.getElementsByTagName("version").item(0).getTextContent();
+                                break;
+                            }
+                        }
+
+                        groupId = doc.getElementsByTagName("groupId").item(0).getTextContent();
+                    }
+                } catch (Exception ignored) {}
+
+                try {
+                    BasicFileAttributes attr = Files.readAttributes(new File(projectsFolder, name).toPath(), BasicFileAttributes.class);
+                    createdDate = attr.creationTime().toInstant().atZone(java.time.ZoneId.systemDefault())
+                            .format(DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm"));
+                } catch (Exception ignored) {}
+
+                projects.add(new ProjectDetails(name, version, groupId, createdDate, path));
+            }
+        }
+        return projects;
+    }
+
 
 
 }

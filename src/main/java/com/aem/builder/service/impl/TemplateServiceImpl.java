@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -91,4 +92,17 @@ public class TemplateServiceImpl implements TemplateService {
     }
 
 
+
+    private static final String PROJECTS_DIR = "generated-projects";
+
+    @Override
+    public List<String> fetchTemplatesFromGeneratedProjects(String projectName) {
+        File templatesDir = new File(PROJECTS_DIR, projectName + "/ui.content/src/main/content/jcr_root/conf/" + projectName + "/settings/wcm/templates");
+        if (templatesDir.exists()) {
+            return Arrays.stream(templatesDir.listFiles(File::isDirectory))
+                    .map(File::getName)
+                    .collect(Collectors.toList());
+        }
+        return List.of();
+    }
 }

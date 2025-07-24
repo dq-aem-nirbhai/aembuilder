@@ -4,7 +4,10 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import java.util.List;
+
 public interface ComponentService {
+    List<String> fetchComponentsFromGeneratedProjects(String projectName);
 
     List<String> getAllComponents() throws IOException;
 
