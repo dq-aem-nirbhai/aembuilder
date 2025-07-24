@@ -7,15 +7,12 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-
-
 import com.aem.builder.service.ComponentService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FileUtils;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Service;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,7 +29,8 @@ public class ComponentServiceImpl implements ComponentService {
 
     @Override
     public List<String> fetchComponentsFromGeneratedProjects(String projectName) {
-        File componentsDir = new File(PROJECTS_DIR, projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components");
+        File componentsDir = new File(PROJECTS_DIR,
+                projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components");
         if (componentsDir.exists()) {
             return Arrays.stream(componentsDir.listFiles(File::isDirectory))
                     .map(File::getName)
@@ -40,7 +38,6 @@ public class ComponentServiceImpl implements ComponentService {
         }
         return List.of();
     }
-
 
     @Override
     public List<String> getAllComponents() throws IOException {
@@ -117,16 +114,6 @@ public class ComponentServiceImpl implements ComponentService {
             String baseDir = System.getProperty("user.dir") + "/generated-projects/";
             String contentFolderPath = baseDir + projectName +
                     "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
-
-//            File content = new File(contentFolderPath);
-//            if (!content.exists()) {
-//                boolean created = content.mkdirs();
-//                if (!created) {
-//                    System.err.println("Failed to create content folder for components.");
-//                    return;
-//                }
-//            }
-
             copySelectedComponents(selectedComponents, contentFolderPath);
 
             System.out.println(" Selected components copied to content folder in project: " + projectName);
@@ -138,7 +125,8 @@ public class ComponentServiceImpl implements ComponentService {
 
     @Override
     public void copySelectedComponents(List<String> selectedComponents, String targetPath) {
-        if (selectedComponents == null || selectedComponents.isEmpty()) return;
+        if (selectedComponents == null || selectedComponents.isEmpty())
+            return;
 
         try {
             for (String component : selectedComponents) {
@@ -146,7 +134,7 @@ public class ComponentServiceImpl implements ComponentService {
                 File destination = new File(targetPath + "/" + source.getName());
 
                 if (!source.exists()) {
-                    System.err.println("⚠️ Source component not found: " + source.getAbsolutePath());
+                    System.err.println("️ Source component not found: " + source.getAbsolutePath());
                     continue;
                 }
 
@@ -158,7 +146,7 @@ public class ComponentServiceImpl implements ComponentService {
                 System.out.println("Copied component: " + component + " → " + destination.getAbsolutePath());
             }
         } catch (IOException e) {
-            System.err.println("❌ Failed to copy selected components.");
+            System.err.println(" Failed to copy selected components.");
             e.printStackTrace();
         }
     }

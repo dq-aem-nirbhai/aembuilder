@@ -10,7 +10,6 @@ import java.io.InputStreamReader;
 @Service
 public class DeployServiceImpl implements DeployService {
 
-
     private static final String PROJECTS_DIR = "generated-projects";
 
     @Override
@@ -44,7 +43,7 @@ public class DeployServiceImpl implements DeployService {
     @Override
     public String extractErrorMessage(String fullOutput) {
         StringBuilder errorOutput = new StringBuilder();
-        String[] lines = fullOutput.split("\\R"); // Split by new lines
+        String[] lines = fullOutput.split("\\R");
 
         for (String line : lines) {
             if (line.contains("[ERROR]")) {
