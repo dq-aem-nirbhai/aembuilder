@@ -1,0 +1,18 @@
+.field-row.animate__animated { animation-duration: 0.5s; }
+    .field-row.removed { animation: fadeOut 0.3s forwards; }
+    @keyframes fadeOut {
+      from { opacity: 1; height: auto; }
+      to { opacity: 0; height: 0; margin: 0; padding: 0; overflow: hidden; }
+    }
+    input.is-invalid {
+      border-color: #dc3545;
+    }
+    footer {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      background-color: #f8f9fa;
+      padding: 10px 0;
+      text-align: center;
+      box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+    }
