@@ -1,9 +1,14 @@
 package com.aem.builder.controller;
 
+import com.aem.builder.model.DTO.ComponentRequest;
+import com.aem.builder.model.Enum.FieldType;
 import com.aem.builder.service.ComponentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -55,6 +60,39 @@ public class ComponentController {
         } catch (Exception e) {
             return "create";
         }
+    }
+
+
+
+    //component creation
+    @GetMapping("/create/{project}")
+    public String showComponentForm(@PathVariable String project, Model model) {
+        model.addAttribute("projectName", project);
+        model.addAttribute("fieldTypes", FieldType.getTypeResourceMap());
+        model.addAttribute("componentGroups", componentService.getComponentGroups(project));
+        return "create-component"; // Thymeleaf template
+    }
+
+    @PostMapping("/component/create/{project}")
+    public String createComponent(@PathVariable String project,
+                                  @ModelAttribute ComponentRequest request,
+                                  Model model) {
+        componentService.generateComponent(project, request);
+        model.addAttribute("message", "Component created successfully!");
+        return "redirect:/" + project;
+    }
+
+//component checking
+    @GetMapping("/check-componentName/{projectName}")
+    public ResponseEntity<Boolean> checkComponentNameExists(
+            @PathVariable String projectName,
+            @RequestParam String componentName) {
+
+        log.info("{}",componentName);
+        log.info("check-component");
+        boolean isAvailable = componentService.isComponentNameAvailable(projectName, componentName);
+        log.info("{}",isAvailable);
+        return ResponseEntity.ok(isAvailable); // true means name is available
     }
 
 }

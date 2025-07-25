@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -16,6 +19,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class TemplateServiceImpl implements TemplateService {
+
+    private static final String OLD_PROJECT_NAME = "aembuilder";
+
     @Autowired
     private ResourceLoader resourceLoader;
     @Override
@@ -105,4 +111,55 @@ public class TemplateServiceImpl implements TemplateService {
         }
         return List.of();
     }
+
+
+
+
+
+
+
+    @Override
+    public void addTemplatesToProject(List<Path> templatePaths, String projectName) throws IOException {
+        String targetTemplatesPath = "generated-projects/" + projectName + "/ui.content/src/main/content/jcr_root/conf/" + projectName + "/settings/wcm/templates";
+
+        for (Path templatePath : templatePaths) {
+            File sourceDir = templatePath.toFile();
+            File targetDir = new File(targetTemplatesPath, sourceDir.getName());
+            FileUtils.copyDirectory(sourceDir, targetDir);
+
+            // Replace project name in all copied files
+            List<File> files = Files.walk(targetDir.toPath())
+                    .filter(Files::isRegularFile)
+                    .map(Path::toFile)
+                    .collect(Collectors.toList());
+
+            for (File file : files) {
+                String content = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
+                content = content.replaceAll(OLD_PROJECT_NAME, projectName);
+                FileUtils.writeStringToFile(file, content, StandardCharsets.UTF_8);
+            }
+        }
+
+        // Update the .content.xml to include the new templates
+        File contentXml = new File(targetTemplatesPath + "/.content.xml");
+        if (contentXml.exists()) {
+            String content = FileUtils.readFileToString(contentXml, StandardCharsets.UTF_8);
+
+            for (Path templatePath : templatePaths) {
+                String templateName = templatePath.getFileName().toString();
+                if (!content.contains("<" + templateName + "/>")) {
+                    content = content.replace("</jcr:root>", "    <" + templateName + "/>\n</jcr:root>");
+                }
+            }
+
+            FileUtils.writeStringToFile(contentXml, content, StandardCharsets.UTF_8);
+        }
+    }
+
+
+
+
+
+
+
 }

@@ -1,6 +1,7 @@
 package com.aem.builder.service;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 
 import java.util.List;
@@ -12,5 +13,12 @@ public interface TemplateService {
     public List<String>getCommonTemplates(List<String>resourcetemplates,List<String>projectTemplates);
     public List<String> getTemplateNamesFromDestination(String projectName);
     List<String> fetchTemplatesFromGeneratedProjects(String projectName);
+
+
+
+
+    void addTemplatesToProject(List<Path> templatePaths, String projectName) throws IOException;
+
+
 
 }

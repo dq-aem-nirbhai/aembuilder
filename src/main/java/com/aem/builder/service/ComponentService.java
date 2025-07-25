@@ -1,5 +1,7 @@
 package com.aem.builder.service;
 
+import com.aem.builder.model.DTO.ComponentRequest;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -22,5 +24,13 @@ public interface ComponentService {
     List<String> getCommonComponents(List<String> allComponents, List<String> projectComponents);
 
     List<String> getDistinctComponents(List<String> allComponents, List<String> projectComponents);
+
+
+    //component creation
+    List<String> getComponentGroups(String projectName);
+    void generateComponent(String projectName, ComponentRequest request);
+
+    //component checking
+    boolean isComponentNameAvailable(String projectName, String componentName);
 
 }
