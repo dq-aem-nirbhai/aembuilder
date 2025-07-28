@@ -1,10 +1,11 @@
 package com.aem.builder.service;
 
+import com.aem.builder.model.TemplateModel;
+
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.List;
 
-import java.util.List;
+
 
 public interface TemplateService {
     public List<String> getTemplateFileNames() throws IOException;
@@ -15,10 +16,10 @@ public interface TemplateService {
     List<String> fetchTemplatesFromGeneratedProjects(String projectName);
 
 
-
-
-    void addTemplatesToProject(List<Path> templatePaths, String projectName) throws IOException;
-
+    //creating template
+    void createTemplate(TemplateModel model, String projectname) throws IOException;
+    //template type xf
+    void createTemplateXf(TemplateModel model,String projectname) throws IOException;
 
 
 }
