@@ -68,8 +68,7 @@ public class AemProjectServiceImpl implements AemProjectService {
                     aemProjectModel.getProjectName(),
                     appId,
                     aemProjectModel.getPackageName(),
-                    aemProjectModel.getVersion()
-            );
+                    aemProjectModel.getVersion());
 
             // OS-specific ProcessBuilder (cross-platform)
             ProcessBuilder processBuilder;
@@ -97,7 +96,8 @@ public class AemProjectServiceImpl implements AemProjectService {
             }
 
             // Step 1: Copy selected components to ui.apps
-            String componentsTargetPath = baseDir + appId + "/ui.apps/src/main/content/jcr_root/apps/" + appId + "/components/";
+            String componentsTargetPath = baseDir + appId + "/ui.apps/src/main/content/jcr_root/apps/" + appId
+                    + "/components/";
             File contentFolder = new File(componentsTargetPath);
             if (!contentFolder.exists()) {
                 contentFolder.mkdirs();
@@ -109,6 +109,8 @@ public class AemProjectServiceImpl implements AemProjectService {
             e.printStackTrace();
         }
     }
+
+
 
 
     @Override
@@ -147,7 +149,8 @@ public class AemProjectServiceImpl implements AemProjectService {
                 }
 
                 try {
-                    BasicFileAttributes attr = Files.readAttributes(new File(projectsFolder, name).toPath(), BasicFileAttributes.class);
+                    BasicFileAttributes attr = Files.readAttributes(new File(projectsFolder, name).toPath(),
+                            BasicFileAttributes.class);
                     createdDate = attr.creationTime().toInstant().atZone(java.time.ZoneId.systemDefault())
                             .format(DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm"));
                 } catch (Exception ignored) {

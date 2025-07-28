@@ -1,20 +1,38 @@
 package com.aem.builder.service.impl;
 
+import com.aem.builder.model.DTO.ComponentRequest;
 import com.aem.builder.service.ComponentService;
+
+import com.aem.builder.util.FileGenerationUtil;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.io.File;
+import java.util.*;
+import java.util.stream.Collectors;
+import com.aem.builder.service.ComponentService;
+
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FileUtils;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Service;
 
+
 import java.io.*;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ComponentServiceImpl implements ComponentService {
 
     private static final String PROJECTS_DIR = "generated-projects";
@@ -24,7 +42,8 @@ public class ComponentServiceImpl implements ComponentService {
      */
     @Override
     public List<String> fetchComponentsFromGeneratedProjects(String projectName) {
-        File componentsDir = new File(PROJECTS_DIR, projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components");
+        File componentsDir = new File(PROJECTS_DIR,
+                projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components");
         if (componentsDir.exists()) {
             return Arrays.stream(componentsDir.listFiles(File::isDirectory))
                     .map(File::getName)
@@ -33,9 +52,11 @@ public class ComponentServiceImpl implements ComponentService {
         return List.of();
     }
 
+
     /**
      * Lists all available component names from the /aem-components folder.
      */
+
     @Override
     public List<String> getAllComponents() throws IOException {
         List<String> components = new ArrayList<>();
@@ -114,14 +135,21 @@ public class ComponentServiceImpl implements ComponentService {
             String contentFolderPath = baseDir + projectName +
                     "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
 
+
             copySelectedComponents(selectedComponents, contentFolderPath, projectName);
 
             System.out.println("Selected components copied to content folder in project: " + projectName);
+
+            copySelectedComponents(selectedComponents, contentFolderPath);
+
+            System.out.println(" Selected components copied to content folder in project: " + projectName);
+
         } catch (Exception e) {
             System.err.println("Error while adding components to project.");
             e.printStackTrace();
         }
     }
+
 
     /**
      * Handles the actual file copy and transformation for selected components:
@@ -131,6 +159,12 @@ public class ComponentServiceImpl implements ComponentService {
      */
     public void copySelectedComponents(List<String> selectedComponents, String targetPath, String projectName) {
         if (selectedComponents == null || selectedComponents.isEmpty()) return;
+
+    @Override
+    public void copySelectedComponents(List<String> selectedComponents, String targetPath) {
+        if (selectedComponents == null || selectedComponents.isEmpty())
+            return;
+
 
         String slingModelsSourcePath = "/Users/chinnamsettibhagyalaxmi/Documents/aembuilder/src/main/java/com/aem/builder/slingModels";
         String slingModelsTargetPath = System.getProperty("user.dir") +
@@ -146,6 +180,9 @@ public class ComponentServiceImpl implements ComponentService {
 
                 if (!source.exists()) {
                     System.err.println("Source component not found: " + source.getAbsolutePath());
+
+                    System.err.println("️ Source component not found: " + source.getAbsolutePath());
+
                     continue;
                 }
 
@@ -317,4 +354,70 @@ public class ComponentServiceImpl implements ComponentService {
         }
         return null;
     }
+}
+
+        } catch (IOException e) {
+            System.err.println(" Failed to copy selected components.");
+            e.printStackTrace();
+        }
+    }
+
+    //component creation
+    @Override
+    public List<String> getComponentGroups(String projectName) {
+        String path = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
+        File folder = new File(path);
+        Set<String> groups = new HashSet<>();
+        if (folder.exists()) {
+            File[] subDirs = folder.listFiles(File::isDirectory);
+            if (subDirs != null) {
+                for (File comp : subDirs) {
+                    File contentXml = new File(comp, ".content.xml");
+                    if (contentXml.exists()) {
+                        String content = FileGenerationUtil.readFile(contentXml);
+                        if (content.contains("componentGroup")) {
+                            int idx = content.indexOf("componentGroup");
+                            int start = content.indexOf("\"", idx) + 1;
+                            int end = content.indexOf("\"", start);
+                            groups.add(content.substring(start, end));
+                        }
+                    }
+                }
+            }
+        }
+        return groups.isEmpty() ? List.of(projectName) : new ArrayList<>(groups);
+    }
+
+    @Override
+    public void generateComponent(String projectName, ComponentRequest request) {
+        FileGenerationUtil.generateAllFiles(projectName, request);
+    }
+
+
+//component checking
+@Override
+public boolean isComponentNameAvailable(String projectName, String componentName) {
+    // Folder where all components are stored
+    String basePath = "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
+    File componentsDir = new File(basePath);
+
+    if (!componentsDir.exists() || !componentsDir.isDirectory()) {
+        // If the parent folder doesn't exist yet, name is available
+        log.warn("Components folder does not exist: {}", basePath);
+        return true;
+    }
+
+    String[] existingComponents = componentsDir.list();
+    if (existingComponents != null) {
+        for (String name : existingComponents) {
+            if (name.equals(componentName)) { // 🔍 Case-sensitive match
+                log.info("Component '{}' already exists (case-sensitive match)", name);
+                return false; // Not available
+            }
+        }
+    }
+
+    return true; // Available if no exact case-sensitive match found
+}
+
 }

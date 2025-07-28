@@ -1,272 +1,16 @@
 
-<!--<!DOCTYPE html>-->
-<!--<html xmlns:th="http://www.thymeleaf.org">-->
-<!--<head>-->
-<!--    <title>AEM Builder - Project Details</title>-->
-<!--    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">-->
-<!--    <style>-->
-<!--        .removable-item { position: relative; padding-right: 20px; }-->
-<!--        .remove-btn { position: absolute; top: 3px; right: 5px; color: red; cursor: pointer; }-->
-<!--    </style>-->
-<!--</head>-->
-<!--<body class="d-flex flex-column min-vh-100">-->
-
-<!--&lt;!&ndash; Navbar &ndash;&gt;-->
-<!--<div th:replace="fragments/navbar :: navbar"></div>-->
-
-<!--<main class="flex-grow-1">-->
-<!--    <div class="container mt-4">-->
-<!--        <h2 class="mb-4 text-primary" th:text="'Project: ' + ${projectName}"></h2>-->
-
-<!--        &lt;!&ndash; Action buttons &ndash;&gt;-->
-<!--        <div class="d-flex justify-content-end mb-3">-->
-<!--            <button id="saveBtn" class="btn btn-outline-success me-2" style="display:none" onclick="saveAll()">Save</button>-->
-<!--            <form th:action="@{'/' + ${projectName} + '/deploy'}" method="post" class="d-inline">-->
-<!--                <button id="deployBtn" class="btn btn-warning" type="submit" th:attr="disabled=${!canDeploy}">Deploy to AEM</button>-->
-<!--            </form>-->
-<!--            <a href="/" class="btn btn-secondary ms-3">Back to Dashboard</a>-->
-<!--        </div>-->
-
-<!--        &lt;!&ndash; Component & Template Lists &ndash;&gt;-->
-<!--        <div class="row g-4">-->
-<!--            &lt;!&ndash; Components &ndash;&gt;-->
-<!--            <div class="col-md-6">-->
-<!--                <div id="newComponentsContainer" style="display:none;">-->
-<!--                    <h6 class="text-success">Newly Added Components</h6>-->
-<!--                    <div id="newComponentsList" class="row row-cols-1 row-cols-sm-2 g-2"></div>-->
-<!--                </div>-->
-<!--                <div class="d-flex justify-content-between align-items-center mb-2">-->
-<!--                    <h4>Components</h4>-->
-<!--                    <a href="#" class="btn btn-sm btn-outline-primary" onclick="openComponentModal()">+ Add Component</a>-->
-<!--                </div>-->
-<!--                <div id="componentsList" class="row row-cols-1 row-cols-sm-2 g-2">-->
-<!--                    <div class="col" th:each="component : ${components}">-->
-<!--                        <div class="border rounded p-2 bg-light text-center shadow-sm" th:text="${component}"></div>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--            </div>-->
-
-<!--            &lt;!&ndash; Templates &ndash;&gt;-->
-<!--            <div class="col-md-6">-->
-<!--                <div id="newTemplatesContainer" style="display:none;">-->
-<!--                    <h6 class="text-success">Newly Added Templates</h6>-->
-<!--                    <div id="newTemplatesList" class="row row-cols-1 row-cols-sm-2 g-2"></div>-->
-<!--                </div>-->
-<!--                <div class="d-flex justify-content-between align-items-center mb-2">-->
-<!--                    <h4>Templates</h4>-->
-<!--                    <a href="#" class="btn btn-sm btn-outline-primary" onclick="openTemplateModal()">+ Add Template</a>-->
-<!--                </div>-->
-<!--                <div id="templatesList" class="row row-cols-1 row-cols-sm-2 g-2">-->
-<!--                    <div class="col" th:each="template : ${templates}">-->
-<!--                        <div class="border rounded p-2 bg-light text-center shadow-sm" th:text="${template}"></div>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--            </div>-->
-<!--        </div>-->
-<!--    </div>-->
-<!--</main>-->
-
-<!--&lt;!&ndash; Footer &ndash;&gt;-->
-<!--<div th:replace="fragments/navbar :: footer"></div>-->
-
-<!--&lt;!&ndash; Component Modal &ndash;&gt;-->
-<!--<div class="modal fade" id="componentModal" tabindex="-1" th:attr="data-project=${projectName}">-->
-<!--    <div class="modal-dialog modal-lg modal-dialog-scrollable">-->
-<!--        <div class="modal-content">-->
-<!--            <div class="modal-header">-->
-<!--                <h5>Select Components</h5>-->
-<!--                <button class="btn-close" data-bs-dismiss="modal"></button>-->
-<!--            </div>-->
-<!--            <div class="modal-body">-->
-<!--                <div id="componentList" class="row row-cols-2 g-2"></div>-->
-<!--            </div>-->
-<!--            <div class="modal-footer">-->
-<!--                <button class="btn btn-primary" onclick="addSelectedComponents()">Add Selected</button>-->
-<!--            </div>-->
-<!--        </div>-->
-<!--    </div>-->
-<!--</div>-->
-
-<!--&lt;!&ndash; Template Modal &ndash;&gt;-->
-<!--<div class="modal fade" id="templateModal" tabindex="-1" th:attr="data-project=${projectName}">-->
-<!--    <div class="modal-dialog modal-lg modal-dialog-scrollable">-->
-<!--        <div class="modal-content">-->
-<!--            <div class="modal-header">-->
-<!--                <h5>Select Templates</h5>-->
-<!--                <button class="btn-close" data-bs-dismiss="modal"></button>-->
-<!--            </div>-->
-<!--            <div class="modal-body">-->
-<!--                <div id="templateList" class="row row-cols-2 g-2"></div>-->
-<!--            </div>-->
-<!--            <div class="modal-footer">-->
-<!--                <button class="btn btn-primary" onclick="addSelectedTemplates()">Add Selected</button>-->
-<!--            </div>-->
-<!--        </div>-->
-<!--    </div>-->
-<!--</div>-->
-
-<!--&lt;!&ndash; Scripts &ndash;&gt;-->
-<!--<script>-->
-<!--    let selectedComponents = [];-->
-<!--    let selectedTemplates = [];-->
-
-<!--    function getProjectName() {-->
-<!--        return document.getElementById('componentModal').getAttribute('data-project');-->
-<!--    }-->
-
-<!--   function renderList(containerId, dataList, selectedList, type) {-->
-<!--    const container = document.getElementById(containerId);-->
-<!--    container.innerHTML = '';-->
-
-<!--    const allItems = [...new Set([...dataList.unique, ...dataList.duplicate, ...selectedList])];-->
-
-<!--    allItems.forEach(item => {-->
-<!--        const isAlreadyAdded = selectedList.includes(item);-->
-<!--        const isDuplicate = dataList.duplicate.includes(item);-->
-
-<!--        let labelSuffix = '';-->
-<!--        let isDisabled = false;-->
-<!--        let isChecked = false;-->
-
-<!--        if (isAlreadyAdded) {-->
-<!--            labelSuffix = ' (Already Added)';-->
-<!--            isDisabled = true;-->
-<!--            isChecked = true;-->
-<!--        } else if (isDuplicate) {-->
-<!--            labelSuffix = ' (Exists)';-->
-<!--            isDisabled = true;-->
-<!--        }-->
-
-<!--        container.innerHTML += `-->
-<!--            <div class="col">-->
-<!--                <div class="form-check">-->
-<!--                    <input class="form-check-input" type="checkbox" value="${item}" ${isChecked ? 'checked' : ''} ${isDisabled ? 'disabled' : ''}>-->
-<!--                    <label class="form-check-label ${isDisabled ? 'text-muted' : ''}">${item}${labelSuffix}</label>-->
-<!--                </div>-->
-<!--            </div>`;-->
-<!--    });-->
-<!--}-->
-
-
-<!--    function openComponentModal() {-->
-<!--        const projectName = getProjectName();-->
-<!--        fetch(`/api/components/${projectName}`)-->
-<!--            .then(res => res.json())-->
-<!--            .then(data => {-->
-<!--                renderList('componentList', data, selectedComponents, 'component');-->
-<!--                new bootstrap.Modal(document.getElementById('componentModal')).show();-->
-<!--            });-->
-<!--    }-->
-
-<!--    function openTemplateModal() {-->
-<!--        const projectName = getProjectName();-->
-<!--        fetch(`/fetch-templates/${projectName}`)-->
-<!--            .then(res => res.json())-->
-<!--            .then(data => {-->
-<!--                renderList('templateList', data, selectedTemplates, 'template');-->
-<!--                new bootstrap.Modal(document.getElementById('templateModal')).show();-->
-<!--            });-->
-<!--    }-->
-
-<!--    function addSelected(type) {-->
-<!--        const listId = type === 'component' ? 'componentList' : 'templateList';-->
-<!--        const selected = Array.from(document.querySelectorAll(`#${listId} input[type=checkbox]:checked:not(:disabled)`))-->
-<!--                              .map(cb => cb.value);-->
-<!--        const container = document.getElementById(type === 'component' ? 'newComponentsList' : 'newTemplatesList');-->
-<!--        const list = type === 'component' ? selectedComponents : selectedTemplates;-->
-
-<!--        selected.forEach(item => {-->
-<!--            if (!list.includes(item)) list.push(item);-->
-<!--            const div = document.createElement('div');-->
-<!--            div.className = 'col';-->
-<!--            div.innerHTML = `-->
-<!--                <div class="border rounded p-2 bg-light text-center shadow-sm removable-item">-->
-<!--                    ${item}-->
-<!--                    <span class="remove-btn" onclick="removeItem('${item}', '${type}')">&times;</span>-->
-<!--                </div>`;-->
-<!--            container.appendChild(div);-->
-<!--        });-->
-
-<!--        document.getElementById(type === 'component' ? 'newComponentsContainer' : 'newTemplatesContainer').style.display = 'block';-->
-<!--        showSave();-->
-<!--        bootstrap.Modal.getInstance(document.getElementById(type + 'Modal')).hide();-->
-<!--    }-->
-
-<!--    function addSelectedComponents() {-->
-<!--        addSelected('component');-->
-<!--    }-->
-
-<!--    function addSelectedTemplates() {-->
-<!--        addSelected('template');-->
-<!--    }-->
-
-<!--    function removeItem(name, type) {-->
-<!--        const list = type === 'component' ? selectedComponents : selectedTemplates;-->
-<!--        const idx = list.indexOf(name);-->
-<!--        if (idx !== -1) list.splice(idx, 1);-->
-<!--        const containerId = type === 'component' ? 'newComponentsList' : 'newTemplatesList';-->
-<!--        const container = document.getElementById(containerId);-->
-<!--        Array.from(container.children).forEach(col => {-->
-<!--            if (col.textContent.includes(name)) col.remove();-->
-<!--        });-->
-<!--        if (list.length === 0) {-->
-<!--            document.getElementById(containerId + 'Container').style.display = 'none';-->
-<!--        }-->
-<!--        checkSaveVisibility();-->
-<!--    }-->
-
-<!--    function showSave() {-->
-<!--        document.getElementById('saveBtn').style.display = 'inline-block';-->
-<!--        document.getElementById('deployBtn').disabled = true;-->
-<!--    }-->
-
-<!--    function checkSaveVisibility() {-->
-<!--        if (selectedComponents.length === 0 && selectedTemplates.length === 0) {-->
-<!--            document.getElementById('saveBtn').style.display = 'none';-->
-<!--            document.getElementById('deployBtn').disabled = false;-->
-<!--        }-->
-<!--    }-->
-
-<!--    function saveAll() {-->
-<!--        const projectName = getProjectName();-->
-<!--        const promises = [];-->
-
-<!--        if (selectedComponents.length > 0) {-->
-<!--            promises.push(fetch(`/${projectName}/components/save`, {-->
-<!--                method: 'POST',-->
-<!--                headers: {'Content-Type': 'application/json'},-->
-<!--                body: JSON.stringify(selectedComponents)-->
-<!--            }));-->
-<!--        }-->
-
-<!--        if (selectedTemplates.length > 0) {-->
-<!--            promises.push(fetch(`/${projectName}/templates/save`, {-->
-<!--                method: 'POST',-->
-<!--                headers: {'Content-Type': 'application/json'},-->
-<!--                body: JSON.stringify(selectedTemplates)-->
-<!--            }));-->
-<!--        }-->
-
-<!--        Promise.all(promises).then(() => window.location.reload());-->
-<!--    }-->
-<!--</script>-->
-
-<!--<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>-->
-<!--</body>-->
-<!--</html>-->
-
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>AEM Builder - Project Details</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .removable-item { position: relative; padding-right: 20px; }
-        .remove-btn { position: absolute; top: 3px; right: 5px; color: red; cursor: pointer; }
-        #successMessage {
-            display: none;
-        }
-    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+
+    <link rel="stylesheet" href="/css/deploy.css">
+
+    <script th:src="@{/js/deploy.js}"></script>
 </head>
 <body class="d-flex flex-column min-vh-100">
 
@@ -276,8 +20,9 @@
 <main class="flex-grow-1">
     <div class="container mt-4">
         <h2 class="mb-4 text-primary" th:text="'Project: ' + ${projectName}"></h2>
+        <a href="/" class="btn btn-outline-secondary mb-3">← Back to Dashboard</a>
 
-        <!-- ✅ Success Message -->
+        <!-- Success Message -->
         <div id="successMessage" class="alert alert-success text-center" role="alert">
             Components and Templates saved successfully.
         </div>
@@ -292,7 +37,6 @@
                     Deploy to AEM
                 </button>
             </form>
-            <a href="/" class="btn btn-secondary ms-3">Back to Dashboard</a>
         </div>
 
         <!-- Component & Template Lists -->
@@ -305,6 +49,8 @@
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h4>Components</h4>
+                    <a th:href="@{'/create/' + ${projectName}}" class="btn btn-sm btn-outline-primary" >+ Create Component </a>
+
                     <a href="#" class="btn btn-sm btn-outline-primary" onclick="openComponentModal()">+ Component Library</a>
                 </div>
                 <div id="componentsList" class="row row-cols-1 row-cols-sm-2 g-2">
@@ -322,6 +68,7 @@
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h4>Templates</h4>
+
                     <a href="#" class="btn btn-sm btn-outline-primary" onclick="openTemplateModal()">+ Template Library </a>
                 </div>
                 <div id="templatesList" class="row row-cols-1 row-cols-sm-2 g-2">
@@ -372,169 +119,5 @@
         </div>
     </div>
 </div>
-
-<!-- Scripts -->
-<script>
-    let selectedComponents = [];
-    let selectedTemplates = [];
-
-    function getProjectName() {
-        return document.getElementById('componentModal').getAttribute('data-project');
-    }
-
-    function renderList(containerId, dataList, selectedList, type) {
-        const container = document.getElementById(containerId);
-        container.innerHTML = '';
-
-        const allItems = [...new Set([...dataList.unique, ...dataList.duplicate, ...selectedList])];
-
-        allItems.forEach(item => {
-            const isAlreadyAdded = selectedList.includes(item);
-            const isDuplicate = dataList.duplicate.includes(item);
-
-            let labelSuffix = '';
-            let isDisabled = false;
-            let isChecked = false;
-
-            if (isAlreadyAdded) {
-                labelSuffix = ' (Already Added)';
-                isDisabled = true;
-                isChecked = true;
-            } else if (isDuplicate) {
-                labelSuffix = ' (Exists)';
-                isDisabled = true;
-            }
-
-            container.innerHTML += `
-                <div class="col">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="${item}" ${isChecked ? 'checked' : ''} ${isDisabled ? 'disabled' : ''}>
-                        <label class="form-check-label ${isDisabled ? 'text-muted' : ''}">${item}${labelSuffix}</label>
-                    </div>
-                </div>`;
-        });
-    }
-
-    function openComponentModal() {
-        const projectName = getProjectName();
-        fetch(`/fetch-components/${projectName}`)
-            .then(res => res.json())
-            .then(data => {
-                renderList('componentList', data, selectedComponents, 'component');
-                new bootstrap.Modal(document.getElementById('componentModal')).show();
-            });
-    }
-
-    function openTemplateModal() {
-        const projectName = getProjectName();
-        fetch(`/fetch-templates/${projectName}`)
-            .then(res => res.json())
-            .then(data => {
-                renderList('templateList', data, selectedTemplates, 'template');
-                new bootstrap.Modal(document.getElementById('templateModal')).show();
-            });
-    }
-
-    function addSelected(type) {
-        const listId = type === 'component' ? 'componentList' : 'templateList';
-        const selected = Array.from(document.querySelectorAll(`#${listId} input[type=checkbox]:checked:not(:disabled)`))
-                              .map(cb => cb.value);
-        const container = document.getElementById(type === 'component' ? 'newComponentsList' : 'newTemplatesList');
-        const list = type === 'component' ? selectedComponents : selectedTemplates;
-
-        selected.forEach(item => {
-            if (!list.includes(item)) list.push(item);
-            const div = document.createElement('div');
-            div.className = 'col';
-            div.innerHTML = `
-                <div class="border rounded p-2 bg-light text-center shadow-sm removable-item">
-                    ${item}
-                    <span class="remove-btn" onclick="removeItem('${item}', '${type}')">&times;</span>
-                </div>`;
-            container.appendChild(div);
-        });
-
-        document.getElementById(type === 'component' ? 'newComponentsContainer' : 'newTemplatesContainer').style.display = 'block';
-        showSave();
-        bootstrap.Modal.getInstance(document.getElementById(type + 'Modal')).hide();
-    }
-
-    function addSelectedComponents() {
-        addSelected('component');
-    }
-
-    function addSelectedTemplates() {
-        addSelected('template');
-    }
-
-    function removeItem(name, type) {
-        const list = type === 'component' ? selectedComponents : selectedTemplates;
-        const idx = list.indexOf(name);
-        if (idx !== -1) list.splice(idx, 1);
-        const containerId = type === 'component' ? 'newComponentsList' : 'newTemplatesList';
-        const container = document.getElementById(containerId);
-        Array.from(container.children).forEach(col => {
-            if (col.textContent.includes(name)) col.remove();
-        });
-
-        const mainContainerId = type === 'component' ? 'newComponentsContainer' : 'newTemplatesContainer';
-        if (list.length === 0) {
-            document.getElementById(mainContainerId).style.display = 'none';
-        }
-        checkSaveVisibility();
-    }
-
-    function showSave() {
-        document.getElementById('saveBtn').style.display = 'inline-block';
-        document.getElementById('deployBtn').disabled = true;
-    }
-
-    function checkSaveVisibility() {
-        if (selectedComponents.length === 0 && selectedTemplates.length === 0) {
-            document.getElementById('saveBtn').style.display = 'none';
-            document.getElementById('deployBtn').disabled = false;
-        }
-    }
-
-    function saveAll() {
-        const projectName = getProjectName();
-        const promises = [];
-
-        if (selectedComponents.length > 0) {
-            promises.push(fetch(`/add-components/${projectName}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(selectedComponents)
-            }));
-        }
-
-
-       if (selectedTemplates.length > 0) {
-    promises.push(fetch(`/add-template/${projectName}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(selectedTemplates)
-    }));
-}
-
-
-        Promise.all(promises).then(() => {
-            const msg = document.getElementById('successMessage');
-            msg.style.display = 'block';
-            setTimeout(() => {
-                msg.style.display = 'none';
-                window.location.reload();
-            }, 2000);
-        });
-    }
-
-    function showDeploySpinner() {
-        document.getElementById('deploySpinner').style.display = 'inline-block';
-        document.getElementById('deployBtn').disabled = true;
-        return true;
-    }
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

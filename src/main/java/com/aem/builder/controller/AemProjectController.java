@@ -3,7 +3,6 @@ package com.aem.builder.controller;
 import com.aem.builder.model.AemProjectModel;
 import com.aem.builder.service.ComponentService;
 import com.aem.builder.service.TemplateService;
-import com.aem.builder.service.TemplateService;
 import com.aem.builder.service.impl.AemProjectServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -11,8 +10,6 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-
 import java.io.IOException;
 import java.util.List;
 
@@ -39,10 +36,7 @@ public class AemProjectController {
         model.addAttribute("message", "AEM Project created successfully under generated-projects directory.");
         templateService.copySelectedTemplatesToGeneratedProject(
                 aemProjectModel.getProjectName(),
-                aemProjectModel.getSelectedTemplates()
-        );
-//        return "dashboard";
-//        redirectAttributes.addFlashAttribute("message" , "AEM Project created successfully under generated-projects directory.");
+                aemProjectModel.getSelectedTemplates());
         return "redirect:/";
     }
 }
