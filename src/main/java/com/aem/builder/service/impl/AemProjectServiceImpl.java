@@ -27,7 +27,6 @@ public class AemProjectServiceImpl implements AemProjectService {
 
     private final ComponentService componentService;
 
-
     private static final String PROJECTS_DIR = "generated-projects";
 
     @Override
@@ -103,16 +102,13 @@ public class AemProjectServiceImpl implements AemProjectService {
             if (!contentFolder.exists()) {
                 contentFolder.mkdirs();
             }
-            componentService.copySelectedComponents(aemProjectModel.getSelectedComponents(), componentsTargetPath);
+
+            componentService.copySelectedComponents(aemProjectModel.getSelectedComponents(), componentsTargetPath, appId);
 
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
     }
-
-
-
-
 
 
     @Override
@@ -147,20 +143,21 @@ public class AemProjectServiceImpl implements AemProjectService {
 
                         groupId = doc.getElementsByTagName("groupId").item(0).getTextContent();
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
 
                 try {
                     BasicFileAttributes attr = Files.readAttributes(new File(projectsFolder, name).toPath(), BasicFileAttributes.class);
                     createdDate = attr.creationTime().toInstant().atZone(java.time.ZoneId.systemDefault())
                             .format(DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm"));
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
 
                 projects.add(new ProjectDetails(name, version, groupId, createdDate, path));
             }
         }
         return projects;
     }
-
 
 
 }
