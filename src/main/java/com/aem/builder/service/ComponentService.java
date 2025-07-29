@@ -11,7 +11,7 @@ public interface ComponentService {
 
     List<String> getAllComponents() throws IOException;
 
-    void copySelectedComponents(List<String> selectedComponents, String targetPath);
+    void copySelectedComponents(List<String> selectedComponents, String targetPath, String projectName);
 
     void addComponentsToExistingProject(String projectName, List<String> selectedComponents);
 
