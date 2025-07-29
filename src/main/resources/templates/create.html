@@ -1,59 +1,526 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
-  <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.0/css/bootstrap.min.css}" />
-  <script th:src="@{/webjars/bootstrap/5.3.0/js/bootstrap.bundle.min.js}"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create AEM Project - AEM Project Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary-color: #64748b;
+            --success-color: #059669;
+            --warning-color: #d97706;
+            --danger-color: #dc2626;
+            --light-bg: #f8fafc;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --border-radius: 12px;
+        }
 
-  <title>Create AEM Project</title>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            padding: 2rem 0;
+        }
+
+        .container {
+            max-width: 900px;
+        }
+
+        .form-card {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            padding: 2.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .form-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--primary-dark));
+        }
+
+        .form-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .form-header .icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);
+        }
+
+        .form-header .icon i {
+            font-size: 1.5rem;
+            color: white;
+        }
+
+        .form-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-subtitle {
+            color: var(--secondary-color);
+            font-size: 1rem;
+        }
+
+        .form-section {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title i {
+            color: var(--primary-color);
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control,
+        .form-select {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            outline: none;
+        }
+
+        .form-control:hover,
+        .form-select:hover {
+            border-color: #d1d5db;
+        }
+
+        .components-section {
+            background: var(--light-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .components-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .component-item {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .component-item:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+        }
+
+        .component-item.selected {
+            border-color: var(--primary-color);
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        .component-checkbox {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+        }
+
+        .component-name {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+
+        .component-description {
+            font-size: 0.85rem;
+            color: var(--secondary-color);
+            line-height: 1.4;
+        }
+
+        .existing-projects {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .existing-projects h4 {
+            color: #92400e;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .project-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .project-list li {
+            background: white;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.25rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: #374151;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2.5rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .btn-primary-custom {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            border: none;
+            padding: 1rem 2.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4);
+            color: white;
+        }
+
+        .btn-secondary-custom {
+            background: #6b7280;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            color: white;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-secondary-custom:hover {
+            background: #4b5563;
+            transform: translateY(-2px);
+            color: white;
+        }
+
+        .required-field::after {
+            content: ' *';
+            color: var(--danger-color);
+        }
+
+        @media (max-width: 768px) {
+            .form-card {
+                padding: 1.5rem;
+                margin: 1rem;
+            }
+
+            .form-title {
+                font-size: 1.5rem;
+            }
+
+            .components-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn-primary-custom,
+            .btn-secondary-custom {
+                width: 100%;
+                max-width: 300px;
+                justify-content: center;
+            }
+        }
+    </style>
 </head>
 <body>
-<h2>Enter AEM Project Details</h2>
+    <div class="container">
+        <div class="form-card">
+            <!-- Form Header -->
+            <div class="form-header">
+                <div class="icon">
+                    <i class="fas fa-plus"></i>
+                </div>
+                <h1 class="form-title">Create AEM Project</h1>
+                <p class="form-subtitle">Configure your Adobe Experience Manager project settings</p>
+            </div>
 
-<form action="/save" method="post" th:object="${aemProjectModel}">
-  <label>Project Name:</label>
-  <input type="text" th:field="*{projectName}" required/>
+            <!-- Form -->
+            <form action="/save" method="post" th:object="${aemProjectModel}" id="projectForm">
+                <!-- Project Details Section -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-info-circle"></i>
+                        Project Details
+                    </h3>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="projectName" class="form-label required-field">Project Name</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="projectName"
+                                   th:field="*{projectName}" 
+                                   placeholder="e.g., My AEM Project"
+                                   required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="packageName" class="form-label required-field">Package Name (Group ID)</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="packageName"
+                                   th:field="*{packageName}" 
+                                   placeholder="e.g., com.company.project"
+                                   required>
+                        </div>
+                    </div>
 
+                    <div class="mb-3">
+                        <label for="version" class="form-label required-field">AEM Version</label>
+                        <select class="form-select" id="version" th:field="*{version}" required>
+                            <option value="">-- Select AEM Version --</option>
+                            <optgroup label="AEM 6.5.x">
+                                <option value="6.5.0">AEM 6.5.0</option>
+                                <option value="6.5.5">AEM 6.5.5</option>
+                                <option value="6.5.10">AEM 6.5.10</option>
+                                <option value="6.5.13">AEM 6.5.13 (Recommended)</option>
+                                <option value="6.5.15">AEM 6.5.15</option>
+                                <option value="6.5.17">AEM 6.5.17</option>
+                                <option value="6.5.18">AEM 6.5.18</option>
+                            </optgroup>
+                            <optgroup label="AEM Cloud Service">
+                                <option value="2023.2.12300.20230214T112441Z-230100">AEM Cloud Service (Latest)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
 
+                <!-- Components Section -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-puzzle-piece"></i>
+                        Select Components
+                    </h3>
+                    
+                    <div class="components-section">
+                        <p class="mb-3 text-muted">Choose the AEM components you want to include in your project:</p>
+                        
+                        <div class="components-grid" th:if="${componentList}">
+                            <div class="component-item" th:each="component : ${componentList}">
+                                <input type="checkbox" 
+                                       class="form-check-input component-checkbox" 
+                                       th:field="*{selectedComponents}" 
+                                       th:value="${component}"
+                                       th:id="'component-' + ${component}">
+                                <div class="component-name" th:text="${component}"></div>
+                                <div class="component-description">
+                                    <span th:switch="${component}">
+                                        <span th:case="'Hero Banner'">Large promotional banner with image and text overlay</span>
+                                        <span th:case="'Image Card'">Card component with image, title, and description</span>
+                                        <span th:case="'Accordion'">Collapsible content sections for FAQ or detailed info</span>
+                                        <span th:case="'Call To Action'">Button or link to drive user engagement</span>
+                                        <span th:case="'Carousel'">Image or content slider with navigation</span>
+                                        <span th:case="'Navigation'">Site navigation menu component</span>
+                                        <span th:case="'Footer'">Site footer with links and information</span>
+                                        <span th:case="*">Reusable AEM component for your project</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Default components if componentList is empty -->
+                        <div class="components-grid" th:unless="${componentList}">
+                            <div class="component-item">
+                                <input type="checkbox" 
+                                       class="form-check-input component-checkbox" 
+                                       th:field="*{selectedComponents}" 
+                                       value="Hero Banner"
+                                       id="component-hero">
+                                <div class="component-name">Hero Banner</div>
+                                <div class="component-description">Large promotional banner with image and text overlay</div>
+                            </div>
+                            <div class="component-item">
+                                <input type="checkbox" 
+                                       class="form-check-input component-checkbox" 
+                                       th:field="*{selectedComponents}" 
+                                       value="Image Card"
+                                       id="component-card">
+                                <div class="component-name">Image Card</div>
+                                <div class="component-description">Card component with image, title, and description</div>
+                            </div>
+                            <div class="component-item">
+                                <input type="checkbox" 
+                                       class="form-check-input component-checkbox" 
+                                       th:field="*{selectedComponents}" 
+                                       value="Accordion"
+                                       id="component-accordion">
+                                <div class="component-name">Accordion</div>
+                                <div class="component-description">Collapsible content sections for FAQ or detailed info</div>
+                            </div>
+                            <div class="component-item">
+                                <input type="checkbox" 
+                                       class="form-check-input component-checkbox" 
+                                       th:field="*{selectedComponents}" 
+                                       value="Call To Action"
+                                       id="component-cta">
+                                <div class="component-name">Call To Action</div>
+                                <div class="component-description">Button or link to drive user engagement</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-  <label>AEM Version:</label>
-  <select th:field="*{version}" required>
-    <option value="">-- Select AEM Version --</option>
-    <option value="6.5.0">6.5.0</option>
-    <option value="6.5.5">6.5.5</option>
-    <option value="6.5.10">6.5.10</option>
-    <option value="6.5.13">6.5.13</option>
-    <option value="6.5.15">6.5.15</option>
-    <option value="6.5.17">6.5.17</option>
-    <option value="6.5.18">6.5.18</option>
-    <option value="2023.2.12300.20230214T112441Z-230100">2023.2.12300.20230214T112441Z-230100</option>
-  </select>
+                <!-- Existing Projects Section -->
+                <div class="form-section" th:if="${existingProjects and not #lists.isEmpty(existingProjects)}">
+                    <div class="existing-projects">
+                        <h4>
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Existing AEM Projects
+                        </h4>
+                        <p class="mb-2 text-muted">The following projects already exist in your workspace:</p>
+                        <ul class="project-list">
+                            <li th:each="project : ${existingProjects}" th:text="${project}"></li>
+                        </ul>
+                    </div>
+                </div>
 
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <a href="/" class="btn-secondary-custom">
+                        <i class="fas fa-arrow-left"></i>
+                        Back to Dashboard
+                    </a>
+                    <button type="submit" class="btn-primary-custom">
+                        <i class="fas fa-rocket"></i>
+                        Create Project
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-
-  <label>Package Name (groupId):</label>
-  <input type="text" th:field="*{packageName}" required/>
-
-  <h4>Select Components:</h4>
-  <div>
-    <ul>
-      <li th:each="component : ${componentList}">
-        <!-- <input type="checkbox" name="selectedComponents" th:value="${component}" />-->
-        <input type="checkbox" th:field="*{selectedComponents}" th:value="${component}" />
-        <span th:text="${component}"></span>
-      </li>
-    </ul>
-  </div>
-
-  <h4>Existing AEM Projects</h4>
-  <div>
-    <ul>
-      <li th:each="project : ${existingProjects}" th:text="${project}"></li>
-    </ul>
-  </div>
-
-  <button type="submit">Create Project</button>
-
-</form>
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Add interactive behavior to component items
+        document.addEventListener('DOMContentLoaded', function() {
+            const componentItems = document.querySelectorAll('.component-item');
+            
+            componentItems.forEach(item => {
+                const checkbox = item.querySelector('.component-checkbox');
+                
+                // Toggle selection on item click
+                item.addEventListener('click', function(e) {
+                    if (e.target !== checkbox) {
+                        checkbox.checked = !checkbox.checked;
+                        updateItemState(item, checkbox.checked);
+                    }
+                });
+                
+                // Update state on checkbox change
+                checkbox.addEventListener('change', function() {
+                    updateItemState(item, this.checked);
+                });
+                
+                // Initialize state
+                updateItemState(item, checkbox.checked);
+            });
+            
+            function updateItemState(item, isSelected) {
+                if (isSelected) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            }
+            
+            // Form validation
+            const form = document.getElementById('projectForm');
+            form.addEventListener('submit', function(e) {
+                const projectName = document.getElementById('projectName').value.trim();
+                const packageName = document.getElementById('packageName').value.trim();
+                const version = document.getElementById('version').value;
+                
+                if (!projectName || !packageName || !version) {
+                    e.preventDefault();
+                    alert('Please fill in all required fields.');
+                    return false;
+                }
+                
+                // Validate package name format
+                const packageRegex = /^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*$/;
+                if (!packageRegex.test(packageName)) {
+                    e.preventDefault();
+                    alert('Package name must follow Java package naming conventions (e.g., com.company.project)');
+                    return false;
+                }
+            });
+        });
+    </script>
 </body>
 </html>
