@@ -102,15 +102,12 @@ public class AemProjectServiceImpl implements AemProjectService {
             if (!contentFolder.exists()) {
                 contentFolder.mkdirs();
             }
-
-            componentService.copySelectedComponents(aemProjectModel.getSelectedComponents(), componentsTargetPath, appId);
+            componentService.copySelectedComponents(aemProjectModel.getSelectedComponents(), componentsTargetPath);
 
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
     }
-
-
 
 
     @Override

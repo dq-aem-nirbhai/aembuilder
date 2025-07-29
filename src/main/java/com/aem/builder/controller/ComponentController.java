@@ -1,11 +1,5 @@
 package com.aem.builder.controller;
 
-
-import com.aem.builder.model.ComponentModel;
-import com.aem.builder.service.ComponentService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 import com.aem.builder.model.DTO.ComponentRequest;
 import com.aem.builder.model.Enum.FieldType;
 import com.aem.builder.service.ComponentService;
@@ -22,13 +16,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-
-import java.io.IOException;
 
 
 @Controller
@@ -77,35 +64,35 @@ public class ComponentController {
         }
     }
 
-    // Show component creation page
-    @GetMapping("/components/create/{projectName}")
-    public String showCreateComponentForm(@PathVariable String projectName, Model model) {
-        ComponentModel componentModel = new ComponentModel();
-        componentModel.setProjectName(projectName);
-        model.addAttribute("componentModel", componentModel);
-        model.addAttribute("projectname", projectName);
-        return "create-component";
+    //component creation
+    @GetMapping("/create/{project}")
+    public String showComponentForm(@PathVariable String project, Model model) {
+        model.addAttribute("projectName", project);
+        model.addAttribute("fieldTypes", FieldType.getTypeResourceMap());
+        model.addAttribute("componentGroups", componentService.getComponentGroups(project));
+        return "create-component"; // Thymeleaf template
     }
 
-    // Handle component creation
-    @PostMapping("/components/create")
-    public String createComponent(@ModelAttribute ComponentModel componentModel, Model model) {
-        System.out.println("Component Name: " + componentModel.getComponentName() + "Project Name: " + componentModel.getProjectName()
-                + "Component Group: " + componentModel.getComponentGroup() + "Description: " + componentModel.getDescription());
+    @PostMapping("/component/create/{project}")
+    public String createComponent(@PathVariable String project,
+                                  @ModelAttribute ComponentRequest request,
+                                  Model model) {
+        componentService.generateComponent(project, request);
+        model.addAttribute("message", "Component created successfully!");
+        return "redirect:/" + project;
+    }
 
-        System.out.println("Received request to create component: " + componentModel.getComponentName());
-        String cleanedName = componentModel.getComponentName().toLowerCase().replaceAll("\\s+", "-");
-        componentModel.setComponentName(cleanedName);
-        System.out.println("cleanedName" + cleanedName);
-        try {
-            System.out.println("Received request to create component: " + componentModel.getComponentName());
-            model.addAttribute("success", "New component created successfully!");
-        } catch (Exception e) {
-            model.addAttribute("error", "Error creating component: " + e.getMessage());
-            e.printStackTrace();
-        }
+    //component checking
+    @GetMapping("/check-componentName/{projectName}")
+    public ResponseEntity<Boolean> checkComponentNameExists(
+            @PathVariable String projectName,
+            @RequestParam String componentName) {
 
-        return "redirect:/" + componentModel.getProjectName();
+        log.info("{}",componentName);
+        log.info("check-component");
+        boolean isAvailable = componentService.isComponentNameAvailable(projectName, componentName);
+        log.info("{}",isAvailable);
+        return ResponseEntity.ok(isAvailable); // true means name is available
+    }
 
     }
-}
