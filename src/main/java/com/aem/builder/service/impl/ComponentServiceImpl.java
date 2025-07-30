@@ -133,7 +133,8 @@ public class ComponentServiceImpl implements ComponentService {
         if (selectedComponents == null || selectedComponents.isEmpty())
             return;
 
-        String slingModelsSourcePath = "/Users/chinnamsettibhagyalaxmi/Documents/aembuilder/src/main/java/com/aem/builder/slingModels";
+        String slingModelsSourcePath = System.getProperty("user.dir") + "/src/main/java/com/aem/builder/slingModels";
+
         String slingModelsTargetPath = System.getProperty("user.dir") +
                 "/generated-projects/" + projectName +
                 "/core/src/main/java/com/" + projectName + "/core/models";
@@ -272,8 +273,9 @@ public class ComponentServiceImpl implements ComponentService {
             types.add(importMatcher.group(1));
         }
 
-        // 2. Also check for direct usage of class names in the file
-        File modelsDir = new File("/Users/chinnamsettibhagyalaxmi/Documents/aembuilder/src/main/java/com/aem/builder/slingModels");
+
+        File modelsDir = new File(System.getProperty("user.dir") + "/src/main/java/com/aem/builder/slingModels");
+
         if (modelsDir.exists() && modelsDir.isDirectory()) {
             File[] modelFiles = modelsDir.listFiles((dir, name) -> name.endsWith(".java"));
             if (modelFiles != null) {

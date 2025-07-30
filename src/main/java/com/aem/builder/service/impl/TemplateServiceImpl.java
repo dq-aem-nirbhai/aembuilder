@@ -45,22 +45,7 @@ public class TemplateServiceImpl implements TemplateService {
 
         return templateNames;
     }
-    @Override
-    public void copySelectedTemplatesToGeneratedProject(String projectName, List<String> selectedTemplates) throws IOException {
-        // 1. Define destination
-        String destinationPath = "generated-projects/" + projectName +
-                "/ui.content/src/main/content/jcr_root/conf/" + projectName + "/settings/wcm/templates";
-        File destinationFolder = new File(destinationPath);
-        if (!destinationFolder.exists()) {
-            destinationFolder.mkdirs(); // create nested folders
-        }
-        for (String templateName : selectedTemplates) {
-            // Load template from classpath
-            File resource = new File("src/main/resources/aem-templates/" + templateName);
-            File targetFile = new File(destinationFolder, templateName);
-            FileUtils.copyDirectory(resource, targetFile);
-        }
-    }
+
     @Override
     public List<String> getDistinctTemplates(String projectname, List<String> resourceTemplates,List<String>projectTemplates) {
         List<String>distinct=new ArrayList<>();

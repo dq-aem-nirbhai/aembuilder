@@ -41,6 +41,7 @@
                     <p><strong>Created:</strong> <span th:text="${project.createdDate}"></span></p>
                     <p><strong>Path:</strong> <span th:text="${project.path}"></span></p>
                     <a th:href="@{'/' + ${project.name}}" class="btn btn-outline-primary btn-sm">View Details</a>
+                    <a th:href="@{'/show-folder?path=' + ${project.path}}" class="btn btn-outline-secondary btn-sm mt-2">📂 Show in Folder</a>
                 </div>
             </div>
         </div>

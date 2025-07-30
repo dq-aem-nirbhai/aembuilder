@@ -39,20 +39,7 @@ public class TemplateController {
     }
 
 
-    @PostMapping("/add-template/{projectname}")
-    public String addTemplateToExistingProject(@PathVariable String projectname, @RequestBody List<String> templatelist) {
 
-        log.info(projectname);
-        log.info(templatelist.toString());
-        try {
-            templateService.copySelectedTemplatesToGeneratedProject(projectname, templatelist);
-            return "dashboard";
-
-        } catch (IOException e) {
-            return "create";
-
-        }
-    }
 
 
     @PostMapping("/create-template/{projectname}")
