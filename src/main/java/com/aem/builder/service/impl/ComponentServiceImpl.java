@@ -340,6 +340,80 @@ public class ComponentServiceImpl implements ComponentService {
         FileGenerationUtil.generateAllFiles(projectName, request);
     }
 
+    @Override
+    public ComponentRequest getComponentDetails(String projectName, String componentName) {
+        String basePath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components/" + componentName;
+        File dialogXml = new File(basePath + "/_cq_dialog/.content.xml");
+        File contentXml = new File(basePath + "/.content.xml");
+
+        if (!dialogXml.exists() || !contentXml.exists()) {
+            return null;
+        }
+
+        if (isCoreComponent(contentXml)) {
+            return null;
+        }
+
+        String group = extractAttribute(contentXml, "componentGroup");
+        List<com.aem.builder.model.DTO.ComponentField> fields = new ArrayList<>();
+        try {
+            javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(false);
+            javax.xml.parsers.DocumentBuilder builder = factory.newDocumentBuilder();
+            org.w3c.dom.Document doc = builder.parse(dialogXml);
+            org.w3c.dom.NodeList nodes = doc.getElementsByTagName("*");
+            for (int i = 0; i < nodes.getLength(); i++) {
+                org.w3c.dom.Element el = (org.w3c.dom.Element) nodes.item(i);
+                if (el.hasAttribute("sling:resourceType") && el.hasAttribute("name")) {
+                    String nameAttr = el.getAttribute("name");
+                    String fieldName = nameAttr.startsWith("./") ? nameAttr.substring(2) : nameAttr;
+                    String fieldLabel = el.getAttribute("fieldLabel");
+                    String resourceType = el.getAttribute("sling:resourceType");
+                    com.aem.builder.model.Enum.FieldType type = com.aem.builder.model.Enum.FieldType.fromResourceType(resourceType);
+                    fields.add(new com.aem.builder.model.DTO.ComponentField(fieldName, fieldLabel, type.getType()));
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to parse component dialog", e);
+        }
+
+        com.aem.builder.model.DTO.ComponentRequest req = new com.aem.builder.model.DTO.ComponentRequest();
+        req.setComponentName(componentName);
+        req.setComponentGroup(group != null ? group : projectName);
+        req.setFields(fields);
+        return req;
+    }
+
+    @Override
+    public void updateComponent(String projectName, String componentName, ComponentRequest request) {
+        try {
+            String basePath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
+            File componentFolder = new File(basePath, componentName);
+            if (componentFolder.exists()) {
+                FileUtils.deleteDirectory(componentFolder);
+            }
+            String modelBase = PROJECTS_DIR + "/" + projectName + "/core/src/main/java/com/" + projectName + "/core/models";
+            String pkg = "com." + projectName + ".core.models";
+            FileGenerationUtil.generateComponent(basePath, modelBase, pkg, componentName, request.getComponentGroup(), request.getFields());
+        } catch (Exception e) {
+            log.error("Failed to update component", e);
+        }
+    }
+
+    private boolean isCoreComponent(File contentXml) {
+        String content = FileGenerationUtil.readFile(contentXml);
+        return content.contains("sling:resourceSuperType=\"core/wcm/components");
+    }
+
+    private String extractAttribute(File xml, String attr) {
+        String content = FileGenerationUtil.readFile(xml);
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile(attr + "=\"([^\"]+)\"").matcher(content);
+        if (m.find()) {
+            return m.group(1);
+        }
+        return null;
+    }
+
 
     //component checking
     @Override

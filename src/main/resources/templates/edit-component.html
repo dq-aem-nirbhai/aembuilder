@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>Edit AEM Component</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <link rel="stylesheet" href="/css/create-component.css">
+  <script th:inline="javascript">
+    /*<![CDATA[*/
+    var existingFieldCount = [[${component.fields.size()}]];
+    /*]]>*/
+  </script>
+  <script th:src="@{/js/edit-component.js}"></script>
+</head>
+<body>
+<div th:replace="fragments/navbar :: navbar"></div>
+
+<div class="container mt-4 mb-5">
+  <h2 class="mb-4 animate__animated animate__fadeInDown">Edit AEM Component for [[${projectName}]]</h2>
+
+  <a th:href="@{'/' + ${projectName}}" class="btn btn-outline-secondary mb-3">← Back to DeployPage</a>
+
+  <form id="componentForm" th:action="@{'/component/edit/' + ${projectName} + '/' + ${component.componentName}}" method="post">
+    <input type="hidden" id="projectName" th:value="${projectName}">
+
+    <div class="mb-3">
+      <label class="form-label">Component Name</label>
+      <input type="text" class="form-control" name="componentName" id="componentName" th:value="${component.componentName}" readonly>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Component Group</label>
+      <select class="form-select" name="componentGroup" id="componentGroup" required>
+        <option value="">-- Select Component Group --</option>
+        <option th:each="group : ${componentGroups}" th:value="${group}" th:text="${group}" th:selected="${group == component.componentGroup}"></option>
+      </select>
+    </div>
+
+    <div id="fieldsContainer" class="mb-3">
+      <label>Dialog Fields</label>
+      <div th:each="field,iter : ${component.fields}" class="field-row row mb-2 animate__animated animate__fadeIn">
+        <div class="col">
+          <input type="text" class="form-control fieldLabel" th:name="'fields[' + ${iter.index} + '].fieldLabel'" th:value="${field.fieldLabel}" oninput="autoFillFieldName(this)" required>
+        </div>
+        <div class="col">
+          <input type="text" class="form-control fieldName" th:name="'fields[' + ${iter.index} + '].fieldName'" th:value="${field.fieldName}" required>
+        </div>
+        <div class="col">
+          <select class="form-select fieldType" th:name="'fields[' + ${iter.index} + '].fieldType'" required>
+            <option value="">-- Select Type --</option>
+            <option th:each="type : ${fieldTypes}" th:value="${type.key}" th:text="${type.key}" th:selected="${type.key == field.fieldType}"></option>
+          </select>
+        </div>
+        <div class="col-auto" th:if="${iter.index > 0}">
+          <button type="button" class="btn btn-danger" onclick="removeFieldRow(this)">-</button>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="btn btn-primary mb-3" onclick="addFieldRow()">+ Add Field</button><br>
+    <button type="submit" class="btn btn-primary" id="createButton" disabled>Update Component</button>
+  </form>
+</div>
+
+<footer>
+  <div th:replace="fragments/navbar :: footer"></div>
+</footer>
+
+</body>
+</html>

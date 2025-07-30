@@ -96,4 +96,29 @@ public class ComponentController {
         return ResponseEntity.ok(isAvailable); // true means name is available
     }
 
+    //component editing
+    @GetMapping("/edit/{project}/{component}")
+    public String showEditForm(@PathVariable String project,
+                               @PathVariable String component,
+                               Model model) {
+        ComponentRequest req = componentService.getComponentDetails(project, component);
+        if (req == null) {
+            return "redirect:/" + project;
+        }
+        model.addAttribute("projectName", project);
+        model.addAttribute("component", req);
+        model.addAttribute("fieldTypes", FieldType.getTypeResourceMap());
+        model.addAttribute("componentGroups", componentService.getComponentGroups(project));
+        return "edit-component";
     }
+
+    @PostMapping("/component/edit/{project}/{component}")
+    public String updateComponent(@PathVariable String project,
+                                  @PathVariable String component,
+                                  @ModelAttribute ComponentRequest request) {
+        request.setComponentName(component);
+        componentService.updateComponent(project, component, request);
+        return "redirect:/" + project;
+    }
+
+}

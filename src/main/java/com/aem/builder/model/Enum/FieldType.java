@@ -55,4 +55,13 @@ public enum FieldType {
     private Map.Entry<String, String> toEntry() {
         return Map.entry(this.type, this.resourceType);
     }
+
+    public static FieldType fromResourceType(String resourceType) {
+        for (FieldType type : values()) {
+            if (type.getResourceType().equals(resourceType)) {
+                return type;
+            }
+        }
+        return TEXTFIELD;
+    }
 }
