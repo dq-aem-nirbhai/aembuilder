@@ -96,4 +96,41 @@ public class ComponentController {
         return ResponseEntity.ok(isAvailable); // true means name is available
     }
 
+    @GetMapping("/{projectName}/component/{componentName}")
+    public String viewComponent(@PathVariable String projectName,
+                                @PathVariable String componentName,
+                                Model model) {
+        model.addAttribute("projectName", projectName);
+        model.addAttribute("componentName", componentName);
+        model.addAttribute("htlCode", readFileFromProject(projectName, componentName, componentName + ".html"));
+        model.addAttribute("dialogXml", readFileFromProject(projectName, componentName, "_cq_dialog/.content.xml"));
+        model.addAttribute("designDialogXml", readFileFromProject(projectName, componentName, "_cq_design_dialog/.content.xml"));
+        model.addAttribute("javaCodes", findJavaSources(componentName));
+        return "component-details";
+    }
+
+    private String readFileFromProject(String project, String component, String relative) {
+        java.nio.file.Path path = java.nio.file.Paths.get("generated-projects", project,
+                "ui.apps/src/main/content/jcr_root/apps", project, "components", component, relative);
+        try {
+            return java.nio.file.Files.exists(path) ? java.nio.file.Files.readString(path) : "File not found";
+        } catch (java.io.IOException e) {
+            return "Error reading file";
+        }
+    }
+
+    private java.util.List<String> findJavaSources(String componentName) {
+        java.util.List<String> list = new java.util.ArrayList<>();
+        java.nio.file.Path dir = java.nio.file.Paths.get("src/main/java/com/aem/builder/slingModels");
+        if (java.nio.file.Files.isDirectory(dir)) {
+            try (java.nio.file.DirectoryStream<java.nio.file.Path> ds = java.nio.file.Files.newDirectoryStream(dir, "*" + componentName + "*.java")) {
+                for (java.nio.file.Path p : ds) {
+                    list.add(java.nio.file.Files.readString(p));
+                }
+            } catch (java.io.IOException ignored) {
+            }
+        }
+        return list;
+    }
+
     }
