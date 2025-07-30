@@ -13,10 +13,17 @@ public class DeployServiceImpl implements DeployService {
     private static final String PROJECTS_DIR = "generated-projects";
 
     @Override
-    public String deployProject(String projectName) throws Exception {
+    public String deployProject(String projectName, String module) throws Exception {
         File projectDir = new File(PROJECTS_DIR, projectName);
-        ProcessBuilder pb = new ProcessBuilder("mvn", "clean", "install", "-PautoInstallPackage");
-        pb.directory(projectDir);
+        ProcessBuilder pb;
+        if (module == null || module.equalsIgnoreCase("all")) {
+            pb = new ProcessBuilder("mvn", "clean", "install", "-PautoInstallPackage");
+            pb.directory(projectDir);
+        } else {
+            File moduleDir = new File(projectDir, module);
+            pb = new ProcessBuilder("mvn", "clean", "install", "-PautoInstallBundle");
+            pb.directory(moduleDir);
+        }
         pb.redirectErrorStream(true); // stderr + stdout combined
 
         Process process = pb.start();
@@ -37,7 +44,10 @@ public class DeployServiceImpl implements DeployService {
             throw new RuntimeException(meaningfulError);
         }
 
-        return "Build successful for project: " + projectName;
+        if (module == null || module.equalsIgnoreCase("all")) {
+            return "Build successful for project: " + projectName;
+        }
+        return "Build successful for module: " + module + " of project: " + projectName;
     }
 
     @Override

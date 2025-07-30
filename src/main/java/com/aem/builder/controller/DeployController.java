@@ -32,16 +32,20 @@ public class DeployController {
         model.addAttribute("components", components);
         model.addAttribute("templates", templates);
         model.addAttribute("canDeploy", true);
+        model.addAttribute("projectName", projectName);
         logger.debug("DEPLOY: Added attributes to model for project: {}", projectName);
         return "deploy";
     }
 
     @PostMapping("/{projectName}/deploy")
-    public String deployProject(@PathVariable String projectName, RedirectAttributes redirectAttributes) {
+    public String deployProject(
+            @PathVariable String projectName,
+            @org.springframework.web.bind.annotation.RequestParam(value = "module", defaultValue = "all") String module,
+            RedirectAttributes redirectAttributes) {
         logger.info("DEPLOY: Starting deployment for project: {}", projectName);
         try {
-            String message = deployService.deployProject(projectName);
-            logger.info("DEPLOY: Deployment successful for project: {}. Message: {}", projectName, message);
+            String message = deployService.deployProject(projectName, module);
+            logger.info("DEPLOY: Deployment successful for project: {} module: {}. Message: {}", projectName, module, message);
             redirectAttributes.addFlashAttribute("message", message);
         } catch (Exception e) {
             logger.error("DEPLOY: Deployment failed for project: {}", projectName, e);

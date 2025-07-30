@@ -31,6 +31,12 @@
             <button id="saveBtn" class="btn btn-outline-success me-2" style="display:none" onclick="saveAll()">Save</button>
 
             <form th:action="@{'/' + ${projectName} + '/deploy'}" method="post" class="d-inline" onsubmit="return showDeploySpinner()">
+                <select name="module" class="form-select form-select-sm me-2" style="width:auto; display:inline-block;">
+                    <option value="all">All Packages</option>
+                    <option value="core">core</option>
+                    <option value="ui.apps">ui.apps</option>
+                    <option value="ui.content">ui.content</option>
+                </select>
                 <button id="deployBtn" class="btn btn-warning" type="submit" th:attr="disabled=${!canDeploy}">
                     <span id="deploySpinner" class="spinner-border spinner-border-sm me-2" style="display: none;"></span>
                     Deploy to AEM
