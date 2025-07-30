@@ -21,5 +21,7 @@ public interface TemplateService {
     //template type xf
     void createTemplateXf(TemplateModel model,String projectname) throws IOException;
 
+    TemplateModel getTemplateDetails(String projectName, String templateName) throws Exception;
+
 
 }

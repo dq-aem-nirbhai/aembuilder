@@ -77,4 +77,15 @@ public class TemplateController {
         return "createtemplate";
     }
 
+    @GetMapping("/{projectName}/edittemplate/{templateName}")
+    public String editTemplateForm(@PathVariable String projectName,
+                                   @PathVariable String templateName,
+                                   Model model) throws Exception {
+        TemplateModel template = templateService.getTemplateDetails(projectName, templateName);
+        model.addAttribute("projectName", projectName);
+        model.addAttribute("template", template);
+        model.addAttribute("edit", true);
+        return "createtemplate";
+    }
+
 }

@@ -6,24 +6,24 @@
     <meta charset="UTF-8">
 </head>
 <body>
-<h2>Create Template</h2>
+<h2 th:text="${edit} ? 'Edit Template' : 'Create Template'"></h2>
 
 <form id="templateForm">
     <input type="hidden" id="projectname" th:value="${projectName}">
     <label for="name">Template Name:</label><br>
-    <input type="text" id="name" name="name" required><br><br>
+    <input type="text" id="name" name="name" required th:value="${template?.name}"><br><br>
     <label for="title">Title:</label><br>
-    <input type="text" id="title" name="title" required><br><br>
+    <input type="text" id="title" name="title" required th:value="${template?.title}"><br><br>
     <label for="description">Description:</label><br>
-    <input type="text" id="description" name="description" required><br><br>
+    <input type="text" id="description" name="description" required th:value="${template?.description}"><br><br>
     <label for="status">enable or draft</label><br>
-    <input type="text" id="status" name="status" required><br><br>
+    <input type="text" id="status" name="status" required th:value="${template?.status}"><br><br>
 
     <label for="templatetype">Template Type:</label><br>
     <select id="templatetype" name="templatetype" required>
         <option value="">--Select Type--</option>
-        <option value="xf">Generic template for empty exp (xf)</option>
-        <option value="page">Page</option>
+        <option value="xf" th:selected="${template?.templateType == 'xf'}">Generic template for empty exp (xf)</option>
+        <option value="page" th:selected="${template?.templateType == 'page'}">Page</option>
     </select><br><br>
 
     <button type="submit">Create Template</button>

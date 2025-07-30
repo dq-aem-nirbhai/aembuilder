@@ -181,6 +181,42 @@ public class TemplateServiceImpl implements TemplateService {
         writeFile(targetpath+"/policies/.content.xml",TemplateUtil.generatePoliciesXmlXf(projectname));
     }
 
+    @Override
+    public TemplateModel getTemplateDetails(String projectName, String templateName) throws Exception {
+        String basePath = PROJECTS_DIR + "/" + projectName +
+                "/ui.content/src/main/content/jcr_root/conf/" + projectName +
+                "/settings/wcm/templates/" + templateName + "/.content.xml";
+
+        File xmlFile = new File(basePath);
+        if (!xmlFile.exists()) {
+            return null;
+        }
+
+        javax.xml.parsers.DocumentBuilderFactory dbFactory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+        javax.xml.parsers.DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+        org.w3c.dom.Document doc = dBuilder.parse(xmlFile);
+        doc.getDocumentElement().normalize();
+        org.w3c.dom.NodeList nodeList = doc.getElementsByTagName("jcr:content");
+        if (nodeList.getLength() == 0) {
+            return null;
+        }
+        org.w3c.dom.Element element = (org.w3c.dom.Element) nodeList.item(0);
+        String title = element.getAttribute("jcr:title");
+        String status = element.getAttribute("status");
+        String typePath = element.getAttribute("cq:templateType");
+        String templateType = "";
+        if (typePath != null && typePath.contains("template-types/")) {
+            templateType = typePath.substring(typePath.lastIndexOf('/') + 1);
+        }
+
+        return TemplateModel.builder()
+                .name(templateName)
+                .title(title)
+                .status(status)
+                .templateType(templateType)
+                .build();
+    }
+
 
 
 
