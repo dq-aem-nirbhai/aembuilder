@@ -14,6 +14,8 @@ public interface TemplateService {
     public List<String> getTemplateNamesFromDestination(String projectName);
     List<String> fetchTemplatesFromGeneratedProjects(String projectName);
 
+    TemplateModel getTemplateDetails(String projectName, String templateName) throws IOException;
+
 
     //creating template
     void createTemplate(TemplateModel model, String projectname) throws IOException;
