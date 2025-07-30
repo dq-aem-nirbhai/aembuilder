@@ -1,0 +1,68 @@
+
+<!DOCTYPE html>
+<html xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Create Template</title>
+    <meta charset="UTF-8">
+</head>
+<body>
+<h2>Create Template</h2>
+
+<form id="templateForm">
+    <input type="hidden" id="projectname" th:value="${projectName}">
+    <label for="name">Template Name:</label><br>
+    <input type="text" id="name" name="name" required><br><br>
+    <label for="title">Title:</label><br>
+    <input type="text" id="title" name="title" required><br><br>
+    <label for="description">Description:</label><br>
+    <input type="text" id="description" name="description" required><br><br>
+    <label for="status">enable or draft</label><br>
+    <input type="text" id="status" name="status" required><br><br>
+
+    <label for="templatetype">Template Type:</label><br>
+    <select id="templatetype" name="templatetype" required>
+        <option value="">--Select Type--</option>
+        <option value="xf">Generic template for empty exp (xf)</option>
+        <option value="page">Page</option>
+    </select><br><br>
+
+    <button type="submit">Create Template</button>
+</form>
+
+<p id="response"></p>
+
+<script>
+    document.getElementById("templateForm").addEventListener("submit", function(event) {
+        event.preventDefault();
+
+        const projectname = document.getElementById("projectname").value;
+
+        const name = document.getElementById("name").value;
+        const title = document.getElementById("title").value;
+        const description = document.getElementById("description").value;
+        const status = document.getElementById("status").value;
+        const templateType = document.getElementById("templatetype").value;
+
+        console.log(status);
+        console.log(templateType);
+
+        const data = { name, title, description, status, templateType };
+
+        fetch(`/create-template/${projectname}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.text())
+        .then(result => {
+            document.getElementById("response").innerText = result;
+        })
+        .catch(error => {
+            document.getElementById("response").innerText = "Error: " + error;
+        });
+    });
+</script>
+</body>
+</html>
