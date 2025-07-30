@@ -174,6 +174,9 @@ public class ComponentServiceImpl implements ComponentService {
                 }
             }
         }
+        groups.removeIf(g -> g.equals(projectName + "-content")
+                || g.equals(projectName + "-structure")
+                || g.equals(".hidden"));
         return groups.isEmpty() ? List.of(projectName) : new ArrayList<>(groups);
     }
 

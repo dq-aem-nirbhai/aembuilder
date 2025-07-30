@@ -2,6 +2,7 @@ package com.aem.builder.util;
 
 import com.aem.builder.model.DTO.ComponentField;
 import com.aem.builder.model.DTO.ComponentRequest;
+import com.aem.builder.model.DTO.OptionItem;
 import com.aem.builder.model.Enum.FieldType;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
@@ -228,7 +229,7 @@ public class FileGenerationUtil {
         String type = field.getFieldType().toLowerCase();
         String label = field.getFieldLabel();
         String name = field.getFieldName();
-        List<String> options = field.getOptions();
+        List<OptionItem> options = field.getOptions();
         List<ComponentField> nested = field.getNestedFields();
 
         return switch (type) {
@@ -282,10 +283,11 @@ public class FileGenerationUtil {
                         .append("    <items jcr:primaryType=\"nt:unstructured\">\n");
                 if (options != null) {
                     for (int i = 0; i < options.size(); i++) {
+                        OptionItem opt = options.get(i);
                         sb.append("      <option").append(i + 1).append("\n")
                                 .append("        jcr:primaryType=\"nt:unstructured\"\n")
-                                .append("        text=\"").append(options.get(i)).append("\"\n")
-                                .append("        value=\"").append(options.get(i)).append("\"/>\n");
+                                .append("        text=\"").append(opt.getText()).append("\"\n")
+                                .append("        value=\"").append(opt.getValue()).append("\"/>\n");
                     }
                 }
                 sb.append("    </items>\n")
@@ -308,10 +310,11 @@ public class FileGenerationUtil {
                         .append("    <items jcr:primaryType=\"nt:unstructured\">\n");
                 if (options != null) {
                     for (int i = 0; i < options.size(); i++) {
+                        OptionItem opt = options.get(i);
                         sb.append("      <option").append(i + 1).append("\n")
                                 .append("        jcr:primaryType=\"nt:unstructured\"\n")
-                                .append("        text=\"").append(options.get(i)).append("\"\n")
-                                .append("        value=\"").append(options.get(i)).append("\"/>\n");
+                                .append("        text=\"").append(opt.getText()).append("\"\n")
+                                .append("        value=\"").append(opt.getValue()).append("\"/>\n");
                     }
                 }
                 sb.append("    </items>\n")
