@@ -104,10 +104,7 @@ public class FileGenerationUtil {
                     sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append(" && model.")
                             .append(fieldName).append(".size > 0}\">\n")
                             .append("    <ul data-sly-list.item=\"${model.").append(fieldName).append("}\">\n");
-                    for (ComponentField nested : field.getNestedFields()) {
-                        sb.append("      <li>").append(nested.getFieldLabel())
-                                .append(": ${item.").append(nested.getFieldName()).append("}</li>\n");
-                    }
+                    appendNestedHTL(sb, field.getNestedFields(), "item", "      ");
                     sb.append("    </ul>\n")
                             .append("  </sly>\n");
                 }
@@ -163,6 +160,33 @@ public class FileGenerationUtil {
         FileUtils.writeStringToFile(new File(folderPath + "/" + componentName + ".html"), sb.toString(),
                 StandardCharsets.UTF_8);
         logger.info("HTL: HTL file generated at {}/{}.html", folderPath, componentName);
+    }
+
+    /**
+     * Recursively appends HTL markup for nested multifields.
+     */
+    private static void appendNestedHTL(StringBuilder sb, List<ComponentField> fields, String var, String indent) {
+        if (fields == null) {
+            return;
+        }
+        for (ComponentField nested : fields) {
+            String name = nested.getFieldName();
+            String label = nested.getFieldLabel();
+            String type = nested.getFieldType().toLowerCase();
+
+            if ("multifield".equals(type)) {
+                sb.append(indent).append("<sly data-sly-test=\"${").append(var).append('.').append(name)
+                        .append(" && ").append(var).append('.').append(name).append(".size > 0}\">\n");
+                sb.append(indent).append("  <ul data-sly-list.subItem=\"${").append(var).append('.').append(name)
+                        .append("}\">\n");
+                appendNestedHTL(sb, nested.getNestedFields(), "subItem", indent + "    ");
+                sb.append(indent).append("  </ul>\n");
+                sb.append(indent).append("</sly>\n");
+            } else {
+                sb.append(indent).append("<li>").append(label).append(": ${").append(var).append('.').append(name)
+                        .append("}</li>\n");
+            }
+        }
     }
 
     /**
@@ -502,7 +526,8 @@ public class FileGenerationUtil {
                 .append("import org.apache.sling.api.resource.Resource;\n")
                 .append("import org.apache.sling.models.annotations.DefaultInjectionStrategy;\n")
                 .append("import org.apache.sling.models.annotations.Model;\n")
-                .append("import org.apache.sling.models.annotations.injectorspecific.ValueMapValue;\n\n")
+                .append("import org.apache.sling.models.annotations.injectorspecific.ValueMapValue;\n")
+                .append("import org.apache.sling.models.annotations.injectorspecific.ChildResource;\n\n")
                 .append("@Model(adaptables = Resource.class, defaultInjectionStrategy = DefaultInjectionStrategy.OPTIONAL)\n")
                 .append("public class ").append(className).append(" {\n\n");
 
@@ -513,6 +538,12 @@ public class FileGenerationUtil {
             logger.info("CHILDMODEL: Adding nested field '{}' of type '{}'", subName, type);
 
             switch (type) {
+                case "multifield" -> {
+                    generateChildModelClass(modelBasePath, packageName, componentName, subField);
+                    sb.append("    @ChildResource\n")
+                            .append("    private List<").append(capitalize(subName)).append("> ")
+                            .append(subName).append(";\n\n");
+                }
                 case "checkbox" -> sb.append("    @ValueMapValue\n")
                         .append("    private boolean ").append(subName).append(";\n\n");
                 case "numberfield" -> sb.append("    @ValueMapValue\n")
@@ -533,6 +564,10 @@ public class FileGenerationUtil {
             String type = subField.getFieldType().toLowerCase();
 
             switch (type) {
+                case "multifield" ->
+                    sb.append("    public List<").append(capitalize(subName)).append("> get").append(getter)
+                            .append("() {\n")
+                            .append("        return ").append(subName).append(";\n    }\n\n");
                 case "checkbox" -> sb.append("    public boolean is").append(getter).append("() {\n")
                         .append("        return ").append(subName).append(";\n    }\n\n");
                 case "numberfield" -> sb.append("    public double get").append(getter).append("() {\n")
