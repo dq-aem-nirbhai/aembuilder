@@ -58,6 +58,16 @@ public class TemplateController {
 
     }
 
+    @GetMapping("/{projectName}/templates/{templateName}")
+    public String templateDetails(@PathVariable String projectName,
+                                  @PathVariable String templateName,
+                                  Model model) throws IOException {
+        TemplateModel details = templateService.getTemplateDetails(projectName, templateName);
+        model.addAttribute("template", details);
+        model.addAttribute("projectName", projectName);
+        return "template-details";
+    }
+
     @GetMapping("/{projectName}/createtemplate")
     public String showCreateTemplateForm(@PathVariable String projectName, Model model) {
         model.addAttribute("projectName", projectName);

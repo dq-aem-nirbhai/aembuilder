@@ -99,6 +99,36 @@ public class TemplateServiceImpl implements TemplateService {
         return List.of();
     }
 
+    @Override
+    public TemplateModel getTemplateDetails(String projectName, String templateName) throws IOException {
+        String base = PROJECTS_DIR + "/" + projectName + "/ui.content/src/main/content/jcr_root/conf/" +
+                projectName + "/settings/wcm/templates/" + templateName + "/.content.xml";
+        TemplateModel model = new TemplateModel();
+        model.setName(templateName);
+
+        File file = new File(base);
+        if (file.exists()) {
+            String xml = Files.readString(file.toPath());
+
+            java.util.regex.Matcher titleMatcher = java.util.regex.Pattern.compile("jcr:title=\"([^\"]+)\"").matcher(xml);
+            if (titleMatcher.find()) {
+                model.setTitle(titleMatcher.group(1));
+            }
+
+            java.util.regex.Matcher statusMatcher = java.util.regex.Pattern.compile("status=\"([^\"]+)\"").matcher(xml);
+            if (statusMatcher.find()) {
+                model.setStatus(statusMatcher.group(1));
+            }
+
+            java.util.regex.Matcher typeMatcher = java.util.regex.Pattern.compile("cq:templateType=\"([^\"]+)\"").matcher(xml);
+            if (typeMatcher.find()) {
+                String path = typeMatcher.group(1);
+                model.setTemplateType(path.substring(path.lastIndexOf('/') + 1));
+            }
+        }
+        return model;
+    }
+
     //creating templates
 
 
