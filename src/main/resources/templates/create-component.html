@@ -38,6 +38,43 @@
       </select>
     </div>
 
+    <!-- Component Type -->
+    <div class="mb-3">
+      <label class="form-label">Component Type</label><br>
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="proxyComponent" id="typeNew" value="false" checked>
+        <label class="form-check-label" for="typeNew">New Component</label>
+      </div>
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="proxyComponent" id="typeProxy" value="true">
+        <label class="form-check-label" for="typeProxy">Inherited (Proxy)</label>
+      </div>
+    </div>
+
+    <!-- Resource SuperType -->
+    <div class="mb-3" id="proxyFields" style="display:none;">
+      <label class="form-label">Resource SuperType</label>
+      <input type="text" class="form-control" name="resourceSuperType" placeholder="/apps/core/wcm/components/text/v2/text" />
+    </div>
+
+    <!-- Extra Configurations -->
+    <div class="mb-3">
+      <label class="form-label">extraClientlibs (comma separated)</label>
+      <input type="text" class="form-control" name="extraClientlibs" placeholder="core.wcm.components.text.v2.editor" />
+    </div>
+    <div class="mb-3">
+      <label class="form-label">helpPath</label>
+      <input type="text" class="form-control" name="helpPath" placeholder="https://example.com/help" />
+    </div>
+    <div class="mb-3">
+      <label class="form-label">trackingFeature</label>
+      <input type="text" class="form-control" name="trackingFeature" />
+    </div>
+    <div class="form-check mb-3">
+      <input class="form-check-input" type="checkbox" name="showOnCreate" id="showOnCreate">
+      <label class="form-check-label" for="showOnCreate">cq:showOnCreate</label>
+    </div>
+
     <!-- Dialog Fields -->
     <div id="fieldsContainer" class="mb-3">
       <label>Dialog Fields</label>

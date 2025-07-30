@@ -31,7 +31,9 @@ public class FileGenerationUtil {
             String packageName = "com." + projectName + ".core.models";
 
             generateComponent(basePath, modelBasePath, packageName, request.getComponentName(),
-                    request.getComponentGroup(), request.getFields());
+                    request.getComponentGroup(), request.getFields(), request.isProxyComponent(),
+                    request.getResourceSuperType(), request.getExtraClientlibs(), request.getHelpPath(),
+                    request.getTrackingFeature(), request.isShowOnCreate());
             logger.info("FILEGEN: Successfully generated all files for project: {}", projectName);
         } catch (Exception e) {
             logger.info("FILEGEN: Error generating files for project: {}", projectName, e);
@@ -43,7 +45,9 @@ public class FileGenerationUtil {
      * Generates component folders, content.xml, HTL, dialog, and Sling model.
      */
     public static void generateComponent(String basePath, String modelBasePath, String packageName,
-            String componentName, String componentGroup, List<ComponentField> fields) throws Exception {
+            String componentName, String componentGroup, List<ComponentField> fields, boolean proxy,
+            String resourceSuperType, String extraClientlibs, String helpPath, String trackingFeature,
+            boolean showOnCreate) throws Exception {
         logger.info("COMPONENT: Generating component '{}'", componentName);
 
         String componentFolder = basePath + "/" + componentName;
@@ -51,9 +55,9 @@ public class FileGenerationUtil {
 
         new File(dialogFolder).mkdirs();
 
-        generateComponentContentXml(componentFolder, componentName, componentGroup);
+        generateComponentContentXml(componentFolder, componentName, componentGroup, proxy, resourceSuperType);
         generateHTL(componentFolder, fields, packageName, componentName);
-        generateDialogContentXml(componentName, dialogFolder, fields);
+        generateDialogContentXml(componentName, dialogFolder, fields, extraClientlibs, helpPath, trackingFeature, showOnCreate);
         generateSlingModel(modelBasePath, packageName, componentName, fields);
 
         logger.info("COMPONENT: Finished generating component '{}'", componentName);
@@ -62,16 +66,22 @@ public class FileGenerationUtil {
     /**
      * Generates the .content.xml for the component.
      */
-    private static void generateComponentContentXml(String folderPath, String componentName, String componentGroup)
-            throws Exception {
+    private static void generateComponentContentXml(String folderPath, String componentName, String componentGroup,
+            boolean proxy, String resourceSuperType) throws Exception {
         logger.info("CONTENTXML: Generating .content.xml for component '{}'", componentName);
-        String content = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-                "<jcr:root xmlns:sling=\"http://sling.apache.org/jcr/sling/1.0\"\n" +
-                "          xmlns:cq=\"http://www.day.com/jcr/cq/1.0\"\n" +
-                "          xmlns:jcr=\"http://www.jcp.org/jcr/1.0\"\n" +
-                "          jcr:primaryType=\"cq:Component\"\n" +
-                "          jcr:title=\"" + componentName + "\"\n" +
-                "          componentGroup=\"" + componentGroup + "\"/>";
+        StringBuilder sb = new StringBuilder();
+        sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+                .append("<jcr:root xmlns:sling=\"http://sling.apache.org/jcr/sling/1.0\"\n")
+                .append("          xmlns:cq=\"http://www.day.com/jcr/cq/1.0\"\n")
+                .append("          xmlns:jcr=\"http://www.jcp.org/jcr/1.0\"\n")
+                .append("          jcr:primaryType=\"cq:Component\"\n")
+                .append("          jcr:title=\"").append(componentName).append("\"\n")
+                .append("          componentGroup=\"").append(componentGroup).append("\"\n");
+        if (proxy && resourceSuperType != null && !resourceSuperType.isBlank()) {
+            sb.append("          sling:resourceSuperType=\"").append(resourceSuperType).append("\"\n");
+        }
+        sb.append("/>");
+        String content = sb.toString();
         FileUtils.writeStringToFile(new File(folderPath + "/.content.xml"), content, StandardCharsets.UTF_8);
         logger.info("CONTENTXML: .content.xml generated at {}/.content.xml", folderPath);
     }
@@ -167,12 +177,18 @@ public class FileGenerationUtil {
     /**
      * Generates the dialog .content.xml for the component.
      */
-    public static void generateDialogContentXml(String componentName, String dialogFolder, List<ComponentField> fields)
+    public static void generateDialogContentXml(String componentName, String dialogFolder, List<ComponentField> fields,
+            String extraClientlibs, String helpPath, String trackingFeature, boolean showOnCreate)
             throws Exception {
         logger.info("DIALOG: Generating dialog .content.xml for component '{}'", componentName);
         String dialogTitle = componentName + " Dialog";
 
         StringBuilder sb = new StringBuilder();
+        String ec = extraClientlibs != null && !extraClientlibs.isBlank() ? "extraClientlibs=\"" + extraClientlibs + "\"" : "";
+        String hp = helpPath != null && !helpPath.isBlank() ? "helpPath=\"" + helpPath + "\"" : "";
+        String tf = trackingFeature != null && !trackingFeature.isBlank() ? "trackingFeature=\"" + trackingFeature + "\"" : "";
+        String soc = showOnCreate ? "cq:showOnCreate=\"true\"" : "";
+
         sb.append(String.format("""
                 <?xml version="1.0" encoding="UTF-8"?>
                 <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
@@ -181,10 +197,11 @@ public class FileGenerationUtil {
                           xmlns:nt="http://www.jcp.org/jcr/nt/1.0"
                           jcr:primaryType="nt:unstructured"
                           jcr:title="%s"
-                          sling:resourceType="cq/gui/components/authoring/dialog">
-                  <content
-                    jcr:primaryType="nt:unstructured"
-                    sling:resourceType="granite/ui/components/coral/foundation/container">
+                          sling:resourceType="cq/gui/components/authoring/dialog"
+                          %s %s %s %s>
+                <content
+                  jcr:primaryType="nt:unstructured"
+                  sling:resourceType="granite/ui/components/coral/foundation/container">
                     <items
                       jcr:primaryType="nt:unstructured">
                       <tabs
@@ -198,7 +215,7 @@ public class FileGenerationUtil {
                             sling:resourceType="granite/ui/components/coral/foundation/container">
                             <items
                               jcr:primaryType="nt:unstructured">
-                """, dialogTitle));
+                """, dialogTitle, ec, hp, tf, soc));
 
         for (ComponentField field : fields) {
             String nodeName = field.getFieldName();

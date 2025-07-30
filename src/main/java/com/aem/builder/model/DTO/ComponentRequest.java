@@ -14,5 +14,12 @@ public class ComponentRequest {
     private String componentName;
     private String componentGroup;
     private List<ComponentField> fields;
+    // optional advanced settings
+    private boolean proxyComponent;
+    private String resourceSuperType;
+    private String extraClientlibs;
+    private String helpPath;
+    private String trackingFeature;
+    private boolean showOnCreate;
 
 }

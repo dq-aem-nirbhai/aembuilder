@@ -72,6 +72,15 @@ Supports **multi-select** functionality.
     `/apps/<project-id>/templates`
   - Packages and downloads a **.zip** file containing the complete AEM project.
 
+### ✅ Dynamic Component Builder
+In addition to project scaffolding, the application provides a form driven UI to generate new AEM components. Users can:
+
+- Select a project and component group.
+- Choose **New** or **Inherited** component and specify `sling:resourceSuperType` for proxies.
+- Define dialog fields dynamically with support for all Touch UI field types.
+- Specify optional dialog settings such as `extraClientlibs`, `helpPath`, `trackingFeature` and `cq:showOnCreate`.
+- Upon submission the backend validates the component name and generates the component structure, dialog XML, HTL file and Sling Model using Java `StringBuilder` utilities.
+
 ---
 
 ## ⚙️ Technology Stack

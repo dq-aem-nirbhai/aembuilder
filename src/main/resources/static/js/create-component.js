@@ -5,6 +5,12 @@ document.addEventListener("DOMContentLoaded", function () {
   const errorDiv = document.getElementById('nameError');
   const createButton = document.getElementById('createButton');
   const projectName = document.getElementById("projectName").value;
+  const proxyFields = document.getElementById('proxyFields');
+  document.querySelectorAll('input[name="proxyComponent"]').forEach(r => {
+    r.addEventListener('change', function() {
+      proxyFields.style.display = this.value === 'true' ? 'block' : 'none';
+    });
+  });
 
   function debounce(func, delay) {
     let timer;
@@ -103,6 +109,8 @@ document.addEventListener("DOMContentLoaded", function () {
   window.validateFormFields = function () {
     const componentName = componentNameInput.value.trim();
     const componentGroup = document.getElementById('componentGroup').value;
+    const proxySelected = document.getElementById('typeProxy').checked;
+    const resourceSuperType = document.querySelector('input[name="resourceSuperType"]').value.trim();
 
     if (!componentName || !componentGroup || componentNameInput.classList.contains('is-invalid')) {
       createButton.disabled = true;
@@ -118,6 +126,11 @@ document.addEventListener("DOMContentLoaded", function () {
         createButton.disabled = true;
         return;
       }
+    }
+
+    if (proxySelected && !resourceSuperType) {
+      createButton.disabled = true;
+      return;
     }
 
     createButton.disabled = false;
