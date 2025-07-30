@@ -1,9 +1,14 @@
 document.addEventListener("DOMContentLoaded", function () {
   const typeOptions = document.querySelector('.fieldType').innerHTML;
 
-  function createBaseRow(isNested) {
+  function createBaseRow(isNested, level = 0) {
     const div = document.createElement('div');
     div.className = isNested ? 'nested-row mb-2' : 'field-row border p-2 mb-3';
+    div.dataset.level = level;
+    if (isNested) {
+      div.style.marginLeft = `${level * 20}px`;
+      div.style.borderStyle = 'dashed';
+    }
     div.innerHTML = `
       <div class="row g-2 align-items-end">
         <div class="col">
@@ -81,7 +86,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function addNestedFieldRow(btn) {
     const container = btn.closest('.nested-container');
-    const row = createBaseRow(true);
+    const parent = container.closest('.field-row, .nested-row');
+    const level = parseInt(parent.dataset.level || 0) + 1;
+    const row = createBaseRow(true, level);
     container.insertBefore(row, btn);
     updateIndexes();
   }
@@ -108,29 +115,28 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateIndexes() {
     const fieldRows = document.querySelectorAll('#fieldsContainer > .field-row');
     fieldRows.forEach((row, i) => {
-      row.dataset.index = i;
-      row.querySelector('.fieldLabel').name = `fields[${i}].fieldLabel`;
-      row.querySelector('.fieldName').name = `fields[${i}].fieldName`;
-      row.querySelector('.fieldType').name = `fields[${i}].fieldType`;
-      updateOptionIndexes(row, `fields[${i}]`);
-      updateNestedIndexes(row, i);
+      setRowNames(row, `fields[${i}]`);
     });
   }
 
-  function updateNestedIndexes(parentRow, parentIndex) {
-    const nestedRows = parentRow.querySelectorAll('.nested-row');
-    nestedRows.forEach((row, j) => {
-      row.dataset.index = j;
-      row.dataset.parent = parentIndex;
-      row.querySelector('.fieldLabel').name = `fields[${parentIndex}].nestedFields[${j}].fieldLabel`;
-      row.querySelector('.fieldName').name = `fields[${parentIndex}].nestedFields[${j}].fieldName`;
-      row.querySelector('.fieldType').name = `fields[${parentIndex}].nestedFields[${j}].fieldType`;
-      updateOptionIndexes(row, `fields[${parentIndex}].nestedFields[${j}]`);
-    });
+  function setRowNames(row, prefix) {
+    row.querySelector('.fieldLabel').name = `${prefix}.fieldLabel`;
+    row.querySelector('.fieldName').name = `${prefix}.fieldName`;
+    row.querySelector('.fieldType').name = `${prefix}.fieldType`;
+    updateOptionIndexes(row, prefix);
+    const nestedContainer = row.querySelector(':scope > .nested-container');
+    if (nestedContainer) {
+      const nestedRows = nestedContainer.querySelectorAll(':scope > .nested-row');
+      nestedRows.forEach((nrow, idx) => {
+        setRowNames(nrow, `${prefix}.nestedFields[${idx}]`);
+      });
+    }
   }
 
   function updateOptionIndexes(row, prefix) {
-    const options = row.querySelectorAll('.option-row');
+    const container = row.querySelector(':scope > .options-container');
+    if (!container) return;
+    const options = container.querySelectorAll(':scope > .option-row');
     options.forEach((opt, k) => {
       opt.querySelector('.optionText').name = `${prefix}.options[${k}].text`;
       opt.querySelector('.optionValue').name = `${prefix}.options[${k}].value`;
