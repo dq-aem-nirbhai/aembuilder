@@ -23,7 +23,9 @@ public enum FieldType {
     PASSWORD("password", "granite/ui/components/coral/foundation/form/password"),
     SWITCH("switch", "granite/ui/components/coral/foundation/form/switch"),
     ANCHORBROWSER("anchorbrowser", "cq/gui/components/coral/common/form/anchorbrowser"),
-    TAGFIELD("tagfield", "cq/gui/components/coral/common/form/tagfield");
+    TAGFIELD("tagfield", "cq/gui/components/coral/common/form/tagfield"),
+    TABS("tabs", "granite/ui/components/coral/foundation/tabs"),
+    NESTED_MULTIFIELD("nestedmultifield", "granite/ui/components/coral/foundation/form/multifield");
 
     private final String type;
     private final String resourceType;
@@ -48,7 +50,7 @@ public enum FieldType {
                 MULTISELECT.toEntry(), PATHFIELD.toEntry(), AUTOCOMPLETE.toEntry(), DATEPICKER.toEntry(),
                 IMAGE.toEntry(), FILEUPLOAD.toEntry(), RICHTEXT.toEntry(), MULTIFIELD.toEntry(),
                 BUTTON.toEntry(), PASSWORD.toEntry(), SWITCH.toEntry(), ANCHORBROWSER.toEntry(),
-                TAGFIELD.toEntry()
+                TAGFIELD.toEntry(), TABS.toEntry(), NESTED_MULTIFIELD.toEntry()
         );
     }
 

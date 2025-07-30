@@ -98,4 +98,38 @@ Supports **multi-select** functionality.
 git clone https://github.com/your-org/aem-project-generator.git
 cd aem-project-generator
 ./mvnw spring-boot:run
- 
+```
+
+## 🔧 Supported Dialog Field Types
+
+The component generator supports a variety of Touch UI dialog fields. The table below lists the available types and the Granite resource types used during generation:
+
+| Type | Granite Resource |
+|------|-----------------|
+| textfield | granite/ui/components/coral/foundation/form/textfield |
+| textarea | granite/ui/components/coral/foundation/form/textarea |
+| numberfield | granite/ui/components/coral/foundation/form/numberfield |
+| hidden | granite/ui/components/coral/foundation/form/hidden |
+| checkbox | granite/ui/components/coral/foundation/form/checkbox |
+| checkboxgroup | granite/ui/components/coral/foundation/form/checkboxgroup |
+| radiogroup | granite/ui/components/coral/foundation/form/radiogroup |
+| select | granite/ui/components/coral/foundation/form/select |
+| multiselect | granite/ui/components/coral/foundation/form/multifield |
+| pathfield | granite/ui/components/coral/foundation/form/pathfield |
+| autocomplete | granite/ui/components/coral/foundation/form/autocomplete |
+| datepicker | granite/ui/components/coral/foundation/form/datepicker |
+| image | cq/gui/components/authoring/dialog/fileupload |
+| fileupload | cq/gui/components/authoring/dialog/fileupload |
+| richtext | cq/gui/components/authoring/dialog/richtext |
+| multifield | granite/ui/components/coral/foundation/form/multifield |
+| nestedmultifield | granite/ui/components/coral/foundation/form/multifield |
+| tabs | granite/ui/components/coral/foundation/tabs |
+| button | granite/ui/components/coral/foundation/form/button |
+| password | granite/ui/components/coral/foundation/form/password |
+| switch | granite/ui/components/coral/foundation/form/switch |
+| anchorbrowser | cq/gui/components/coral/common/form/anchorbrowser |
+| tagfield | cq/gui/components/coral/common/form/tagfield |
+
+## 🌐 API snippets
+
+* `GET /projects` – returns all available projects detected under `generated-projects/`.

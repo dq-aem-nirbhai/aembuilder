@@ -26,6 +26,16 @@ public class ComponentController {
 
     private final ComponentService componentService;
 
+    /**
+     * Returns all generated AEM project names so the UI can populate project
+     * selectors dynamically.
+     */
+    @GetMapping("/projects")
+    @ResponseBody
+    public List<String> listProjects() {
+        return componentService.getExistingProjects();
+    }
+
     @GetMapping("/fetch-components/{projectname}")
     @ResponseBody
     public Map<String, List<String>> getComponents(@PathVariable String projectname) throws IOException {

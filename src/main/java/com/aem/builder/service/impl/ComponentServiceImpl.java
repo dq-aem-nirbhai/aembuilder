@@ -334,7 +334,18 @@ public class ComponentServiceImpl implements ComponentService {
                 }
             }
         }
-        return groups.isEmpty() ? List.of(projectName) : new ArrayList<>(groups);
+        // Exclude hidden or generic groups
+        groups.remove(projectName + "-content");
+        groups.remove(projectName + "-structure");
+        groups.remove(".hidden");
+
+        if (groups.isEmpty()) {
+            return List.of(projectName);
+        }
+
+        List<String> sorted = new ArrayList<>(groups);
+        Collections.sort(sorted);
+        return sorted;
     }
 
     @Override
