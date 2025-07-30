@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -76,10 +77,16 @@ public class ComponentController {
     @PostMapping("/component/create/{project}")
     public String createComponent(@PathVariable String project,
                                   @ModelAttribute ComponentRequest request,
-                                  Model model) {
-        componentService.generateComponent(project, request);
-        model.addAttribute("message", "Component created successfully!");
-        return "redirect:/" + project;
+                                  RedirectAttributes redirectAttributes) {
+        try {
+            componentService.generateComponent(project, request);
+            redirectAttributes.addFlashAttribute("message", "Component created successfully!");
+            return "redirect:/" + project;
+        } catch (Exception e) {
+            log.error("Error creating component", e);
+            redirectAttributes.addFlashAttribute("error", "Failed to create component: " + e.getMessage());
+            return "redirect:/create/" + project;
+        }
     }
 
 //component checking
