@@ -16,6 +16,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 
 @Controller
 @RequiredArgsConstructor
@@ -69,8 +72,10 @@ public class ComponentController {
     @GetMapping("/create/{project}")
     public String showComponentForm(@PathVariable String project, Model model) {
         model.addAttribute("projectName", project);
-        model.addAttribute("fieldTypes", FieldType.getTypeResourceMap());
-        model.addAttribute("componentGroups", componentService.getComponentGroups(project));
+        model.addAttribute("fieldTypes", new java.util.TreeMap<>(FieldType.getTypeResourceMap()));
+        java.util.List<String> groups = componentService.getComponentGroups(project);
+        java.util.Collections.sort(groups, String.CASE_INSENSITIVE_ORDER);
+        model.addAttribute("componentGroups", groups);
         // Components that can be extended (core components + existing ones)
         // Use a LinkedHashSet to avoid duplicates while preserving order
         Set<String> available = new LinkedHashSet<>();
@@ -87,7 +92,13 @@ public class ComponentController {
             int idx = path.lastIndexOf('/') + 1;
             compMap.put(path, path.substring(idx));
         }
-        model.addAttribute("availableComponents", compMap);
+        java.util.List<Map.Entry<String, String>> compEntries = new java.util.ArrayList<>(compMap.entrySet());
+        compEntries.sort(java.util.Map.Entry.comparingByValue(String.CASE_INSENSITIVE_ORDER));
+        Map<String, String> sortedMap = new LinkedHashMap<>();
+        for (Map.Entry<String, String> e : compEntries) {
+            sortedMap.put(e.getKey(), e.getValue());
+        }
+        model.addAttribute("availableComponents", sortedMap);
         return "create-component"; // Thymeleaf template
     }
 

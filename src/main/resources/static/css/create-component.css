@@ -25,3 +25,13 @@
 select.form-select option {
   text-transform: capitalize;
 }
+
+select.form-select {
+  border-color: #86b7fe;
+  box-shadow: none;
+}
+
+select.form-select:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
+}
