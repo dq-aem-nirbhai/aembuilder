@@ -31,6 +31,21 @@
     <!-- Hidden input to pass projectName into JS -->
     <input type="hidden" id="projectName" th:value="${projectName}">
 
+    <!-- Component Type -->
+    <div class="mb-3">
+      <label class="form-label">Component Type</label>
+      <select class="form-select" id="componentType">
+        <option value="new">New Component</option>
+        <option value="extend">Extend Existing</option>
+      </select>
+    </div>
+
+    <div class="mb-3" id="extendsDiv" style="display:none;">
+      <label class="form-label">Extend From</label>
+      <select class="form-select" id="extendsComponent" name="extendsComponent">
+      </select>
+    </div>
+
     <!-- Component Name -->
     <div class="mb-3">
       <label class="form-label">Component Name</label>

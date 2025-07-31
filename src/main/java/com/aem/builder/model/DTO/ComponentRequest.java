@@ -13,6 +13,7 @@ public class ComponentRequest {
     private String projectName;
     private String componentName;
     private String componentGroup;
+    private String extendsComponent;
     private List<ComponentField> fields;
 
 }

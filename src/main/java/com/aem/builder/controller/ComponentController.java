@@ -47,6 +47,12 @@ public class ComponentController {
         return response;
     }
 
+    @GetMapping("/available-components/{project}")
+    @ResponseBody
+    public List<String> availableComponents(@PathVariable String project) throws IOException {
+        return componentService.getAvailableComponents(project);
+    }
+
     @PostMapping("/add-components/{projectname}")
     public String addComponentsToExistingProject(
             @PathVariable String projectname,

@@ -1,5 +1,40 @@
 document.addEventListener("DOMContentLoaded", function () {
   const typeOptions = document.querySelector('.fieldType').innerHTML;
+  const projectName = document.getElementById('projectName').value;
+  const componentType = document.getElementById('componentType');
+  const extendsDiv = document.getElementById('extendsDiv');
+  const extendsSelect = document.getElementById('extendsComponent');
+
+  function loadAvailableComponents() {
+    fetch(`/available-components/${projectName}`)
+      .then(res => res.json())
+      .then(data => {
+        extendsSelect.innerHTML = '<option value="">-- Select Component --</option>';
+        data.forEach(item => {
+          const opt = document.createElement('option');
+          opt.value = item;
+          opt.textContent = item.split('/').pop();
+          extendsSelect.appendChild(opt);
+        });
+      });
+  }
+
+  function handleTypeChange() {
+    if (componentType.value === 'extend') {
+      extendsDiv.style.display = 'block';
+      loadAvailableComponents();
+    } else {
+      extendsDiv.style.display = 'none';
+      extendsSelect.innerHTML = '';
+    }
+    validateFormFields();
+  }
+
+  componentType.addEventListener('change', handleTypeChange);
+  if (extendsSelect) {
+    extendsSelect.addEventListener('change', validateFormFields);
+  }
+  handleTypeChange();
 
   function createBaseRow(isNested, level = 0) {
     const div = document.createElement('div');
@@ -146,7 +181,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const componentNameInput = document.getElementById('componentName');
   const errorDiv = document.getElementById('nameError');
   const createButton = document.getElementById('createButton');
-  const projectName = document.getElementById('projectName').value;
 
   function debounce(func, delay) {
     let timer;
@@ -198,6 +232,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const name = componentNameInput.value.trim();
     const group = document.getElementById('componentGroup').value;
     if (!name || !group || componentNameInput.classList.contains('is-invalid')) {
+      createButton.disabled = true;
+      return;
+    }
+    if (componentType.value === 'extend' && !extendsSelect.value) {
       createButton.disabled = true;
       return;
     }

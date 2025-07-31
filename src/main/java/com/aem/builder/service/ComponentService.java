@@ -30,6 +30,8 @@ public interface ComponentService {
     List<String> getComponentGroups(String projectName);
     void generateComponent(String projectName, ComponentRequest request);
 
+    List<String> getAvailableComponents(String projectName) throws IOException;
+
     //component checking
     boolean isComponentNameAvailable(String projectName, String componentName);
 

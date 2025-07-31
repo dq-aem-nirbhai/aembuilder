@@ -185,6 +185,18 @@ public class ComponentServiceImpl implements ComponentService {
         FileGenerationUtil.generateAllFiles(projectName, request);
     }
 
+    @Override
+    public List<String> getAvailableComponents(String projectName) throws IOException {
+        List<String> result = new ArrayList<>();
+        for (String comp : getAllComponents()) {
+            result.add("/apps/core/wcm/components/" + comp);
+        }
+        for (String comp : fetchComponentsFromGeneratedProjects(projectName)) {
+            result.add("/apps/" + projectName + "/components/" + comp);
+        }
+        return result;
+    }
+
 
 //component checking
 @Override
