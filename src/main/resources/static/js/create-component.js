@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", function () {
     } else {
       extendsDiv.style.display = 'none';
       document.getElementById('superType').value = '';
-      if (document.getElementById('fieldsContainer').childElementCount === 0) {
+      if (document.querySelectorAll('#fieldsContainer .field-row').length === 0) {
         addFieldRow();
       }
     }
