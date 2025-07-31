@@ -46,6 +46,9 @@ public class FileGenerationUtil {
     public static void generateComponent(String basePath, String modelBasePath, String packageName,
             String componentName, String componentGroup, String superType, List<ComponentField> fields) throws Exception {
         logger.info("COMPONENT: Generating component '{}'", componentName);
+        if (fields == null) {
+            fields = new ArrayList<>();
+        }
 
         String componentFolder = basePath + "/" + componentName;
         String dialogFolder = componentFolder + "/_cq_dialog";
@@ -90,6 +93,10 @@ public class FileGenerationUtil {
         logger.info("HTL: Generating HTL for component '{}'", componentName);
         String modelClassName = capitalize(componentName) + "Model";
         StringBuilder sb = new StringBuilder();
+
+        if (fields == null) {
+            fields = List.of();
+        }
 
         boolean extending = superType != null && !superType.isBlank();
         if (extending) {
@@ -241,10 +248,12 @@ public class FileGenerationUtil {
                               jcr:primaryType="nt:unstructured">
                 """, dialogTitle, superTypeAttr));
 
-        for (ComponentField field : fields) {
-            String nodeName = field.getFieldName();
-            logger.info("DIALOG: Adding dialog field '{}'", nodeName);
-            sb.append(generateFieldXml(nodeName, field));
+        if (fields != null) {
+            for (ComponentField field : fields) {
+                String nodeName = field.getFieldName();
+                logger.info("DIALOG: Adding dialog field '{}'", nodeName);
+                sb.append(generateFieldXml(nodeName, field));
+            }
         }
 
         sb.append("""
@@ -455,6 +464,9 @@ public class FileGenerationUtil {
                 .append("public class ").append(className).append(" {\n\n");
 
         // Add fields with logging
+        if (fields == null) {
+            fields = List.of();
+        }
         for (ComponentField field : fields) {
             String name = field.getFieldName();
             String type = field.getFieldType().toLowerCase();
@@ -503,7 +515,7 @@ public class FileGenerationUtil {
         sb.append("    public boolean isEmpty() {\n        return ");
 
         List<String> emptyChecks = new ArrayList<>();
-        for (ComponentField field : fields) {
+        for (ComponentField field : (fields == null ? List.<ComponentField>of() : fields)) {
             String name = field.getFieldName();
             String type = field.getFieldType().toLowerCase();
 
@@ -548,10 +560,11 @@ public class FileGenerationUtil {
                 .append("public class ").append(className).append(" {\n\n");
 
         // Add fields with logging
-        for (ComponentField subField : field.getNestedFields()) {
-            String subName = subField.getFieldName();
-            String type = subField.getFieldType().toLowerCase();
-            logger.info("CHILDMODEL: Adding nested field '{}' of type '{}'", subName, type);
+        if (field.getNestedFields() != null) {
+            for (ComponentField subField : field.getNestedFields()) {
+                String subName = subField.getFieldName();
+                String type = subField.getFieldType().toLowerCase();
+                logger.info("CHILDMODEL: Adding nested field '{}' of type '{}'", subName, type);
 
             switch (type) {
                 case "multifield" -> {
@@ -571,9 +584,11 @@ public class FileGenerationUtil {
                 default -> sb.append("    @ValueMapValue\n")
                         .append("    private String ").append(subName).append(";\n\n");
             }
+            }
         }
 
         // Add getters
+        if (field.getNestedFields() != null) {
         for (ComponentField subField : field.getNestedFields()) {
             String subName = subField.getFieldName();
             String getter = capitalize(subName);
@@ -596,6 +611,7 @@ public class FileGenerationUtil {
                 default -> sb.append("    public String get").append(getter).append("() {\n")
                         .append("        return ").append(subName).append(";\n    }\n\n");
             }
+        }
         }
 
         sb.append("}");
