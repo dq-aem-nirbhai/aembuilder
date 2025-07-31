@@ -5,6 +5,10 @@ document.addEventListener("DOMContentLoaded", function () {
   function toggleSuperType() {
     if (modeSelect.value === 'extend') {
       extendsDiv.style.display = '';
+      // remove any placeholder rows when switching to extend mode
+      document
+        .querySelectorAll('#fieldsContainer > .field-row')
+        .forEach((row) => row.remove());
     } else {
       extendsDiv.style.display = 'none';
       document.getElementById('superType').value = '';
@@ -13,6 +17,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
     updateMandatoryButtons();
+    validateFormFields();
   }
 
   modeSelect.addEventListener('change', () => {
@@ -242,6 +247,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const rows = document.querySelectorAll('#fieldsContainer .field-row, #fieldsContainer .nested-row');
     if (mode === 'new' && rows.length === 0) {
       createButton.disabled = true;
+      return;
+    }
+    if (mode === 'extend' && rows.length === 0) {
+      createButton.disabled = false;
       return;
     }
     for (let row of rows) {
