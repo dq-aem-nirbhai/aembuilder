@@ -89,15 +89,18 @@ public class FileGenerationUtil {
         String modelClassName = capitalize(componentName) + "Model";
         StringBuilder sb = new StringBuilder();
 
-        sb.append("<sly data-sly-use.model=\"")
-                .append(packageName).append(".").append(modelClassName).append("\"/>\n");
-        if (superType != null && !superType.isBlank()) {
+        boolean extending = superType != null && !superType.isBlank();
+        if (extending) {
             sb.append("<sly data-sly-resource=\"${@ resourceType='")
                     .append(superType).append("'}\"/>\n");
+        } else {
+            sb.append("<sly data-sly-use.model=\"")
+                    .append(packageName).append(".").append(modelClassName).append("\"/>\n")
+                    .append("<sly data-sly-use.placeholderTemplate=\"core/wcm/components/commons/v1/templates.html\"/>\n")
+                    .append("<sly data-sly-test.hasContent=\"${!model.empty}\">\n");
         }
-        sb.append("<sly data-sly-use.placeholderTemplate=\"core/wcm/components/commons/v1/templates.html\"/>\n")
-                .append("<sly data-sly-test.hasContent=\"${!model.empty}\">\n");
 
+        if (!extending) {
         for (ComponentField field : fields) {
             String fieldName = field.getFieldName();
             String fieldLabel = field.getFieldLabel();
@@ -163,6 +166,7 @@ public class FileGenerationUtil {
 
         sb.append("</sly>\n");
         sb.append("<sly data-sly-call=\"${placeholderTemplate.placeholder @ isEmpty = !hasContent}\" />\n");
+        }
 
         FileUtils.writeStringToFile(new File(folderPath + "/" + componentName + ".html"), sb.toString(),
                 StandardCharsets.UTF_8);

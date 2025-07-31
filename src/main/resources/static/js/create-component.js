@@ -1,45 +1,41 @@
 document.addEventListener("DOMContentLoaded", function () {
-  const typeOptions = document.querySelector('.fieldType').innerHTML;
   const modeSelect = document.getElementById('creationMode');
   const extendsDiv = document.getElementById('extendsComponentDiv');
 
   function toggleSuperType() {
     if (modeSelect.value === 'extend') {
       extendsDiv.style.display = '';
+      if (document.getElementById('fieldsContainer').childElementCount === 0) {
+        // no default field rows
+      }
     } else {
       extendsDiv.style.display = 'none';
       document.getElementById('superType').value = '';
+      if (document.getElementById('fieldsContainer').childElementCount === 0) {
+        addFieldRow();
+      }
     }
   }
 
   modeSelect.addEventListener('change', toggleSuperType);
   toggleSuperType();
+  if (modeSelect.value === 'new') {
+    addFieldRow();
+  }
 
   function createBaseRow(isNested, level = 0) {
-    const div = document.createElement('div');
-    div.className = isNested ? 'nested-row mb-2' : 'field-row border p-2 mb-3';
+    const template = document.getElementById('fieldRowTemplate');
+    const div = template.cloneNode(true);
+    div.style.display = '';
     div.dataset.level = level;
     if (isNested) {
+      div.classList.add('nested-row', 'mb-2');
       div.style.marginLeft = `${level * 20}px`;
       div.style.borderStyle = 'dashed';
+      div.querySelector('.action-col').innerHTML = '<button type="button" class="btn btn-danger" onclick="removeNestedFieldRow(this)">-</button>';
+    } else {
+      div.classList.add('field-row', 'border', 'p-2', 'mb-3');
     }
-    div.innerHTML = `
-      <div class="row g-2 align-items-end">
-        <div class="col">
-          <input type="text" class="form-control fieldLabel" placeholder="Field Label" oninput="autoFillFieldName(this)" required>
-        </div>
-        <div class="col">
-          <input type="text" class="form-control fieldName" placeholder="Field Name" required>
-        </div>
-        <div class="col">
-          <select class="form-select fieldType" onchange="handleFieldTypeChange(this)" required>${typeOptions}</select>
-        </div>
-        <div class="col-auto action-col">
-          ${isNested ? '<button type="button" class="btn btn-danger" onclick="removeNestedFieldRow(this)">-</button>' : ''}
-        </div>
-      </div>
-      <div class="options-container mt-2"></div>
-      <div class="nested-container mt-2"></div>`;
     return div;
   }
 
@@ -222,6 +218,10 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
     const rows = document.querySelectorAll('.field-row, .nested-row');
+    if (mode === 'new' && rows.length === 0) {
+      createButton.disabled = true;
+      return;
+    }
     for (let row of rows) {
       const label = row.querySelector('.fieldLabel').value.trim();
       const fname = row.querySelector('.fieldName').value.trim();

@@ -82,7 +82,12 @@ public class ComponentController {
         } catch (IOException e) {
             log.error("Error loading available components", e);
         }
-        model.addAttribute("availableComponents", new ArrayList<>(available));
+        Map<String, String> compMap = new LinkedHashMap<>();
+        for (String path : available) {
+            int idx = path.lastIndexOf('/') + 1;
+            compMap.put(path, path.substring(idx));
+        }
+        model.addAttribute("availableComponents", compMap);
         return "create-component"; // Thymeleaf template
     }
 
