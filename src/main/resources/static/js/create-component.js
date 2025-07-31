@@ -103,6 +103,7 @@ document.addEventListener("DOMContentLoaded", function () {
       addNestedFieldRow(addBtn);
     }
     updateIndexes();
+    validateFormFields();
   };
 
   window.addFieldRow = function () {
@@ -112,11 +113,13 @@ document.addEventListener("DOMContentLoaded", function () {
     container.appendChild(row);
     updateIndexes();
     row.classList.add('animate__animated','animate__fadeIn');
+    validateFormFields();
   };
 
   window.removeFieldRow = function (btn) {
     btn.closest('.field-row').remove();
     updateIndexes();
+    validateFormFields();
   };
 
   function addNestedFieldRow(btn) {
@@ -126,10 +129,12 @@ document.addEventListener("DOMContentLoaded", function () {
     const row = createBaseRow(true, level);
     container.insertBefore(row, btn);
     updateIndexes();
+    validateFormFields();
   }
   window.removeNestedFieldRow = function (btn) {
     btn.closest('.nested-row').remove();
     updateIndexes();
+    validateFormFields();
   };
 
   function addOptionRow(btn) {
@@ -141,10 +146,12 @@ document.addEventListener("DOMContentLoaded", function () {
       <button type="button" class="btn btn-danger" onclick="removeOptionRow(this)">-</button>`;
     container.insertBefore(div, btn);
     updateIndexes();
+    validateFormFields();
   }
   window.removeOptionRow = function (btn) {
     btn.parentElement.remove();
     updateIndexes();
+    validateFormFields();
   };
 
   function updateIndexes() {
@@ -260,5 +267,6 @@ document.addEventListener("DOMContentLoaded", function () {
   };
 
   document.addEventListener('input', validateFormFields);
+  document.addEventListener('change', validateFormFields);
   updateIndexes();
 });
