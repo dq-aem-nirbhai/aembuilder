@@ -219,8 +219,8 @@ document.addEventListener("DOMContentLoaded", function () {
         errorDiv.innerText = '⚠️ Server error while checking component name.';
         errorDiv.classList.add('text-danger');
         errorDiv.classList.remove('text-success');
-        componentNameInput.classList.add('is-invalid');
-        createButton.disabled = true;
+        componentNameInput.classList.remove('is-invalid');
+        validateFormFields();
       });
   }, 400);
 

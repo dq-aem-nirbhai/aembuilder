@@ -1,6 +1,10 @@
 package com.aem.builder.model.Enum;
 
 import java.util.Map;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.stream.Collectors;
 
 public enum FieldType {
     TEXTFIELD("textfield", "granite/ui/components/coral/foundation/form/textfield"),
@@ -42,14 +46,14 @@ public enum FieldType {
     }
 
     public static Map<String, String> getTypeResourceMap() {
-        return Map.ofEntries(
-                TEXTFIELD.toEntry(), TEXTAREA.toEntry(), NUMBERFIELD.toEntry(), HIDDEN.toEntry(),
-                CHECKBOX.toEntry(), CHECKBOXGROUP.toEntry(), RADIOGROUP.toEntry(), SELECT.toEntry(),
-                MULTISELECT.toEntry(), PATHFIELD.toEntry(), AUTOCOMPLETE.toEntry(), DATEPICKER.toEntry(),
-                IMAGE.toEntry(), FILEUPLOAD.toEntry(), RICHTEXT.toEntry(), MULTIFIELD.toEntry(),
-                BUTTON.toEntry(), PASSWORD.toEntry(), SWITCH.toEntry(), ANCHORBROWSER.toEntry(),
-                TAGFIELD.toEntry()
-        );
+        return Arrays.stream(values())
+                .sorted(Comparator.comparing(FieldType::getType))
+                .collect(Collectors.toMap(
+                        FieldType::getType,
+                        FieldType::getResourceType,
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                ));
     }
 
     private Map.Entry<String, String> toEntry() {
