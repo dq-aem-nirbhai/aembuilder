@@ -28,7 +28,7 @@
 
     <div class="d-flex justify-content-end mb-3">
         <a href="/create" class="btn btn-success me-2">Create Project</a>
-        <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importModal">Import Project</button>
+        <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importModal">Import from Local (.zip)</button>
     </div>
 
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
@@ -53,11 +53,11 @@
     <div class="modal-dialog">
         <form th:action="@{/import}" method="post" enctype="multipart/form-data" class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Import AEM Project</h5>
+                <h5 class="modal-title">Import from Local (.zip)</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <input type="file" name="file" class="form-control" required>
+                <input type="file" name="file" accept=".zip" class="form-control" required>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary" type="submit">Upload</button>
