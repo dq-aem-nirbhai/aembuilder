@@ -216,11 +216,11 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       })
       .catch(() => {
-        errorDiv.innerText = '⚠️ Server error while checking component name.';
-        errorDiv.classList.add('text-danger');
-        errorDiv.classList.remove('text-success');
-        componentNameInput.classList.add('is-invalid');
-        createButton.disabled = true;
+        errorDiv.innerText = '⚠️ Unable to verify component name.';
+        errorDiv.classList.add('text-warning');
+        errorDiv.classList.remove('text-danger', 'text-success');
+        componentNameInput.classList.remove('is-invalid');
+        validateFormFields();
       });
   }, 400);
 
