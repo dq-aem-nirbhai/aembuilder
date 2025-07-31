@@ -29,7 +29,7 @@
 
   <form id="componentForm" th:action="@{'/component/create/' + ${projectName}}" method="post">
     <!-- Hidden input to pass projectName into JS -->
-    <input type="hidden" id="projectName" th:value="${projectName}">
+    <input type="hidden" id="projectName" name="projectName" th:value="${projectName}">
 
     <!-- Component Name -->
     <div class="mb-3">

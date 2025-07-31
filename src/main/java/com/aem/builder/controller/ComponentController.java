@@ -106,6 +106,7 @@ public class ComponentController {
     public String createComponent(@PathVariable String project,
                                   @ModelAttribute ComponentRequest request,
                                   RedirectAttributes redirectAttributes) {
+        log.info("Creating component '{}' for project '{}'", request.getComponentName(), project);
         try {
             componentService.generateComponent(project, request);
             redirectAttributes.addFlashAttribute("message", "Component created successfully!");
