@@ -16,10 +16,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Controller
 @RequiredArgsConstructor
@@ -86,21 +82,12 @@ public class ComponentController {
         } catch (IOException e) {
             log.error("Error loading available components", e);
         }
-        Map<String, String> compMap = available.stream()
-                .collect(Collectors.toMap(
-                        path -> path,
-                        path -> path.substring(path.lastIndexOf('/') + 1),
-                        (a, b) -> a,
-                        LinkedHashMap::new
-                ));
-        List<Map.Entry<String, String>> sorted = compMap.entrySet().stream()
-                .sorted(Map.Entry.comparingByValue(String.CASE_INSENSITIVE_ORDER))
-                .toList();
-        Map<String, String> sortedMap = new LinkedHashMap<>();
-        for (Map.Entry<String, String> e : sorted) {
-            sortedMap.put(e.getKey(), e.getValue());
+        Map<String, String> compMap = new LinkedHashMap<>();
+        for (String path : available) {
+            int idx = path.lastIndexOf('/') + 1;
+            compMap.put(path, path.substring(idx));
         }
-        model.addAttribute("availableComponents", sortedMap);
+        model.addAttribute("availableComponents", compMap);
         return "create-component"; // Thymeleaf template
     }
 

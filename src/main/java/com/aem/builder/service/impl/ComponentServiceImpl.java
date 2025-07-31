@@ -177,12 +177,7 @@ public class ComponentServiceImpl implements ComponentService {
         groups.removeIf(g -> g.equals(projectName + "-content")
                 || g.equals(projectName + "-structure")
                 || g.equals(".hidden"));
-        if (groups.isEmpty()) {
-            return List.of(projectName);
-        }
-        List<String> sorted = new ArrayList<>(groups);
-        Collections.sort(sorted, String.CASE_INSENSITIVE_ORDER);
-        return sorted;
+        return groups.isEmpty() ? List.of(projectName) : new ArrayList<>(groups);
     }
 
     @Override
