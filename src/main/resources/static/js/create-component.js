@@ -239,7 +239,7 @@ document.addEventListener("DOMContentLoaded", function () {
       createButton.disabled = true;
       return;
     }
-    const rows = document.querySelectorAll('.field-row, .nested-row');
+    const rows = document.querySelectorAll('#fieldsContainer .field-row, #fieldsContainer .nested-row');
     if (mode === 'new' && rows.length === 0) {
       createButton.disabled = true;
       return;
