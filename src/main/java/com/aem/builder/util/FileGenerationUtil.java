@@ -107,13 +107,13 @@ public class FileGenerationUtil {
         } else {
             sb.append("<sly data-sly-use.model=\"")
                     .append(packageName).append(".").append(modelClassName).append("\"/>\n");
+
+            sb.append("<sly data-sly-use.placeholderTemplate=\"core/wcm/components/commons/v1/templates.html\"/>\n")
+                    .append("<sly data-sly-test.hasContent=\"${!model.empty}\">\n");
             if (extending) {
                 sb.append("<sly data-sly-resource=\"${@ resourceType='")
                         .append(superType).append("'}\"/>\n");
             }
-            sb.append("<sly data-sly-use.placeholderTemplate=\"core/wcm/components/commons/v1/templates.html\"/>\n")
-                    .append("<sly data-sly-test.hasContent=\"${!model.empty}\">\n");
-
             if (hasFields) {
         for (ComponentField field : fields) {
             String fieldName = field.getFieldName();
@@ -147,16 +147,21 @@ public class FileGenerationUtil {
                             .append("  </sly>\n");
                 }
                 case "image", "fileupload" -> {
-                    sb.append("  <sly data-sly-test=\"${model.fileReference}\">\n")
+                    sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append("}\">\n")
                             .append("    <p>").append(fieldLabel);
+
                     if (fieldType.equals("image")) {
-                        sb.append(": <img src=\"${model.fileReference}\" alt=\"").append(fieldLabel)
+                        sb.append(": <img src=\"${model.").append(fieldName)
+                                .append("}\" alt=\"").append(fieldLabel)
                                 .append("\" style=\"max-width:100%; height:auto;\"/></p>\n");
                     } else {
-                        sb.append(": <a href=\"${model.fileReference}\" download>Download File</a></p>\n");
+                        sb.append(": <a href=\"${model.").append(fieldName)
+                                .append("}\" download>Download File</a></p>\n");
                     }
+
                     sb.append("  </sly>\n");
                 }
+
                 case "pathfield" -> {
                     sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append("}\">\n")
                             .append("    <p>").append(fieldLabel).append(": <a href=\"${model.")
@@ -191,27 +196,58 @@ public class FileGenerationUtil {
     /**
      * Recursively appends HTL markup for nested multifields.
      */
-    private static void appendNestedHTL(StringBuilder sb, List<ComponentField> fields, String var, String indent) {
-        if (fields == null) {
-            return;
-        }
-        for (ComponentField nested : fields) {
-            String name = nested.getFieldName();
-            String label = nested.getFieldLabel();
-            String type = nested.getFieldType().toLowerCase();
+    private static void appendNestedHTL(StringBuilder sb, List<ComponentField> nestedFields, String modelVar, String indent) {
+        if (nestedFields == null || nestedFields.isEmpty()) return;
 
-            if ("multifield".equals(type)) {
-                sb.append(indent).append("<sly data-sly-test=\"${").append(var).append('.').append(name)
-                        .append(" && ").append(var).append('.').append(name).append(".size > 0}\">\n");
-                sb.append(indent).append("  <ul data-sly-list.subItem=\"${").append(var).append('.').append(name)
-                        .append("}\">\n");
-                appendNestedHTL(sb, nested.getNestedFields(), "subItem", indent + "    ");
-                sb.append(indent).append("  </ul>\n");
-                sb.append(indent).append("</sly>\n");
-            } else {
-                sb.append(indent).append("<li>").append(label).append(": ${").append(var).append('.').append(name)
-                        .append("}</li>\n");
+        for (ComponentField nested : nestedFields) {
+            String fieldName = nested.getFieldName();
+            String fieldLabel = nested.getFieldLabel();
+            String fieldType = nested.getFieldType().toLowerCase();
+
+            sb.append(indent).append("<sly data-sly-test=\"${").append(modelVar).append(".")
+                    .append(fieldName).append("}\">\n");
+
+            switch (fieldType) {
+                case "image", "fileupload" -> {
+                    sb.append(indent).append("  <sly data-sly-test=\"${").append(modelVar).append(".").append(fieldName).append("}\">\n");
+                    sb.append(indent).append("    <p>").append(fieldLabel);
+
+                    if (fieldType.equals("image")) {
+                        sb.append(": <img src=\"${").append(modelVar).append(".").append(fieldName)
+                                .append("}\" alt=\"").append(fieldLabel)
+                                .append("\" style=\"max-width:100%; height:auto;\"/></p>\n");
+                    } else {
+                        sb.append(": <a href=\"${").append(modelVar).append(".").append(fieldName)
+                                .append("}\" download>Download File</a></p>\n");
+                    }
+
+                    sb.append(indent).append("  </sly>\n");
+                }
+
+
+                case "richtext" -> sb.append(indent).append("  <p>").append(fieldLabel).append(": ${")
+                        .append(modelVar).append(".").append(fieldName).append(" @ context='html'}</p>\n");
+                case "pathfield" -> sb.append(indent).append("  <p>").append(fieldLabel).append(": <a href=\"${")
+                        .append(modelVar).append(".").append(fieldName).append("}\">${")
+                        .append(modelVar).append(".").append(fieldName).append("}</a></p>\n");
+                case "checkbox" -> sb.append(indent).append("  <p>").append(fieldLabel)
+                        .append(": <input type=\"checkbox\" disabled checked=\"checked\"/></p>\n");
+                case "checkboxgroup", "multiselect" -> sb.append(indent).append("  <ul data-sly-list.item=\"${")
+                        .append(modelVar).append(".").append(fieldName).append("}\">\n")
+                        .append(indent).append("    <li>${item}</li>\n")
+                        .append(indent).append("  </ul>\n");
+                case "multifield" -> {
+                    String newVar = modelVar + "." + fieldName;
+                    sb.append(indent).append("  <ul data-sly-list.nestedItem=\"${")
+                            .append(newVar).append("}\">\n");
+                    appendNestedHTL(sb, nested.getNestedFields(), "nestedItem", indent + "    ");
+                    sb.append(indent).append("  </ul>\n");
+                }
+                default -> sb.append(indent).append("  <p>").append(fieldLabel).append(": ${")
+                        .append(modelVar).append(".").append(fieldName).append("}</p>\n");
             }
+
+            sb.append(indent).append("</sly>\n");
         }
     }
 
@@ -396,15 +432,17 @@ public class FileGenerationUtil {
                         .append("    sling:resourceType=\"").append(getResourceType(type)).append("\"\n")
                         .append("    autoStart=\"{Boolean}false\"\n")
                         .append("    class=\"cq-droptarget\"\n")
-                        .append("    fileNameParameter=\"./fileName\"\n")
-                        .append("    fileReferenceParameter=\"./fileReference\"\n")
+                        .append("    fieldLabel=\"").append(label).append("\"\n")
+                        .append("    fileNameParameter=\"./").append(name).append("FileName\"\n") // this is fine
+                        .append("    fileReferenceParameter=\"./").append(name).append("\"\n") // this is what your Sling Model will use
                         .append("    mimeTypes=\"[image/gif,image/jpeg,image/png,image/tiff,image/svg+xml]\"\n")
                         .append("    multiple=\"{Boolean}false\"\n")
-                        .append("    name=\"./").append(name).append("\"\n")
-                        .append("    title=\"").append(label).append("\"\n")
-                        .append("    uploadUrl=\"${request.contextPath}/content/dam\"/>\n");
+                        .append("    name=\"./file\"\n") //  fixed to mimic your example
+                        .append("    uploadUrl=\"/content/dam\"/>\n"); //  removed `${request.contextPath}`
                 yield sb.toString();
             }
+
+
             case "multifield" -> {
                 StringBuilder sb = new StringBuilder();
                 sb.append("  <").append(nodeName).append("\n")
@@ -487,7 +525,6 @@ public class FileGenerationUtil {
                 case "checkboxgroup", "multiselect" ->
                     sb.append("    @ValueMapValue\nprivate List<String> ").append(name).append(";\n\n");
                 case "numberfield" -> sb.append("    @ValueMapValue\nprivate double ").append(name).append(";\n\n");
-                case "image", "fileupload" -> sb.append("    @ValueMapValue\nprivate String fileReference;\n\n");
                 default -> sb.append("    @ValueMapValue\nprivate String ").append(name).append(";\n\n");
             }
         }
@@ -509,8 +546,6 @@ public class FileGenerationUtil {
                             .append("        return ").append(name).append(";\n    }\n\n");
                 case "numberfield" -> sb.append("    public double get").append(getter).append("() {\n")
                         .append("        return ").append(name).append(";\n    }\n\n");
-                case "image", "fileupload" -> sb.append("    public String getFileReference() {\n")
-                        .append("        return fileReference;\n    }\n\n");
                 default -> sb.append("    public String get").append(getter).append("() {\n")
                         .append("        return ").append(name).append(";\n    }\n\n");
             }
@@ -529,7 +564,6 @@ public class FileGenerationUtil {
                     emptyChecks.add("(" + name + " == null || " + name + ".isEmpty())");
                 case "checkbox" -> emptyChecks.add("!" + name);
                 case "numberfield" -> emptyChecks.add(name + " == 0");
-                case "image", "fileupload" -> emptyChecks.add("(fileReference == null || fileReference.isEmpty())");
                 default -> emptyChecks.add("(" + name + " == null || " + name + ".isEmpty())");
             }
         }
@@ -583,8 +617,6 @@ public class FileGenerationUtil {
                         .append("    private double ").append(subName).append(";\n\n");
                 case "checkboxgroup", "multiselect" -> sb.append("    @ValueMapValue\n")
                         .append("    private List<String> ").append(subName).append(";\n\n");
-                case "image" -> sb.append("    @ValueMapValue\n")
-                        .append("    private String fileReference;\n\n");
                 default -> sb.append("    @ValueMapValue\n")
                         .append("    private String ").append(subName).append(";\n\n");
             }
@@ -608,8 +640,7 @@ public class FileGenerationUtil {
                 case "checkboxgroup", "multiselect" ->
                     sb.append("    public List<String> get").append(getter).append("() {\n")
                             .append("        return ").append(subName).append(";\n    }\n\n");
-                case "image" -> sb.append("    public String getFileReference() {\n")
-                        .append("        return fileReference;\n    }\n\n");
+
                 default -> sb.append("    public String get").append(getter).append("() {\n")
                         .append("        return ").append(subName).append(";\n    }\n\n");
             }

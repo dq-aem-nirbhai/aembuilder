@@ -72,13 +72,13 @@
     <div id="fieldRowTemplate" class="field-row border p-2 mb-3" style="display:none">
       <div class="row g-2 align-items-end">
         <div class="col">
-          <input type="text" class="form-control fieldLabel" placeholder="Field Label" oninput="autoFillFieldName(this)" required>
+          <input type="text" class="form-control fieldLabel" placeholder="Field Label" oninput="autoFillFieldName(this)" >
         </div>
         <div class="col">
-          <input type="text" class="form-control fieldName" placeholder="Field Name" required>
+          <input type="text" class="form-control fieldName" placeholder="Field Name" >
         </div>
         <div class="col">
-          <select class="form-select fieldType" onchange="handleFieldTypeChange(this)" required>
+          <select class="form-select fieldType" onchange="handleFieldTypeChange(this)" >
             <option value="">-- Select Type --</option>
             <option th:each="type : ${fieldTypes}" th:value="${type.key}" th:text="${type.key}"></option>
           </select>
