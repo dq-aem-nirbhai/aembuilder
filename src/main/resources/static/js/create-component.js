@@ -1,5 +1,19 @@
 document.addEventListener("DOMContentLoaded", function () {
   const typeOptions = document.querySelector('.fieldType').innerHTML;
+  const modeSelect = document.getElementById('creationMode');
+  const extendsDiv = document.getElementById('extendsComponentDiv');
+
+  function toggleSuperType() {
+    if (modeSelect.value === 'extend') {
+      extendsDiv.style.display = '';
+    } else {
+      extendsDiv.style.display = 'none';
+      document.getElementById('superType').value = '';
+    }
+  }
+
+  modeSelect.addEventListener('change', toggleSuperType);
+  toggleSuperType();
 
   function createBaseRow(isNested, level = 0) {
     const div = document.createElement('div');
@@ -197,7 +211,13 @@ document.addEventListener("DOMContentLoaded", function () {
   window.validateFormFields = function () {
     const name = componentNameInput.value.trim();
     const group = document.getElementById('componentGroup').value;
+    const mode = modeSelect.value;
+    const superTypeValue = document.getElementById('superType').value;
     if (!name || !group || componentNameInput.classList.contains('is-invalid')) {
+      createButton.disabled = true;
+      return;
+    }
+    if (mode === 'extend' && !superTypeValue) {
       createButton.disabled = true;
       return;
     }
