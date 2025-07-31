@@ -52,10 +52,17 @@ public class FileGenerationUtil {
 
         new File(dialogFolder).mkdirs();
 
+        boolean extendsComponent = superType != null && !superType.isBlank();
+        boolean hasFields = fields != null && !fields.isEmpty();
+
         generateComponentContentXml(componentFolder, componentName, componentGroup, superType);
         generateHTL(componentFolder, fields, packageName, componentName, superType);
-        generateDialogContentXml(componentName, dialogFolder, superType, fields);
-        if (superType == null || superType.isBlank()) {
+
+        if (hasFields) {
+            generateDialogContentXml(componentName, dialogFolder, superType, fields);
+        }
+
+        if (!extendsComponent || hasFields) {
             generateSlingModel(modelBasePath, packageName, componentName, fields);
         }
 
@@ -92,17 +99,22 @@ public class FileGenerationUtil {
         StringBuilder sb = new StringBuilder();
 
         boolean extending = superType != null && !superType.isBlank();
-        if (extending) {
+        boolean hasFields = fields != null && !fields.isEmpty();
+
+        if (extending && !hasFields) {
             sb.append("<sly data-sly-resource=\"${@ resourceType='")
                     .append(superType).append("'}\"/>\n");
         } else {
             sb.append("<sly data-sly-use.model=\"")
-                    .append(packageName).append(".").append(modelClassName).append("\"/>\n")
-                    .append("<sly data-sly-use.placeholderTemplate=\"core/wcm/components/commons/v1/templates.html\"/>\n")
+                    .append(packageName).append(".").append(modelClassName).append("\"/>\n");
+            if (extending) {
+                sb.append("<sly data-sly-resource=\"${@ resourceType='")
+                        .append(superType).append("'}\"/>\n");
+            }
+            sb.append("<sly data-sly-use.placeholderTemplate=\"core/wcm/components/commons/v1/templates.html\"/>\n")
                     .append("<sly data-sly-test.hasContent=\"${!model.empty}\">\n");
-        }
 
-        if (!extending) {
+            if (hasFields) {
         for (ComponentField field : fields) {
             String fieldName = field.getFieldName();
             String fieldLabel = field.getFieldLabel();
@@ -166,8 +178,9 @@ public class FileGenerationUtil {
             }
         }
 
-        sb.append("</sly>\n");
-        sb.append("<sly data-sly-call=\"${placeholderTemplate.placeholder @ isEmpty = !hasContent}\" />\n");
+            sb.append("</sly>\n");
+            sb.append("<sly data-sly-call=\"${placeholderTemplate.placeholder @ isEmpty = !hasContent}\" />\n");
+            }
         }
 
         FileUtils.writeStringToFile(new File(folderPath + "/" + componentName + ".html"), sb.toString(),
@@ -207,6 +220,10 @@ public class FileGenerationUtil {
      */
     public static void generateDialogContentXml(String componentName, String dialogFolder, String superType,
             List<ComponentField> fields) throws Exception {
+        if (fields == null || fields.isEmpty()) {
+            logger.info("DIALOG: Skipping dialog generation for component '{}' as no fields defined", componentName);
+            return;
+        }
         logger.info("DIALOG: Generating dialog .content.xml for component '{}'", componentName);
         String dialogTitle = componentName + " Dialog";
 
