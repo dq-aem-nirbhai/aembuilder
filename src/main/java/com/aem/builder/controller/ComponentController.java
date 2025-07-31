@@ -1,6 +1,7 @@
 package com.aem.builder.controller;
 
 import com.aem.builder.model.DTO.ComponentRequest;
+import com.aem.builder.model.DTO.ComponentField;
 import com.aem.builder.model.Enum.FieldType;
 import com.aem.builder.service.ComponentService;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +52,12 @@ public class ComponentController {
     @ResponseBody
     public List<String> availableComponents(@PathVariable String project) throws IOException {
         return componentService.getAvailableComponents(project);
+    }
+
+    @GetMapping("/component/fields")
+    @ResponseBody
+    public List<ComponentField> componentFields(@RequestParam String path) {
+        return componentService.getComponentFields(path);
     }
 
     @PostMapping("/add-components/{projectname}")

@@ -52,6 +52,19 @@ public enum FieldType {
         );
     }
 
+    /**
+     * Utility to map a sling:resourceType back to the logical field type.
+     * Returns an empty string if the resource type is unknown.
+     */
+    public static String getTypeByResource(String resourceType) {
+        for (FieldType ft : values()) {
+            if (ft.resourceType.equals(resourceType)) {
+                return ft.type;
+            }
+        }
+        return "";
+    }
+
     private Map.Entry<String, String> toEntry() {
         return Map.entry(this.type, this.resourceType);
     }

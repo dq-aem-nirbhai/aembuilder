@@ -1,12 +1,11 @@
 package com.aem.builder.service;
 
 import com.aem.builder.model.DTO.ComponentRequest;
+import com.aem.builder.model.DTO.ComponentField;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-
-import java.util.List;
 
 public interface ComponentService {
     List<String> fetchComponentsFromGeneratedProjects(String projectName);
@@ -31,6 +30,8 @@ public interface ComponentService {
     void generateComponent(String projectName, ComponentRequest request);
 
     List<String> getAvailableComponents(String projectName) throws IOException;
+
+    List<ComponentField> getComponentFields(String componentPath);
 
     //component checking
     boolean isComponentNameAvailable(String projectName, String componentName);

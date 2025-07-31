@@ -1,23 +1,19 @@
 package com.aem.builder.service.impl;
 
 import com.aem.builder.model.DTO.ComponentRequest;
+import com.aem.builder.model.DTO.ComponentField;
 import com.aem.builder.service.ComponentService;
 import com.aem.builder.util.FileGenerationUtil;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-import java.io.File;
-import java.util.*;
-import java.util.stream.Collectors;
-import com.aem.builder.service.ComponentService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Service;
+
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -195,6 +191,33 @@ public class ComponentServiceImpl implements ComponentService {
             result.add("/apps/" + projectName + "/components/" + comp);
         }
         return result;
+    }
+
+    @Override
+    public List<ComponentField> getComponentFields(String componentPath) {
+        try {
+            String dialogPath;
+            if (componentPath.startsWith("/apps/core/wcm/components/")) {
+                String name = componentPath.substring("/apps/core/wcm/components/".length());
+                dialogPath = "src/main/resources/aem-components/" + name + "/_cq_dialog/.content.xml";
+            } else if (componentPath.startsWith("/apps/")) {
+                String[] parts = componentPath.split("/");
+                if (parts.length >= 5) {
+                    String project = parts[2];
+                    String comp = parts[4];
+                    dialogPath = PROJECTS_DIR + "/" + project + "/ui.apps/src/main/content/jcr_root/apps/" + project
+                            + "/components/" + comp + "/_cq_dialog/.content.xml";
+                } else {
+                    return List.of();
+                }
+            } else {
+                return List.of();
+            }
+            return FileGenerationUtil.parseDialogFields(dialogPath);
+        } catch (Exception e) {
+            log.error("Failed to read dialog for {}", componentPath, e);
+            return List.of();
+        }
     }
 
 

@@ -612,4 +612,99 @@ public class FileGenerationUtil {
             return "";
         }
     }
+
+    /**
+     * Parses a cq:dialog XML and extracts the list of component fields. This is
+     * primarily used when extending an existing component.
+     */
+    public static List<ComponentField> parseDialogFields(String dialogPath) {
+        List<ComponentField> fields = new ArrayList<>();
+        File dialog = new File(dialogPath);
+        if (!dialog.exists()) {
+            logger.info("FILEGEN: dialog not found at {}", dialogPath);
+            return fields;
+        }
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(false);
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document doc = builder.parse(dialog);
+
+            Element root = doc.getDocumentElement();
+            Element content = getChild(root, "content");
+            if (content == null) {
+                return fields;
+            }
+            Element items1 = getChild(content, "items");
+            Element tabs = getChild(items1, "tabs");
+            Element items2 = getChild(tabs, "items");
+            Element tab1 = getChild(items2, "tab1");
+            Element fieldParent = getChild(tab1, "items");
+            if (fieldParent != null) {
+                parseFieldElements(fieldParent, fields);
+            }
+        } catch (Exception e) {
+            logger.info("FILEGEN: error parsing dialog {}", dialogPath, e);
+        }
+        return fields;
+    }
+
+    private static void parseFieldElements(Element parent, List<ComponentField> fields) {
+        NodeList children = parent.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node n = children.item(i);
+            if (n instanceof Element element) {
+                if (element.hasAttribute("sling:resourceType")) {
+                    String resType = element.getAttribute("sling:resourceType");
+                    String type = FieldType.getTypeByResource(resType);
+                    String nameAttr = element.getAttribute("name");
+                    String fieldName = nameAttr.startsWith("./") ? nameAttr.substring(2) : nameAttr;
+                    String label = element.getAttribute("fieldLabel");
+                    ComponentField cf = new ComponentField();
+                    cf.setFieldName(fieldName);
+                    cf.setFieldLabel(label.isBlank() ? fieldName : label);
+                    cf.setFieldType(type);
+
+                    if ("multifield".equals(type)) {
+                        Element fld = getChild(element, "field");
+                        if (fld != null) {
+                            Element nestedItems = getChild(fld, "items");
+                            List<ComponentField> nested = new ArrayList<>();
+                            if (nestedItems != null) {
+                                parseFieldElements(nestedItems, nested);
+                            }
+                            cf.setNestedFields(nested);
+                        }
+                    } else if ("select".equals(type) || "checkboxgroup".equals(type)
+                            || "radiogroup".equals(type) || "multiselect".equals(type)) {
+                        Element items = getChild(element, "items");
+                        if (items != null) {
+                            NodeList opts = items.getChildNodes();
+                            List<OptionItem> optList = new ArrayList<>();
+                            for (int j = 0; j < opts.getLength(); j++) {
+                                Node on = opts.item(j);
+                                if (on instanceof Element optEl) {
+                                    OptionItem oi = new OptionItem();
+                                    oi.setText(optEl.getAttribute("text"));
+                                    oi.setValue(optEl.getAttribute("value"));
+                                    optList.add(oi);
+                                }
+                            }
+                            cf.setOptions(optList);
+                        }
+                    }
+
+                    fields.add(cf);
+                }
+            }
+        }
+    }
+
+    private static Element getChild(Element parent, String name) {
+        if (parent == null) {
+            return null;
+        }
+        NodeList nl = parent.getElementsByTagName(name);
+        return nl.getLength() > 0 ? (Element) nl.item(0) : null;
+    }
 }

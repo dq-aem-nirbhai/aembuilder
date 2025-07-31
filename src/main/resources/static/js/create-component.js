@@ -23,6 +23,15 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }
 
+  function loadInheritedFields(path) {
+    if (!path) return;
+    fetch(`/component/fields?path=${encodeURIComponent(path)}`)
+      .then(res => res.json())
+      .then(data => {
+        populateFields(data);
+      });
+  }
+
   function handleTypeChange() {
     if (componentType.value === 'extend') {
       extendsDiv.style.display = 'block';
@@ -36,7 +45,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   componentType.addEventListener('change', handleTypeChange);
   if (extendsSelect) {
-    extendsSelect.addEventListener('change', validateFormFields);
+    extendsSelect.addEventListener('change', () => {
+      loadInheritedFields(extendsSelect.value);
+      validateFormFields();
+    });
   }
   handleTypeChange();
 
@@ -122,11 +134,12 @@ document.addEventListener("DOMContentLoaded", function () {
     validateFormFields();
   };
 
-  window.addFieldRow = function () {
+  window.addFieldRow = function (data) {
     const container = document.getElementById('fieldsContainer');
     const row = createBaseRow(false);
     row.querySelector('.action-col').innerHTML = '<button type="button" class="btn btn-danger" onclick="removeFieldRow(this)">-</button>';
     container.appendChild(row);
+    if (data) fillRowFromData(row, data);
     updateIndexes();
     row.classList.add('animate__animated','animate__fadeIn');
     validateFormFields();
@@ -138,12 +151,13 @@ document.addEventListener("DOMContentLoaded", function () {
     validateFormFields();
   };
 
-  function addNestedFieldRow(btn) {
+  function addNestedFieldRow(btn, data) {
     const container = btn.closest('.nested-container');
     const parent = container.closest('.field-row, .nested-row');
     const level = parseInt(parent.dataset.level || 0) + 1;
     const row = createBaseRow(true, level);
     container.insertBefore(row, btn);
+    if (data) fillRowFromData(row, data);
     updateIndexes();
     validateFormFields();
   }
@@ -153,14 +167,52 @@ document.addEventListener("DOMContentLoaded", function () {
     validateFormFields();
   };
 
-  function addOptionRow(btn) {
+  function addOptionRow(btn, option) {
     const container = btn.closest('.options-container');
     const div = document.createElement('div');
     div.className = 'option-row input-group mb-2';
     div.innerHTML = `<input type="text" class="form-control optionText" placeholder="Text" required>
       <input type="text" class="form-control optionValue" placeholder="Value" required>
       <button type="button" class="btn btn-danger" onclick="removeOptionRow(this)">-</button>`;
+    if (option) {
+      div.querySelector('.optionText').value = option.text || '';
+      div.querySelector('.optionValue').value = option.value || '';
+    }
     container.insertBefore(div, btn);
+    updateIndexes();
+    validateFormFields();
+  }
+
+  function fillRowFromData(row, data) {
+    row.querySelector('.fieldLabel').value = data.fieldLabel || '';
+    row.querySelector('.fieldName').value = data.fieldName || '';
+    row.querySelector('.fieldName').dataset.touched = 'true';
+    const typeSelect = row.querySelector('.fieldType');
+    typeSelect.value = data.fieldType || '';
+    handleFieldTypeChange(typeSelect);
+    if (data.options && data.options.length) {
+      const addBtn = row.querySelector('.options-container button');
+      data.options.forEach(opt => addOptionRow(addBtn, opt));
+    }
+    if (data.nestedFields && data.nestedFields.length) {
+      const container = row.querySelector('.nested-container');
+      const addBtn = container.querySelector('button');
+      data.nestedFields.forEach(nf => addNestedFieldRow(addBtn, nf));
+    }
+  }
+
+  function populateFields(fields) {
+    const container = document.getElementById('fieldsContainer');
+    container.innerHTML = '';
+    fields.forEach(f => {
+      const row = createBaseRow(false);
+      row.querySelector('.action-col').innerHTML = '<button type="button" class="btn btn-danger" onclick="removeFieldRow(this)">-</button>';
+      container.appendChild(row);
+      fillRowFromData(row, f);
+    });
+    if (fields.length === 0) {
+      window.addFieldRow();
+    }
     updateIndexes();
     validateFormFields();
   }
