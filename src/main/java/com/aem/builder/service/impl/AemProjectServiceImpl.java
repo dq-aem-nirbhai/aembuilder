@@ -10,6 +10,12 @@ import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.FileInputStream;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
@@ -157,6 +163,30 @@ public class AemProjectServiceImpl implements AemProjectService {
             }
         }
         return projects;
+    }
+
+    @Override
+    public void importAemProject(MultipartFile file) throws Exception {
+        Path projectsDir = Path.of(PROJECTS_DIR);
+        Files.createDirectories(projectsDir);
+
+        Path tempFile = Files.createTempFile("upload", ".zip");
+        file.transferTo(tempFile.toFile());
+
+        try (ZipInputStream zis = new ZipInputStream(new FileInputStream(tempFile.toFile()))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                Path newPath = projectsDir.resolve(entry.getName());
+                if (entry.isDirectory()) {
+                    Files.createDirectories(newPath);
+                } else {
+                    Files.createDirectories(newPath.getParent());
+                    Files.copy(zis, newPath, StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        }
+
+        Files.deleteIfExists(tempFile);
     }
 
 
