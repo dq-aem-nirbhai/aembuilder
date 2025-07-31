@@ -21,3 +21,7 @@
   border: 1px dashed #ced4da;
   padding: 10px;
 }
+
+select.form-select option {
+  text-transform: capitalize;
+}

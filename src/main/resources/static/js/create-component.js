@@ -5,9 +5,6 @@ document.addEventListener("DOMContentLoaded", function () {
   function toggleSuperType() {
     if (modeSelect.value === 'extend') {
       extendsDiv.style.display = '';
-      if (document.getElementById('fieldsContainer').childElementCount === 0) {
-        // no default field rows
-      }
     } else {
       extendsDiv.style.display = 'none';
       document.getElementById('superType').value = '';
@@ -15,6 +12,7 @@ document.addEventListener("DOMContentLoaded", function () {
         addFieldRow();
       }
     }
+    updateMandatoryButtons();
   }
 
   modeSelect.addEventListener('change', () => {
@@ -89,12 +87,14 @@ document.addEventListener("DOMContentLoaded", function () {
     updateIndexes();
     row.classList.add('animate__animated','animate__fadeIn');
     validateFormFields();
+    updateMandatoryButtons();
   };
 
   window.removeFieldRow = function (btn) {
     btn.closest('.field-row').remove();
     updateIndexes();
     validateFormFields();
+    updateMandatoryButtons();
   };
 
   function addNestedFieldRow(btn) {
@@ -134,6 +134,7 @@ document.addEventListener("DOMContentLoaded", function () {
     fieldRows.forEach((row, i) => {
       setRowNames(row, `fields[${i}]`);
     });
+    updateMandatoryButtons();
   }
 
   function setRowNames(row, prefix) {
@@ -157,6 +158,20 @@ document.addEventListener("DOMContentLoaded", function () {
     options.forEach((opt, k) => {
       opt.querySelector('.optionText').name = `${prefix}.options[${k}].text`;
       opt.querySelector('.optionValue').name = `${prefix}.options[${k}].value`;
+    });
+  }
+
+  function updateMandatoryButtons() {
+    const rows = document.querySelectorAll('#fieldsContainer > .field-row');
+    rows.forEach((row, idx) => {
+      const actionCol = row.querySelector('.action-col');
+      if (modeSelect.value === 'new' && idx === 0) {
+        actionCol.innerHTML = '';
+      } else {
+        if (!actionCol.querySelector('button')) {
+          actionCol.innerHTML = '<button type="button" class="btn btn-danger" onclick="removeFieldRow(this)">-</button>';
+        }
+      }
     });
   }
 
@@ -249,5 +264,6 @@ document.addEventListener("DOMContentLoaded", function () {
   };
 
   document.addEventListener('input', validateFormFields);
+  document.addEventListener('change', validateFormFields);
   updateIndexes();
 });
