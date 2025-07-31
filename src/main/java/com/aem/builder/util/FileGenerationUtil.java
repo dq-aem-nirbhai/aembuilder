@@ -55,7 +55,9 @@ public class FileGenerationUtil {
         generateComponentContentXml(componentFolder, componentName, componentGroup, superType);
         generateHTL(componentFolder, fields, packageName, componentName, superType);
         generateDialogContentXml(componentName, dialogFolder, superType, fields);
-        generateSlingModel(modelBasePath, packageName, componentName, fields);
+        if (superType == null || superType.isBlank()) {
+            generateSlingModel(modelBasePath, packageName, componentName, fields);
+        }
 
         logger.info("COMPONENT: Finished generating component '{}'", componentName);
     }
