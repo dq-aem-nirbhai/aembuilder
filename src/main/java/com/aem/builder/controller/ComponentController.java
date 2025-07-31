@@ -71,6 +71,17 @@ public class ComponentController {
         model.addAttribute("projectName", project);
         model.addAttribute("fieldTypes", FieldType.getTypeResourceMap());
         model.addAttribute("componentGroups", componentService.getComponentGroups(project));
+        // Components that can be extended (core components + existing ones)
+        List<String> available = new ArrayList<>();
+        try {
+            available.addAll(componentService.fetchComponentsFromGeneratedProjects(project).stream()
+                    .map(name -> "/apps/" + project + "/components/" + name)
+                    .toList());
+            available.addAll(componentService.getAllComponents());
+        } catch (IOException e) {
+            log.error("Error loading available components", e);
+        }
+        model.addAttribute("availableComponents", available);
         return "create-component"; // Thymeleaf template
     }
 

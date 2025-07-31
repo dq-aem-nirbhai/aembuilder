@@ -47,6 +47,15 @@
       </select>
     </div>
 
+    <!-- Extends Component -->
+    <div class="mb-3">
+      <label class="form-label">Extends Component (optional)</label>
+      <select class="form-select" name="superType" id="superType">
+        <option value="">-- None --</option>
+        <option th:each="comp : ${availableComponents}" th:value="${comp}" th:text="${comp}"></option>
+      </select>
+    </div>
+
     <!-- Dialog Fields -->
     <div id="fieldsContainer" class="mb-3">
       <label>Dialog Fields</label>

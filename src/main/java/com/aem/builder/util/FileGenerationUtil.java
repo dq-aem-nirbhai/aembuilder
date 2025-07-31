@@ -32,7 +32,7 @@ public class FileGenerationUtil {
             String packageName = "com." + projectName + ".core.models";
 
             generateComponent(basePath, modelBasePath, packageName, request.getComponentName(),
-                    request.getComponentGroup(), request.getFields());
+                    request.getComponentGroup(), request.getSuperType(), request.getFields());
             logger.info("FILEGEN: Successfully generated all files for project: {}", projectName);
         } catch (Exception e) {
             logger.info("FILEGEN: Error generating files for project: {}", projectName, e);
@@ -44,7 +44,7 @@ public class FileGenerationUtil {
      * Generates component folders, content.xml, HTL, dialog, and Sling model.
      */
     public static void generateComponent(String basePath, String modelBasePath, String packageName,
-            String componentName, String componentGroup, List<ComponentField> fields) throws Exception {
+            String componentName, String componentGroup, String superType, List<ComponentField> fields) throws Exception {
         logger.info("COMPONENT: Generating component '{}'", componentName);
 
         String componentFolder = basePath + "/" + componentName;
@@ -52,7 +52,7 @@ public class FileGenerationUtil {
 
         new File(dialogFolder).mkdirs();
 
-        generateComponentContentXml(componentFolder, componentName, componentGroup);
+        generateComponentContentXml(componentFolder, componentName, componentGroup, superType);
         generateHTL(componentFolder, fields, packageName, componentName);
         generateDialogContentXml(componentName, dialogFolder, fields);
         generateSlingModel(modelBasePath, packageName, componentName, fields);
@@ -63,8 +63,8 @@ public class FileGenerationUtil {
     /**
      * Generates the .content.xml for the component.
      */
-    private static void generateComponentContentXml(String folderPath, String componentName, String componentGroup)
-            throws Exception {
+    private static void generateComponentContentXml(String folderPath, String componentName, String componentGroup,
+            String superType) throws Exception {
         logger.info("CONTENTXML: Generating .content.xml for component '{}'", componentName);
         String content = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
                 "<jcr:root xmlns:sling=\"http://sling.apache.org/jcr/sling/1.0\"\n" +
@@ -72,7 +72,10 @@ public class FileGenerationUtil {
                 "          xmlns:jcr=\"http://www.jcp.org/jcr/1.0\"\n" +
                 "          jcr:primaryType=\"cq:Component\"\n" +
                 "          jcr:title=\"" + componentName + "\"\n" +
-                "          componentGroup=\"" + componentGroup + "\"/>";
+                "          componentGroup=\"" + componentGroup + "\"" +
+                (superType != null && !superType.isBlank()
+                        ? "\n          sling:resourceSuperType=\"" + superType + "\"" : "") +
+                "/>";
         FileUtils.writeStringToFile(new File(folderPath + "/.content.xml"), content, StandardCharsets.UTF_8);
         logger.info("CONTENTXML: .content.xml generated at {}/.content.xml", folderPath);
     }
