@@ -71,7 +71,7 @@
             <input type="text" class="form-control fieldLabel" name="fields[0].fieldLabel" placeholder="Field Label" oninput="autoFillFieldName(this)" required>
           </div>
           <div class="col">
-            <input type="text" class="form-control fieldName" name="fields[0].fieldName" placeholder="Field Name" required>
+            <input type="text" class="form-control fieldName" name="fields[0].fieldName" placeholder="Field Name" oninput="markFieldNameTouched(this)" required>
           </div>
           <div class="col">
             <select class="form-select fieldType" name="fields[0].fieldType" onchange="handleFieldTypeChange(this)" required>

@@ -5,6 +5,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const extendsDiv = document.getElementById('extendsDiv');
   const extendsSelect = document.getElementById('extendsComponent');
 
+  document.querySelectorAll('.fieldName').forEach(f => {
+    f.dataset.touched = 'false';
+  });
+
   function loadAvailableComponents() {
     fetch(`/available-components/${projectName}`)
       .then(res => res.json())
@@ -50,7 +54,7 @@ document.addEventListener("DOMContentLoaded", function () {
           <input type="text" class="form-control fieldLabel" placeholder="Field Label" oninput="autoFillFieldName(this)" required>
         </div>
         <div class="col">
-          <input type="text" class="form-control fieldName" placeholder="Field Name" required>
+          <input type="text" class="form-control fieldName" placeholder="Field Name" oninput="markFieldNameTouched(this)" required>
         </div>
         <div class="col">
           <select class="form-select fieldType" onchange="handleFieldTypeChange(this)" required>${typeOptions}</select>
@@ -61,12 +65,17 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
       <div class="options-container mt-2"></div>
       <div class="nested-container mt-2"></div>`;
+    div.querySelector('.fieldName').dataset.touched = 'false';
     return div;
   }
 
   window.autoFillFieldName = function (labelInput) {
     const row = labelInput.closest('.field-row, .nested-row');
     const nameInput = row.querySelector('.fieldName');
+    if (nameInput.dataset.touched === 'true') {
+      validateFormFields();
+      return;
+    }
     const labelValue = labelInput.value.trim();
     const camelCase = labelValue
       .replace(/[^a-zA-Z0-9 ]/g, '')
@@ -74,6 +83,13 @@ document.addEventListener("DOMContentLoaded", function () {
       .map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
       .join('');
     nameInput.value = camelCase;
+    nameInput.dataset.autofilled = 'true';
+    validateFormFields();
+  };
+
+  window.markFieldNameTouched = function (input) {
+    input.dataset.touched = 'true';
+    input.dataset.autofilled = 'false';
     validateFormFields();
   };
 
