@@ -62,7 +62,7 @@
                 </div>
                 <div id="templatesList" class="row row-cols-1 row-cols-sm-2 g-2">
                     <div class="col" th:each="template : ${templates}">
-                        <div class="border rounded p-2 bg-light text-center shadow-sm d-flex justify-content-between align-items-center">
+                        <div class="border rounded p-2 bg-light text-center shadow-sm d-flex justify-content-between align-items-center template-item" th:attr="data-template=${template}">
                             <span th:text="${template}"></span>
 
                             <!-- Show Edit button only if template is NOT page-content or xf-web-variation -->
@@ -109,6 +109,20 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary" onclick="addSelectedTemplates()">Add Selected</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Template Components Modal -->
+<div class="modal fade" id="templateComponentsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 id="templateComponentsTitle">Template Components</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="templateComponentsList" class="list-group"></div>
             </div>
         </div>
     </div>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Create Policy</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+<div class="container mt-4">
+    <a th:href="@{'/' + ${projectName}}" class="btn btn-outline-secondary mb-3">← Back to DeployPage</a>
+    <h2>Create Policy for <span th:text="${componentName}"></span></h2>
+    <form th:action="@{'/' + ${projectName} + '/policy/' + ${templateName} + '/' + ${componentName}}" method="post" th:object="${policy}">
+        <div class="mb-3">
+            <label class="form-label">Policy Title</label>
+            <input type="text" class="form-control" th:field="*{title}" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Policy Description</label>
+            <input type="text" class="form-control" th:field="*{description}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Default CSS Classes</label>
+            <input type="text" class="form-control" th:field="*{defaultCssClasses}">
+        </div>
+        <div id="stylesContainer" class="mb-3">
+            <label class="form-label">Allowed Styles</label>
+        </div>
+        <button type="button" class="btn btn-secondary mb-2" onclick="addStyleRow()">Add Style</button>
+        <br/>
+        <button type="submit" class="btn btn-primary">Save Policy</button>
+    </form>
+</div>
+<script>
+function addStyleRow(){
+    const container = document.getElementById('stylesContainer');
+    const index = container.children.length / 2;
+    const div = document.createElement('div');
+    div.className = 'row g-2 mb-2';
+    div.innerHTML = `<div class="col"><input type="text" class="form-control" name="styleNames[${index}]" placeholder="Style Name"></div>` +
+                    `<div class="col"><input type="text" class="form-control" name="styleClasses[${index}]" placeholder="CSS Classes"></div>`;
+    container.appendChild(div);
+}
+</script>
+</body>
+</html>

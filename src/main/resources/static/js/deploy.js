@@ -157,3 +157,33 @@
         document.getElementById('deployBtn').disabled = true;
         return true;
     }
+
+    // Template item click to show allowed components
+    let currentTemplate = null;
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.template-item').forEach(el => {
+            el.addEventListener('click', () => {
+                currentTemplate = el.getAttribute('data-template');
+                const projectName = getProjectName();
+                fetch(`/template-components/${projectName}/${currentTemplate}`)
+                    .then(res => res.json())
+                    .then(list => {
+                        const title = document.getElementById('templateComponentsTitle');
+                        title.textContent = `Components of ${currentTemplate}`;
+                        const container = document.getElementById('templateComponentsList');
+                        container.innerHTML = '';
+                        list.forEach(c => {
+                            const btn = document.createElement('button');
+                            btn.type = 'button';
+                            btn.className = 'list-group-item list-group-item-action';
+                            btn.textContent = c;
+                            btn.addEventListener('click', () => {
+                                window.location.href = `/${projectName}/policy/${currentTemplate}/${c}`;
+                            });
+                            container.appendChild(btn);
+                        });
+                        new bootstrap.Modal(document.getElementById('templateComponentsModal')).show();
+                    });
+            });
+        });
+    });
