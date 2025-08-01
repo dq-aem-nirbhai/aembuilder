@@ -33,6 +33,12 @@ public class PolicyServiceImpl implements PolicyService {
     private static final String BASE = "generated-projects";
 
     private Path getTemplateStructurePath(String project, String template) {
+        Path initial = Paths.get(BASE, project,
+                "ui.content/src/main/content/jcr_root/conf/" + project +
+                        "/settings/wcm/templates/" + template + "/initial/structure/.content.xml");
+        if (Files.exists(initial)) {
+            return initial;
+        }
         return Paths.get(BASE, project,
                 "ui.content/src/main/content/jcr_root/conf/" + project +
                         "/settings/wcm/templates/" + template + "/structure/.content.xml");
@@ -52,32 +58,51 @@ public class PolicyServiceImpl implements PolicyService {
 
     @Override
     public List<String> getAllowedComponents(String projectName, String templateName) {
-        List<String> components = new ArrayList<>();
-        Path p = getTemplateStructurePath(projectName, templateName);
-        if (!Files.exists(p)) return components;
-        try {
-            DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();
-            DocumentBuilder b = f.newDocumentBuilder();
-            Document doc = b.parse(p.toFile());
-            NodeList nodes = doc.getElementsByTagName("*");
-            Set<String> set = new HashSet<>();
-            for (int i = 0; i < nodes.getLength(); i++) {
-                Node n = nodes.item(i);
-                if (n.getNodeType() == Node.ELEMENT_NODE) {
-                    Element e = (Element) n;
-                    String rt = e.getAttribute("sling:resourceType");
-                    String prefix = projectName + "/components/";
-                    if (rt != null && rt.startsWith(prefix)) {
-                        String comp = rt.substring(prefix.length());
-                        set.add(comp);
+        Set<String> set = new HashSet<>();
+
+        Path struct = getTemplateStructurePath(projectName, templateName);
+        if (Files.exists(struct)) {
+            try {
+                DocumentBuilder b = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+                Document doc = b.parse(struct.toFile());
+                NodeList nodes = doc.getElementsByTagName("*");
+                String prefix = projectName + "/components/";
+                for (int i = 0; i < nodes.getLength(); i++) {
+                    Node n = nodes.item(i);
+                    if (n.getNodeType() == Node.ELEMENT_NODE) {
+                        Element e = (Element) n;
+                        String rt = e.getAttribute("sling:resourceType");
+                        if (rt != null && rt.startsWith(prefix)) {
+                            set.add(rt.substring(prefix.length()));
+                        }
                     }
                 }
+            } catch (Exception e) {
+                log.error("Error reading allowed components", e);
             }
-            components.addAll(set);
-        } catch (Exception e) {
-            log.error("Error reading allowed components", e);
         }
-        return components;
+
+        Path mapping = getTemplatePoliciesPath(projectName, templateName);
+        if (Files.exists(mapping)) {
+            try {
+                DocumentBuilder b = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+                Document doc = b.parse(mapping.toFile());
+                NodeList list = doc.getElementsByTagName("jcr:content");
+                if (list.getLength() > 0) {
+                    NodeList children = list.item(0).getChildNodes();
+                    for (int i = 0; i < children.getLength(); i++) {
+                        Node n = children.item(i);
+                        if (n.getNodeType() == Node.ELEMENT_NODE) {
+                            set.add(n.getNodeName());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Error reading policy mapping", e);
+            }
+        }
+
+        return new ArrayList<>(set);
     }
 
     @Override
@@ -215,11 +240,22 @@ public class PolicyServiceImpl implements PolicyService {
             }
             Element rootEl = mappingDoc.getDocumentElement();
             Element jcrContent = (Element) rootEl.getElementsByTagName("jcr:content").item(0);
-            Element componentEl = mappingDoc.createElement(componentName);
+            Element componentEl = null;
+            NodeList children = jcrContent.getChildNodes();
+            for (int i = 0; i < children.getLength(); i++) {
+                Node n = children.item(i);
+                if (n.getNodeType() == Node.ELEMENT_NODE && n.getNodeName().equals(componentName)) {
+                    componentEl = (Element) n;
+                    break;
+                }
+            }
+            if (componentEl == null) {
+                componentEl = mappingDoc.createElement(componentName);
+                componentEl.setAttribute("jcr:primaryType", "nt:unstructured");
+                componentEl.setAttribute("sling:resourceType", "wcm/core/components/policies/mapping");
+                jcrContent.appendChild(componentEl);
+            }
             componentEl.setAttribute("cq:policy", projectName + "/components/" + componentName + "/" + policy.getPolicyName());
-            componentEl.setAttribute("jcr:primaryType", "nt:unstructured");
-            componentEl.setAttribute("sling:resourceType", "wcm/core/components/policies/mapping");
-            jcrContent.appendChild(componentEl);
             Transformer tr2 = TransformerFactory.newInstance().newTransformer();
             tr2.setOutputProperty(OutputKeys.INDENT, "yes");
             tr2.transform(new DOMSource(mappingDoc), new StreamResult(mapping.toFile()));
