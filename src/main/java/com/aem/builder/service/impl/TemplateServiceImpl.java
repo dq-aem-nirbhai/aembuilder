@@ -430,19 +430,19 @@ public class TemplateServiceImpl implements TemplateService {
     @Override
     public List<String> getAllowedComponents(String projectName, String templateName) {
         List<String> allowed = new ArrayList<>();
-        String policyPath = "generated-projects/" + projectName +
+        String structurePath = "generated-projects/" + projectName +
                 "/ui.content/src/main/content/jcr_root/conf/" + projectName +
-                "/settings/wcm/templates/" + templateName + "/policies/.content.xml";
-        File policyFile = new File(policyPath);
-        if (!policyFile.exists()) {
+                "/settings/wcm/templates/" + templateName + "/structure/.content.xml";
+        File structureFile = new File(structurePath);
+        if (!structureFile.exists()) {
             return allowed;
         }
         try {
             DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-            Document doc = builder.parse(policyFile);
+            Document doc = builder.parse(structureFile);
             Element root = doc.getDocumentElement();
             Set<String> result = new LinkedHashSet<>();
-            collectComponentNames(root, result);
+            collectComponentResourceTypes(root, result);
             allowed.addAll(result);
         } catch (Exception e) {
             e.printStackTrace();
@@ -450,16 +450,24 @@ public class TemplateServiceImpl implements TemplateService {
         return allowed;
     }
 
-    private void collectComponentNames(Node node, Set<String> names) {
-        if (node.getNodeType() == Node.ELEMENT_NODE && !node.getNodeName().equals("jcr:content") && !node.getNodeName().equals("jcr:root")) {
-            String name = node.getNodeName();
-            if (!name.startsWith("cq:")) {
-                names.add(name);
+    private void collectComponentResourceTypes(Node node, Set<String> names) {
+        if (node.getNodeType() == Node.ELEMENT_NODE) {
+            Element el = (Element) node;
+            if (el.hasAttribute("sling:resourceType")) {
+                String rt = el.getAttribute("sling:resourceType");
+                int idx = rt.indexOf("/components/");
+                if (idx >= 0) {
+                    String name = rt.substring(idx + "/components/".length());
+                    if (name.contains("/")) {
+                        name = name.substring(name.lastIndexOf('/') + 1);
+                    }
+                    names.add(name);
+                }
             }
         }
         NodeList children = node.getChildNodes();
         for (int i = 0; i < children.getLength(); i++) {
-            collectComponentNames(children.item(i), names);
+            collectComponentResourceTypes(children.item(i), names);
         }
     }
 

@@ -10,53 +10,116 @@
     <a th:href="@{'/' + ${projectName} + '/template/' + ${templateName}}" class="btn btn-outline-secondary mb-3">&larr; Back</a>
     <h3 th:text="'Component: ' + ${componentName}"></h3>
 
-    <div class="mt-3">
-        <h5>Existing Style Policies</h5>
-        <table class="table">
-            <thead><tr><th>Name</th><th>CSS Class</th></tr></thead>
-            <tbody>
-            <tr th:each="p : ${policies}">
-                <td th:text="${p.name}"></td>
-                <td th:text="${p.cssClass}"></td>
-            </tr>
-            </tbody>
-        </table>
+    <div class="mt-3" th:if="${policies}">
+        <h5>Existing Policies</h5>
+        <div th:each="p : ${policies}" class="border rounded p-3 mb-3">
+            <h6 th:text="${p.title}"></h6>
+            <p th:text="${p.description}"></p>
+            <p><strong>Default Classes:</strong> <span th:text="${p.defaultClass}"></span></p>
+            <div th:each="g : ${p.groups}" class="ms-3">
+                <div><strong th:text="'Group: ' + ${g.name} + (${g.combine} ? ' (combined)' : '')"></strong></div>
+                <ul>
+                    <li th:each="s : ${g.styles}" th:text="${s.name + ' - ' + s.cssClass}"></li>
+                </ul>
+            </div>
+        </div>
     </div>
 
     <div class="mt-4">
-        <h5>Add Style Policy</h5>
-        <form th:action="@{'/' + ${projectName} + '/template/' + ${templateName} + '/' + ${componentName} + '/style'}" method="post" id="styleForm">
-            <div id="styleList">
-                <div class="row g-2 mb-2 style-item">
-                    <div class="col">
-                        <input type="text" class="form-control" name="name" placeholder="Style Name" required>
-                    </div>
-                    <div class="col">
-                        <input type="text" class="form-control" name="cssClass" placeholder="CSS Class" required>
-                    </div>
-                    <div class="col-auto d-flex align-items-center">
-                        <button type="button" class="btn btn-danger btn-sm remove-btn" onclick="removeRow(this)">Remove</button>
-                    </div>
-                </div>
+        <h5>Add Policy</h5>
+        <form th:action="@{'/' + ${projectName} + '/template/' + ${templateName} + '/' + ${componentName} + '/style'}" method="post" id="policyForm">
+            <div class="mb-3">
+                <label class="form-label">Policy Title *</label>
+                <input type="text" class="form-control" id="policyTitle" required>
             </div>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="addRow()">Add</button>
+            <div class="mb-3">
+                <label class="form-label">Policy Description</label>
+                <input type="text" class="form-control" id="policyDescription">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Default CSS Classes</label>
+                <input type="text" class="form-control" id="defaultClass">
+            </div>
+            <div id="groupList"></div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="addGroup()">Add Group</button>
+            <input type="hidden" name="policyJson" id="policyJson"/>
             <button type="submit" class="btn btn-primary ms-2">Save</button>
         </form>
     </div>
 </div>
 <script>
-    function addRow() {
-        const template = document.querySelector('.style-item');
-        const clone = template.cloneNode(true);
-        clone.querySelectorAll('input').forEach(i => i.value = '');
-        document.getElementById('styleList').appendChild(clone);
+    function addGroup() {
+        const group = document.createElement('div');
+        group.className = 'policy-group border p-2 mt-3';
+        group.innerHTML = `
+            <div class="d-flex mb-2">
+                <input type="text" class="form-control me-2 group-name" placeholder="Group Name">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input group-combine">
+                    <label class="form-check-label">Styles can be combined</label>
+                </div>
+                <button type="button" class="btn btn-danger btn-sm ms-2" onclick="removeGroup(this)">Remove Group</button>
+            </div>
+            <div class="style-list"></div>
+            <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="addStyle(this)">Add Style</button>
+        `;
+        document.getElementById('groupList').appendChild(group);
+        addStyle(group.querySelector('button.btn-outline-secondary'));
     }
-    function removeRow(btn) {
-        const rows = document.querySelectorAll('.style-item');
-        if (rows.length > 1) {
-            btn.closest('.style-item').remove();
+    function removeGroup(btn){
+        btn.closest('.policy-group').remove();
+    }
+    function addStyle(btn){
+        const groupEl = btn.closest('.policy-group');
+        const styleList = groupEl.querySelector('.style-list');
+        const div = document.createElement('div');
+        div.className = 'row g-2 mb-2 style-row';
+        div.innerHTML = `
+            <div class="col">
+                <input type="text" class="form-control style-name" placeholder="Style Name">
+            </div>
+            <div class="col">
+                <input type="text" class="form-control style-class" placeholder="CSS Classes">
+            </div>
+            <div class="col-auto d-flex align-items-center">
+                <button type="button" class="btn btn-danger btn-sm" onclick="removeStyle(this)">Remove</button>
+            </div>`;
+        styleList.appendChild(div);
+    }
+    function removeStyle(btn){
+        const list = btn.closest('.style-list');
+        const rows = list.querySelectorAll('.style-row');
+        if(rows.length > 1){
+            btn.closest('.style-row').remove();
         }
     }
+    document.addEventListener('DOMContentLoaded', () => {
+        addGroup();
+        document.getElementById('policyForm').addEventListener('submit', (e) => {
+            const policy = {
+                title: document.getElementById('policyTitle').value,
+                description: document.getElementById('policyDescription').value,
+                defaultClass: document.getElementById('defaultClass').value,
+                groups: []
+            };
+            document.querySelectorAll('.policy-group').forEach(g => {
+                const group = {
+                    name: g.querySelector('.group-name').value,
+                    combine: g.querySelector('.group-combine').checked,
+                    styles: []
+                };
+                g.querySelectorAll('.style-row').forEach(r => {
+                    const name = r.querySelector('.style-name').value;
+                    const clazz = r.querySelector('.style-class').value;
+                    if(name && clazz){
+                        group.styles.push({name: name, cssClass: clazz});
+                    }
+                });
+                policy.groups.push(group);
+            });
+            document.getElementById('policyJson').value = JSON.stringify(policy);
+        });
+    });
 </script>
 </body>
 </html>

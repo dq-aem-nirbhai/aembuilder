@@ -1,6 +1,6 @@
 package com.aem.builder.controller;
 
-import com.aem.builder.model.StylePolicy;
+import com.aem.builder.model.ComponentPolicy;
 import com.aem.builder.service.PolicyService;
 import com.aem.builder.service.TemplateService;
 import lombok.RequiredArgsConstructor;
@@ -9,14 +9,14 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Controller
 @RequiredArgsConstructor
 public class TemplatePolicyController {
     private final TemplateService templateService;
     private final PolicyService policyService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @GetMapping("/{project}/template/{template}")
     public String allowedComponents(@PathVariable String project,
@@ -44,19 +44,15 @@ public class TemplatePolicyController {
     public String addPolicies(@PathVariable String project,
                               @PathVariable String template,
                               @PathVariable String component,
-                              @RequestParam("name") List<String> names,
-                              @RequestParam("cssClass") List<String> classes,
+                              @RequestParam("policyJson") String policyJson,
                               RedirectAttributes redirectAttributes) {
-        List<StylePolicy> list = new ArrayList<>();
-        for (int i = 0; i < names.size(); i++) {
-            String n = names.get(i);
-            String c = i < classes.size() ? classes.get(i) : "";
-            if (!n.isBlank() && !c.isBlank()) {
-                list.add(new StylePolicy(n, c));
-            }
+        try {
+            ComponentPolicy policy = objectMapper.readValue(policyJson, ComponentPolicy.class);
+            policyService.addPolicy(project, component, policy);
+            redirectAttributes.addFlashAttribute("message", "Style policy saved");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("message", "Failed to save policy");
         }
-        policyService.addPolicies(project, component, list);
-        redirectAttributes.addFlashAttribute("message", "Style policies saved");
         return "redirect:/" + project + "/template/" + template + "/" + component;
     }
 }
