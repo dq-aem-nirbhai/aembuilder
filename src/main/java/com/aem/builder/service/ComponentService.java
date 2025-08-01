@@ -1,19 +1,17 @@
 package com.aem.builder.service;
 
 import com.aem.builder.model.DTO.ComponentRequest;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import java.util.List;
-
 public interface ComponentService {
+
     List<String> fetchComponentsFromGeneratedProjects(String projectName);
 
     List<String> getAllComponents() throws IOException;
 
-    void copySelectedComponents(List<String> selectedComponents, String targetPath);
+    void copySelectedComponents(List<String> selectedComponents, String targetPath, String projectName);
 
     void addComponentsToExistingProject(String projectName, List<String> selectedComponents);
 
@@ -24,7 +22,6 @@ public interface ComponentService {
     List<String> getCommonComponents(List<String> allComponents, List<String> projectComponents);
 
     List<String> getDistinctComponents(List<String> allComponents, List<String> projectComponents);
-
 
     //component creation
     List<String> getComponentGroups(String projectName);

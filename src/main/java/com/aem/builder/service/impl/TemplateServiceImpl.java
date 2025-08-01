@@ -1,6 +1,9 @@
-package com.aem.builder.service.impl;
+ package com.aem.builder.service.impl;
 
+import com.aem.builder.model.TemplateModel;
 import com.aem.builder.service.TemplateService;
+
+import com.aem.builder.util.TemplateUtil;
 import org.apache.commons.io.FileUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
@@ -12,16 +15,15 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+
 @Service
 public class TemplateServiceImpl implements TemplateService {
-
-    private static final String OLD_PROJECT_NAME = "aembuilder";
-
     @Autowired
     private ResourceLoader resourceLoader;
     @Override
@@ -43,22 +45,7 @@ public class TemplateServiceImpl implements TemplateService {
 
         return templateNames;
     }
-    @Override
-    public void copySelectedTemplatesToGeneratedProject(String projectName, List<String> selectedTemplates) throws IOException {
-        // 1. Define destination
-        String destinationPath = "generated-projects/" + projectName +
-                "/ui.content/src/main/content/jcr_root/conf/" + projectName + "/settings/wcm/templates";
-        File destinationFolder = new File(destinationPath);
-        if (!destinationFolder.exists()) {
-            destinationFolder.mkdirs(); // create nested folders
-        }
-        for (String templateName : selectedTemplates) {
-            // Load template from classpath
-            File resource = new File("src/main/resources/aem-templates/" + templateName);
-            File targetFile = new File(destinationFolder, templateName);
-            FileUtils.copyDirectory(resource, targetFile);
-        }
-    }
+
     @Override
     public List<String> getDistinctTemplates(String projectname, List<String> resourceTemplates,List<String>projectTemplates) {
         List<String>distinct=new ArrayList<>();
@@ -112,52 +99,72 @@ public class TemplateServiceImpl implements TemplateService {
         return List.of();
     }
 
-
-
-
+    //creating templates
 
 
 
     @Override
-    public void addTemplatesToProject(List<Path> templatePaths, String projectName) throws IOException {
-        String targetTemplatesPath = "generated-projects/" + projectName + "/ui.content/src/main/content/jcr_root/conf/" + projectName + "/settings/wcm/templates";
+    public void createTemplate(TemplateModel model, String projectname) throws IOException {
 
-        for (Path templatePath : templatePaths) {
-            File sourceDir = templatePath.toFile();
-            File targetDir = new File(targetTemplatesPath, sourceDir.getName());
-            FileUtils.copyDirectory(sourceDir, targetDir);
+        System.out.println(model.getTitle());
+        System.out.println(model.getName());
+        System.out.println(model.getStatus());
+        String url = "generated-projects/" + projectname + "/ui.content/src/main/content/jcr_root/conf/" + projectname + "/settings/wcm/templates/" + model.getName();
+        String targetpath = url;
 
-            // Replace project name in all copied files
-            List<File> files = Files.walk(targetDir.toPath())
-                    .filter(Files::isRegularFile)
-                    .map(Path::toFile)
-                    .collect(Collectors.toList());
+        // Create parent directory
+        new File(url).mkdirs();
+        System.out.println("Created directory: " + url);
 
-            for (File file : files) {
-                String content = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
-                content = content.replaceAll(OLD_PROJECT_NAME, projectName);
-                FileUtils.writeStringToFile(file, content, StandardCharsets.UTF_8);
-            }
-        }
+        // Create subfolders
+        new File(targetpath + "/jcr:content").mkdirs();
+        new File(targetpath + "/initial").mkdirs();
+        new File(targetpath + "/structure").mkdirs();
+        new File(targetpath+"/policies").mkdirs();
 
-        // Update the .content.xml to include the new templates
-        File contentXml = new File(targetTemplatesPath + "/.content.xml");
-        if (contentXml.exists()) {
-            String content = FileUtils.readFileToString(contentXml, StandardCharsets.UTF_8);
-
-            for (Path templatePath : templatePaths) {
-                String templateName = templatePath.getFileName().toString();
-                if (!content.contains("<" + templateName + "/>")) {
-                    content = content.replace("</jcr:root>", "    <" + templateName + "/>\n</jcr:root>");
-                }
-            }
-
-            FileUtils.writeStringToFile(contentXml, content, StandardCharsets.UTF_8);
-        }
+        // Write XML files
+        writeFile(targetpath + "/jcr:content/.content.xml", TemplateUtil.getJcrContentXmlPage(model.getName(), projectname,model.getStatus(), model.getTemplateType())); // Pass projectname here
+        writeFile(targetpath + "/.content.xml", TemplateUtil.getTemplateRootXmlPage(model.getName()));
+        writeFile(targetpath + "/initial/.content.xml", TemplateUtil.getInitialXmlPage(projectname,model.getName()));
+        writeFile(targetpath + "/structure/.content.xml", TemplateUtil.getStructureXmlPage(model.getName(),projectname)); // Pass projectname here
+        writeFile(targetpath+"/policies/.content.xml",TemplateUtil.getPoliciesPage(projectname));
     }
 
+    void writeFile(String path, String content) throws IOException {
+        Path filePath = Paths.get(path);
+        Files.createDirectories(filePath.getParent());
+        Files.write(filePath, content.getBytes(StandardCharsets.UTF_8));
+        System.out.println("Written file: " + path);
+    }
 
+    //template xf type
+    @Override
+    public void createTemplateXf(TemplateModel model, String projectname) throws IOException {
 
+        System.out.println(model.getTitle());
+        System.out.println(model.getName());
+        System.out.println(model.getStatus());
+        String url = "generated-projects/" + projectname + "/ui.content/src/main/content/jcr_root/conf/" + projectname + "/settings/wcm/templates/" + model.getName();
+        String targetpath = url;
+
+        // Create parent directory
+        new File(url).mkdirs();
+        System.out.println("Created directory: " + url);
+
+        // Create subfolders
+        new File(targetpath + "/jcr:content").mkdirs();
+        new File(targetpath + "/initial").mkdirs();
+        new File(targetpath + "/structure").mkdirs();
+        new File(targetpath+"/policies").mkdirs();
+
+        // Write XML files
+        // Write XML files
+        writeFile(targetpath + "/jcr:content/.content.xml", TemplateUtil.getJcrContentXmlPage(model.getName(), projectname,model.getStatus(), model.getTemplateType())); // Pass projectname here
+        writeFile(targetpath + "/.content.xml", TemplateUtil.getTemplateRootXmlPage(model.getName()));
+        writeFile(targetpath + "/initial/.content.xml", TemplateUtil.getInitialXmlPage(projectname,model.getName()));
+        writeFile(targetpath + "/structure/.content.xml", TemplateUtil.generateStructureContentXmlXf(projectname,model.getName())); // Pass projectname here
+        writeFile(targetpath+"/policies/.content.xml",TemplateUtil.generatePoliciesXmlXf(projectname));
+    }
 
 
 
