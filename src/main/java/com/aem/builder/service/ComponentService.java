@@ -27,6 +27,10 @@ public interface ComponentService {
     List<String> getComponentGroups(String projectName);
     void generateComponent(String projectName, ComponentRequest request);
 
+    ComponentRequest getComponentDetails(String projectName, String componentName);
+
+    void updateComponent(String projectName, String originalName, ComponentRequest request);
+
     //component checking
     boolean isComponentNameAvailable(String projectName, String componentName);
 

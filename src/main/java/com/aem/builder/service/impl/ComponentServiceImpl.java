@@ -1,6 +1,8 @@
 package com.aem.builder.service.impl;
 
 import com.aem.builder.model.DTO.ComponentRequest;
+import com.aem.builder.model.DTO.ComponentField;
+import com.aem.builder.model.Enum.FieldType;
 import com.aem.builder.service.ComponentService;
 
 import com.aem.builder.util.FileGenerationUtil;
@@ -371,5 +373,55 @@ public class ComponentServiceImpl implements ComponentService {
         }
 
         return true; // Available if no exact case-sensitive match found
+    }
+
+    @Override
+    public ComponentRequest getComponentDetails(String projectName, String componentName) {
+        String base = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components/" + componentName;
+        ComponentRequest request = new ComponentRequest();
+        request.setProjectName(projectName);
+        request.setComponentName(componentName);
+
+        File contentXml = new File(base, ".content.xml");
+        String content = FileGenerationUtil.readFile(contentXml);
+        String group = projectName;
+        if (!content.isEmpty()) {
+            Matcher m = Pattern.compile("componentGroup\\s*=\\\"([^\\\"]+)\\\"").matcher(content);
+            if (m.find()) {
+                group = m.group(1);
+            }
+        }
+        request.setComponentGroup(group);
+
+        File dialogXml = new File(base + "/_cq_dialog/.content.xml");
+        List<ComponentField> fields = new ArrayList<>();
+        if (dialogXml.exists()) {
+            String dialogContent = FileGenerationUtil.readFile(dialogXml);
+            Pattern p = Pattern.compile("<(\\w+)\\s+[^>]*sling:resourceType=\\\"([^\\\"]+)\\\"[^>]*fieldLabel=\\\"([^\\\"]+)\\\"");
+            Matcher matcher = p.matcher(dialogContent);
+            while (matcher.find()) {
+                String fname = matcher.group(1);
+                String resource = matcher.group(2);
+                String label = matcher.group(3);
+                String type = FieldType.getTypeByResource(resource);
+                fields.add(new ComponentField(fname, label, type));
+            }
+        }
+        request.setFields(fields);
+        return request;
+    }
+
+    @Override
+    public void updateComponent(String projectName, String originalName, ComponentRequest request) {
+        String base = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components/";
+        File oldDir = new File(base + originalName);
+        try {
+            if (oldDir.exists()) {
+                FileUtils.deleteDirectory(oldDir);
+            }
+            generateComponent(projectName, request);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

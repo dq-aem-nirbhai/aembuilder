@@ -1,4 +1,7 @@
 document.addEventListener("DOMContentLoaded", function () {
+
+  let fieldIndex = document.querySelectorAll('.field-row').length;
+
   const modeSelect = document.getElementById('creationMode');
   const extendsDiv = document.getElementById('extendsComponentDiv');
 
@@ -175,10 +178,17 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+
   const componentNameInput = document.getElementById('componentName');
   const errorDiv = document.getElementById('nameError');
   const createButton = document.getElementById('createButton');
+
+  const projectName = document.getElementById("projectName").value;
+  const originalNameElem = document.getElementById('originalName');
+  const originalName = originalNameElem ? originalNameElem.value.trim() : null;
+
   const projectName = document.getElementById('projectName').value;
+
 
   function debounce(func, delay) {
     let timer;
@@ -190,6 +200,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const checkComponentNameAvailability = debounce(() => {
     const componentName = componentNameInput.value.trim();
+    if (originalName && componentName === originalName) {
+      errorDiv.innerText = "";
+      errorDiv.classList.remove('text-danger', 'text-success');
+      componentNameInput.classList.remove('is-invalid');
+      validateFormFields();
+      return;
+    }
     if (!componentName) {
       errorDiv.innerText = '';
       errorDiv.classList.remove('text-danger', 'text-success');
