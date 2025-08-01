@@ -18,6 +18,15 @@
 
   <a th:href="@{'/' + ${projectName}}" class="btn btn-outline-secondary mb-3">← Back to DeployPage</a>
 
+  <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert">
+    <span th:text="${message}"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+    <span th:text="${error}"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+
   <form id="componentForm" th:action="@{'/component/create/' + ${projectName}}" method="post">
     <!-- Hidden input to pass projectName into JS -->
     <input type="hidden" id="projectName" th:value="${projectName}">
@@ -38,24 +47,46 @@
       </select>
     </div>
 
+    <!-- Creation Mode -->
+    <div class="mb-3">
+      <label class="form-label">Creation Mode</label>
+      <select class="form-select" id="creationMode" name="creationMode">
+        <option value="new">New Component</option>
+        <option value="extend">Extend Existing Component</option>
+      </select>
+    </div>
+
+    <!-- Extends Component -->
+    <div class="mb-3" id="extendsComponentDiv" style="display:none">
+      <label class="form-label">Extends Component</label>
+      <select class="form-select" name="superType" id="superType">
+        <option value="">-- Select Component --</option>
+        <option th:each="entry : ${availableComponents.entrySet()}" th:value="${entry.key}" th:text="${entry.value}"></option>
+      </select>
+    </div>
+
     <!-- Dialog Fields -->
     <div id="fieldsContainer" class="mb-3">
       <label>Dialog Fields</label>
-      <div class="field-row row mb-2 animate__animated animate__fadeIn">
+    </div>
+    <div id="fieldRowTemplate" class="field-row border p-2 mb-3" style="display:none">
+      <div class="row g-2 align-items-end">
         <div class="col">
-          <input type="text" class="form-control fieldLabel" name="fields[0].fieldLabel" placeholder="Field Label" oninput="autoFillFieldName(this)" required>
+          <input type="text" class="form-control fieldLabel" placeholder="Field Label" oninput="autoFillFieldName(this)" >
         </div>
         <div class="col">
-          <input type="text" class="form-control fieldName" name="fields[0].fieldName" placeholder="Field Name" required>
+          <input type="text" class="form-control fieldName" placeholder="Field Name" >
         </div>
         <div class="col">
-          <select class="form-select fieldType" name="fields[0].fieldType" required>
+          <select class="form-select fieldType" onchange="handleFieldTypeChange(this)" >
             <option value="">-- Select Type --</option>
             <option th:each="type : ${fieldTypes}" th:value="${type.key}" th:text="${type.key}"></option>
           </select>
         </div>
-        <div class="col-auto"></div>
+        <div class="col-auto action-col"></div>
       </div>
+      <div class="options-container mt-2"></div>
+      <div class="nested-container mt-2"></div>
     </div>
 
     <!-- Add Field Button -->

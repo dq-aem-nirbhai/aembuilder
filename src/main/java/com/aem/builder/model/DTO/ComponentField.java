@@ -6,7 +6,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
-import java.util.Map;
+
+import com.aem.builder.model.DTO.OptionItem;
+
+/**
+ * Represents a single dialog field definition.
+ */
 
 @Data
 @AllArgsConstructor
@@ -16,6 +21,6 @@ public class ComponentField {
     private String fieldLabel;                 // e.g., Title
     private String fieldType;                  // from FieldType enum
     private List<ComponentField> nestedFields; // only for multifields
-    private List<String> options;
+    private List<OptionItem> options;          // for select/checkboxgroup values
 
 }
