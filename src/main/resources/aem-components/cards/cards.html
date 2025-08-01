@@ -1,4 +1,4 @@
-<sly data-sly-use.model="com.shell.core.models.Cards" />
+<sly data-sly-use.model="com.aem.builder.slingModels" />
 <sly data-sly-use.placeholderTemplate="core/wcm/components/commons/v1/templates.html" />
 
 <section class="shell-card-section" data-sly-test="${!model.empty}">
@@ -15,3 +15,4 @@
 
 <!-- Corrected Placeholder support -->
 <sly data-sly-call="${placeholderTemplate.placeholder @ isEmpty=model.empty}" />
+

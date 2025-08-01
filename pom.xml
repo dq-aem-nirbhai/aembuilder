@@ -67,6 +67,20 @@
 			<version>2.13.0</version>
 		</dependency>
 
+		<!-- Sling Models API -->
+		<dependency>
+			<groupId>org.apache.sling</groupId>
+			<artifactId>org.apache.sling.models.api</artifactId>
+			<version>1.4.0</version> <!-- or latest -->
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Sling Models Implementation -->
+		<dependency>
+			<groupId>org.apache.sling</groupId>
+			<artifactId>org.apache.sling.models.impl</artifactId>
+			<version>1.4.16</version> <!-- or latest -->
+		</dependency>
 	</dependencies>
 
 	<build>
