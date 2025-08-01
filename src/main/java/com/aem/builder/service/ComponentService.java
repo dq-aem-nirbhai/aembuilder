@@ -27,6 +27,14 @@ public interface ComponentService {
     List<String> getComponentGroups(String projectName);
     void generateComponent(String projectName, ComponentRequest request);
 
+    /**
+     * Load an existing component's basic details from the generated project.
+     * @param projectName name of the project
+     * @param componentName name of the component
+     * @return request object populated with component data or null if not found
+     */
+    ComponentRequest loadComponent(String projectName, String componentName);
+
     //component checking
     boolean isComponentNameAvailable(String projectName, String componentName);
 

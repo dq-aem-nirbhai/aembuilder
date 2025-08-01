@@ -23,6 +23,10 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 @Service
 @RequiredArgsConstructor
@@ -441,5 +445,32 @@ public class ComponentServiceImpl implements ComponentService {
         }
 
         return true; // Available if no exact case-sensitive match found
+    }
+
+    @Override
+    public ComponentRequest loadComponent(String projectName, String componentName) {
+        try {
+            String basePath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" +
+                    projectName + "/components/" + componentName;
+            File contentXml = new File(basePath + "/.content.xml");
+            if (!contentXml.exists()) {
+                return null;
+            }
+
+            DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            Document doc = builder.parse(contentXml);
+            Element root = doc.getDocumentElement();
+
+            ComponentRequest req = new ComponentRequest();
+            req.setProjectName(projectName);
+            req.setComponentName(componentName);
+            req.setComponentGroup(root.getAttribute("componentGroup"));
+            req.setSuperType(root.getAttribute("sling:resourceSuperType"));
+            req.setFields(new ArrayList<>()); // Field parsing not implemented
+            return req;
+        } catch (Exception e) {
+            log.error("Failed to load component {}", componentName, e);
+            return null;
+        }
     }
 }
