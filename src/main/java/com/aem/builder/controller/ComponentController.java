@@ -119,6 +119,22 @@ public class ComponentController {
         }
     }
 
+    @PostMapping("/component/update/{project}/{name}")
+    public String updateComponent(@PathVariable String project,
+                                  @PathVariable String name,
+                                  @ModelAttribute ComponentRequest request,
+                                  RedirectAttributes redirectAttributes) {
+        try {
+            componentService.generateComponent(project, request);
+            redirectAttributes.addFlashAttribute("message", "Component updated successfully!");
+            return "redirect:/" + project;
+        } catch (Exception e) {
+            log.error("Error updating component", e);
+            redirectAttributes.addFlashAttribute("error", "Failed to update component: " + e.getMessage());
+            return "redirect:/" + project;
+        }
+    }
+
 //component checking
     @GetMapping("/check-componentName/{projectName}")
     public ResponseEntity<Boolean> checkComponentNameExists(
@@ -130,6 +146,48 @@ public class ComponentController {
         boolean isAvailable = componentService.isComponentNameAvailable(projectName, componentName);
         log.info("{}",isAvailable);
         return ResponseEntity.ok(isAvailable); // true means name is available
+    }
+
+    @GetMapping("/{projectName}/editcomponent")
+    public String showEditComponentForm(@PathVariable String projectName,
+                                        @RequestParam String componentName,
+                                        Model model) {
+        ComponentRequest component = componentService.loadComponent(projectName, componentName);
+        if (component == null) {
+            model.addAttribute("error", "Component not found or unreadable.");
+            return "redirect:/" + projectName;
+        }
+
+        model.addAttribute("component", component);
+        model.addAttribute("projectName", projectName);
+        model.addAttribute("editMode", true);
+
+        var typeResourceMap = FieldType.getTypeResourceMap();
+        var sortedByKey = typeResourceMap.entrySet()
+                .stream()
+                .sorted(Map.Entry.comparingByKey())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (v1,v2)->v1, LinkedHashMap::new));
+
+        model.addAttribute("fieldTypes", sortedByKey);
+        model.addAttribute("componentGroups", componentService.getComponentGroups(projectName));
+
+        Set<String> available = new LinkedHashSet<>();
+        try {
+            available.addAll(componentService.fetchComponentsFromGeneratedProjects(projectName).stream()
+                    .map(name -> "/apps/" + projectName + "/components/" + name)
+                    .toList());
+            available.addAll(componentService.getAllComponents());
+        } catch (IOException e) {
+            log.error("Error loading available components", e);
+        }
+
+        Map<String, String> compMap = new LinkedHashMap<>();
+        for (String path : available) {
+            int idx = path.lastIndexOf('/') + 1;
+            compMap.put(path, path.substring(idx));
+        }
+        model.addAttribute("availableComponents", compMap);
+        return "component-ui";
     }
 
 }
