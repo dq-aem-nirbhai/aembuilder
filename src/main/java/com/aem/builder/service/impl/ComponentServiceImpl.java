@@ -8,6 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -19,6 +22,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -135,16 +139,25 @@ public class ComponentServiceImpl implements ComponentService {
 
         String slingModelsSourcePath = System.getProperty("user.dir") + "/src/main/java/com/aem/builder/slingModels";
 
-        String slingModelsTargetPath = System.getProperty("user.dir") +
-                "/generated-projects/" + projectName +
-                "/core/src/main/java/com/" + projectName + "/core/models";
+        Path javaSourceRoot = Paths.get("generated-projects/" + projectName + "/core/src/main/java/");
+
+        // Find models directory
+        Path modelPath = findModelBasePath(javaSourceRoot);
+        log.info("ModelPath{}",modelPath);
+
+        // Get full model base path
+        String modelBasePath = modelPath.toString();
+
+        log.info("ModelBasePath{}",modelBasePath);
+
+        // 5. Convert to Java package name
+        String packageName = javaSourceRoot.relativize(modelPath).toString().replace(File.separatorChar, '.');
 
         Set<String> copiedModels = new HashSet<>();
 
         for (String component : selectedComponents) {
             try {
                 File source = new File("src/main/resources/aem-components/" + component);
-                //File destination = new File(targetPath + "/" + source.getName());
                 File destination = new File(targetPath + "/" + component);
 
                 if (!source.exists()) {
@@ -174,7 +187,9 @@ public class ComponentServiceImpl implements ComponentService {
 
                 if (html.exists() && parentModel != null) {
                     String htmlContent = FileUtils.readFileToString(html, "UTF-8");
-                    String fqcn = extractFullyQualifiedClassName(parentModel, "com." + projectName + ".core.models");
+                    //String fqcn = extractFullyQualifiedClassName(parentModel, "com." + projectName + ".core.models");
+                    String fqcn = extractFullyQualifiedClassName(parentModel, packageName);
+
                     if (fqcn != null) {
                         htmlContent = htmlContent.replaceAll("data-sly-use\\.model=\"[^\"]+\"",
                                 "data-sly-use.model=\"" + fqcn + "\"");
@@ -184,7 +199,8 @@ public class ComponentServiceImpl implements ComponentService {
 
                 // Copy model and its dependencies
                 if (parentModel != null && parentModel.exists()) {
-                    copyModelAndDependencies(parentModel, slingModelsSourcePath, slingModelsTargetPath, projectName, copiedModels);
+                   copyModelAndDependencies(parentModel, slingModelsSourcePath, modelBasePath,packageName, copiedModels);
+
                 } else {
                     System.out.println("No matching Sling Model found for: " + component);
                 }
@@ -192,6 +208,20 @@ public class ComponentServiceImpl implements ComponentService {
                 System.err.println("Failed to process component: " + component);
                 e.printStackTrace();
             }
+        }
+    }
+
+    private static Path findModelBasePath(Path javaSourceRoot)  {
+        try (Stream<Path> paths = Files.walk(javaSourceRoot)) {
+            Optional<Path> modelPath = paths
+                    .filter(Files::isDirectory)
+                    .filter(p -> p.getFileName().toString().equals("models"))
+                    .findFirst();
+
+            return modelPath.orElseThrow(() ->
+                    new IOException("models directory not found under: " + javaSourceRoot));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -223,7 +253,7 @@ public class ComponentServiceImpl implements ComponentService {
         return null;
     }
 
-    private void copyModelAndDependencies(File modelFile, String sourceBase, String targetBase, String projectName, Set<String> copiedModels) throws IOException {
+    private void copyModelAndDependencies(File modelFile, String sourceBase, String targetBase,String targetPackageName,  Set<String> copiedModels) throws IOException {
         if (modelFile == null || !modelFile.exists()) return;
 
         String modelName = modelFile.getName();
@@ -232,9 +262,20 @@ public class ComponentServiceImpl implements ComponentService {
         String originalContent = FileUtils.readFileToString(modelFile, "UTF-8");
 
         // Update package declaration
-        String content = originalContent.replace("package com.aem.builder.slingModels;", "package com." + projectName + ".core.models;");
+       // String content = originalContent.replace("package com.aem.builder.slingModels;", "package com." + projectName + ".core.models;");
 
-        // Update import statements for internal model classes
+        /*String content = originalContent.replaceAll(
+                "package\\s+com\\.aem\\.builder\\.[\\w.]+;",
+                "package com." + projectName + ".core.models;"
+        );*/
+
+        String content = originalContent.replaceFirst(
+                "package\\s+com\\.aem\\.builder\\.[\\w.]+;",
+                "package " + targetPackageName + ";"
+        );
+
+
+        /*// Update import statements for internal model classes
         Pattern importPattern = Pattern.compile("import\\s+com\\.aem\\.builder\\.slingModels\\.(\\w+);");
         Matcher importMatcher = importPattern.matcher(content);
         StringBuffer updatedContent = new StringBuffer();
@@ -260,7 +301,36 @@ public class ComponentServiceImpl implements ComponentService {
             if (depFile.exists()) {
                 copyModelAndDependencies(depFile, sourceBase, targetBase, projectName, copiedModels);
             }
+        }*/
+
+        // Update import statements for internal model classes
+        Pattern importPattern = Pattern.compile("import\\s+com\\.aem\\.builder\\.slingModels\\.(\\w+);");
+        Matcher importMatcher = importPattern.matcher(content);
+        StringBuffer updatedContent = new StringBuffer();
+        while (importMatcher.find()) {
+            String className = importMatcher.group(1);
+            String newImport = "import " + targetPackageName + "." + className + ";";
+            importMatcher.appendReplacement(updatedContent, Matcher.quoteReplacement(newImport));
         }
+        importMatcher.appendTail(updatedContent);
+        content = updatedContent.toString();
+
+        // Write to destination file
+        File destFile = new File(targetBase, modelFile.getName());
+        destFile.getParentFile().mkdirs();
+        FileUtils.writeStringToFile(destFile, content, "UTF-8");
+        copiedModels.add(modelName);
+        System.out.println("Sling Model copied: " + destFile.getAbsolutePath());
+
+// Recursively copy dependencies
+        Set<String> dependentTypes = extractReferencedModelTypes(originalContent);
+        for (String type : dependentTypes) {
+            File depFile = new File(sourceBase, type + ".java");
+            if (depFile.exists()) {
+                copyModelAndDependencies(depFile, sourceBase, targetBase, targetPackageName, copiedModels);
+            }
+        }
+
     }
 
     private Set<String> extractReferencedModelTypes(String content) {
