@@ -65,9 +65,17 @@
                 </div>
                 <div id="templatesList" class="row row-cols-1 row-cols-sm-2 g-2">
                     <div class="col" th:each="template : ${templates}">
-                        <div class="border rounded p-2 bg-light text-center shadow-sm" th:text="${template}"></div>
+                        <div class="border rounded p-2 bg-light text-center shadow-sm d-flex justify-content-between align-items-center">
+                            <span th:text="${template}"></span>
+
+                            <!-- Show Edit button only if template is NOT page-content or xf-web-variation -->
+                            <a th:if="${template != 'page-content' and template != 'xf-web-variation'}"
+                               th:href="@{/{projectName}/edittemplate(templateName=${template}, projectName=${projectName})}"
+                               class="btn btn-sm btn-outline-secondary ms-2">Edit</a>
+                        </div>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
@@ -110,4 +118,3 @@
 </div>
 </body>
 </html>
-
