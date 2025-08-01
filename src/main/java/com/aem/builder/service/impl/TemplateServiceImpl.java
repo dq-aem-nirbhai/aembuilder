@@ -31,7 +31,9 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 
@@ -423,6 +425,42 @@ public class TemplateServiceImpl implements TemplateService {
             System.out.println("Updated parent .content.xml successfully");
         }
 
+    }
+
+    @Override
+    public List<String> getAllowedComponents(String projectName, String templateName) {
+        List<String> allowed = new ArrayList<>();
+        String policyPath = "generated-projects/" + projectName +
+                "/ui.content/src/main/content/jcr_root/conf/" + projectName +
+                "/settings/wcm/templates/" + templateName + "/policies/.content.xml";
+        File policyFile = new File(policyPath);
+        if (!policyFile.exists()) {
+            return allowed;
+        }
+        try {
+            DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            Document doc = builder.parse(policyFile);
+            Element root = doc.getDocumentElement();
+            Set<String> result = new LinkedHashSet<>();
+            collectComponentNames(root, result);
+            allowed.addAll(result);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return allowed;
+    }
+
+    private void collectComponentNames(Node node, Set<String> names) {
+        if (node.getNodeType() == Node.ELEMENT_NODE && !node.getNodeName().equals("jcr:content") && !node.getNodeName().equals("jcr:root")) {
+            String name = node.getNodeName();
+            if (!name.startsWith("cq:")) {
+                names.add(name);
+            }
+        }
+        NodeList children = node.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            collectComponentNames(children.item(i), names);
+        }
     }
 
 

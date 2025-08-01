@@ -35,4 +35,6 @@ public interface TemplateService {
 
 
     public void updateTemplate(TemplateModel updatedModel, String projectName, String oldTemplateName) throws ParserConfigurationException, IOException, SAXException, TransformerException;
+
+    List<String> getAllowedComponents(String projectName, String templateName);
 }
