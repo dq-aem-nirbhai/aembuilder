@@ -104,6 +104,15 @@ public class ComponentController {
         return "create-component"; // Thymeleaf template
     }
 
+    @GetMapping("/{project}/editcomponent")
+    public String editComponent(@RequestParam String componentName,
+                                @PathVariable String project,
+                                Model model) {
+        model.addAttribute("projectName", project);
+        model.addAttribute("componentName", componentName);
+        return "edit-component";
+    }
+
     @PostMapping("/component/create/{project}")
     public String createComponent(@PathVariable String project,
                                   @ModelAttribute ComponentRequest request,

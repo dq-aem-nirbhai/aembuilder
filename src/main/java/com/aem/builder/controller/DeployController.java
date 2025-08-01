@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +31,23 @@ public class DeployController {
         logger.info("DEPLOY: Fetching project details for project: {}", projectName);
         List<String> components = componentService.fetchComponentsFromGeneratedProjects(projectName);
         List<String> templates = templateService.fetchTemplatesFromGeneratedProjects(projectName);
+
+        Map<String, Boolean> componentEditMap = new LinkedHashMap<>();
+        for (String comp : components) {
+            String group = componentService.getComponentGroup(projectName, comp);
+            boolean editable = true;
+            if (group != null) {
+                if (group.equals(projectName + " - Content") ||
+                        group.equals(projectName + " - Structure") ||
+                        group.equals(".hidden")) {
+                    editable = false;
+                }
+            }
+            componentEditMap.put(comp, editable);
+        }
+
         model.addAttribute("components", components);
+        model.addAttribute("componentEditMap", componentEditMap);
         model.addAttribute("templates", templates);
         model.addAttribute("canDeploy", true);
         logger.debug("DEPLOY: Added attributes to model for project: {}", projectName);

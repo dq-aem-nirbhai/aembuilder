@@ -372,4 +372,25 @@ public class ComponentServiceImpl implements ComponentService {
 
         return true; // Available if no exact case-sensitive match found
     }
+
+    @Override
+    public String getComponentGroup(String projectName, String componentName) {
+        String path = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" +
+                projectName + "/components/" + componentName + "/.content.xml";
+        File contentXml = new File(path);
+        if (!contentXml.exists()) {
+            return null;
+        }
+        try {
+            String content = FileGenerationUtil.readFile(contentXml);
+            Pattern pattern = Pattern.compile("componentGroup=\"([^\"]+)\"");
+            Matcher matcher = pattern.matcher(content);
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
+        } catch (Exception e) {
+            log.error("Failed to read component group for {}", componentName, e);
+        }
+        return null;
+    }
 }

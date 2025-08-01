@@ -30,4 +30,13 @@ public interface ComponentService {
     //component checking
     boolean isComponentNameAvailable(String projectName, String componentName);
 
+    /**
+     * Returns the component group for a given component within a project.
+     *
+     * @param projectName    the project name
+     * @param componentName  the component to inspect
+     * @return the component group or {@code null} if not found
+     */
+    String getComponentGroup(String projectName, String componentName);
+
 }
