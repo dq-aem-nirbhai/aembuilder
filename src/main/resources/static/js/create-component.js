@@ -1,10 +1,184 @@
 document.addEventListener("DOMContentLoaded", function () {
-  let fieldIndex = 1;
+  const modeSelect = document.getElementById('creationMode');
+  const extendsDiv = document.getElementById('extendsComponentDiv');
+
+  function toggleSuperType() {
+    if (modeSelect.value === 'extend') {
+      extendsDiv.style.display = '';
+    } else {
+      extendsDiv.style.display = 'none';
+      document.getElementById('superType').value = '';
+      if (document.getElementById('fieldsContainer').childElementCount === 0) {
+        addFieldRow();
+      }
+    }
+    updateMandatoryButtons();
+  }
+
+  modeSelect.addEventListener('change', () => {
+    toggleSuperType();
+    validateFormFields();
+  });
+  toggleSuperType();
+
+  function createBaseRow(isNested, level = 0) {
+    const template = document.getElementById('fieldRowTemplate');
+    const div = template.cloneNode(true);
+    div.removeAttribute('id');
+    div.style.display = '';
+    div.dataset.level = level;
+    if (isNested) {
+      div.classList.add('nested-row', 'mb-2');
+      div.style.marginLeft = `${level * 20}px`;
+      div.style.borderStyle = 'dashed';
+      div.querySelector('.action-col').innerHTML = '<button type="button" class="btn btn-danger" onclick="removeNestedFieldRow(this)">-</button>';
+    } else {
+      div.classList.add('field-row', 'border', 'p-2', 'mb-3');
+    }
+    return div;
+  }
+
+  window.autoFillFieldName = function (labelInput) {
+    const row = labelInput.closest('.field-row, .nested-row');
+    const nameInput = row.querySelector('.fieldName');
+    const labelValue = labelInput.value.trim();
+    const camelCase = labelValue
+      .replace(/[^a-zA-Z0-9 ]/g, '')
+      .split(/\s+/)
+      .map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join('');
+    nameInput.value = camelCase;
+    validateFormFields();
+  };
+
+  window.handleFieldTypeChange = function (select) {
+    const row = select.closest('.field-row, .nested-row');
+    const type = select.value;
+    const opt = row.querySelector('.options-container');
+    const nested = row.querySelector('.nested-container');
+    opt.innerHTML = '';
+    nested.innerHTML = '';
+
+    if (["select", "multiselect", "checkboxgroup", "radiogroup"].includes(type)) {
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'btn btn-sm btn-secondary mb-2';
+      addBtn.textContent = 'Add Option';
+      addBtn.onclick = () => addOptionRow(addBtn);
+      opt.appendChild(addBtn);
+      addOptionRow(addBtn);
+    } else if (type === 'multifield') {
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'btn btn-sm btn-secondary mb-2';
+      addBtn.textContent = 'Add Field';
+      addBtn.onclick = () => addNestedFieldRow(addBtn);
+      nested.appendChild(addBtn);
+      addNestedFieldRow(addBtn);
+    }
+    updateIndexes();
+  };
+
+  window.addFieldRow = function () {
+    const container = document.getElementById('fieldsContainer');
+    const row = createBaseRow(false);
+    row.querySelector('.action-col').innerHTML = '<button type="button" class="btn btn-danger" onclick="removeFieldRow(this)">-</button>';
+    container.appendChild(row);
+    updateIndexes();
+    row.classList.add('animate__animated','animate__fadeIn');
+    validateFormFields();
+    updateMandatoryButtons();
+  };
+
+  window.removeFieldRow = function (btn) {
+    btn.closest('.field-row').remove();
+    updateIndexes();
+    validateFormFields();
+    updateMandatoryButtons();
+  };
+
+  function addNestedFieldRow(btn) {
+    const container = btn.closest('.nested-container');
+    const parent = container.closest('.field-row, .nested-row');
+    const level = parseInt(parent.dataset.level || 0) + 1;
+    const row = createBaseRow(true, level);
+    container.insertBefore(row, btn);
+    updateIndexes();
+    validateFormFields();
+  }
+  window.removeNestedFieldRow = function (btn) {
+    btn.closest('.nested-row').remove();
+    updateIndexes();
+    validateFormFields();
+  };
+
+  function addOptionRow(btn) {
+    const container = btn.closest('.options-container');
+    const div = document.createElement('div');
+    div.className = 'option-row input-group mb-2';
+    div.innerHTML = `<input type="text" class="form-control optionText" placeholder="Text" required>
+      <input type="text" class="form-control optionValue" placeholder="Value" required>
+      <button type="button" class="btn btn-danger" onclick="removeOptionRow(this)">-</button>`;
+    container.insertBefore(div, btn);
+    updateIndexes();
+    validateFormFields();
+  }
+  window.removeOptionRow = function (btn) {
+    btn.parentElement.remove();
+    updateIndexes();
+    validateFormFields();
+  };
+
+  function updateIndexes() {
+    const fieldRows = document.querySelectorAll('#fieldsContainer > .field-row');
+    fieldRows.forEach((row, i) => {
+      setRowNames(row, `fields[${i}]`);
+    });
+    updateMandatoryButtons();
+  }
+
+  function setRowNames(row, prefix) {
+    row.querySelector('.fieldLabel').name = `${prefix}.fieldLabel`;
+    row.querySelector('.fieldName').name = `${prefix}.fieldName`;
+    row.querySelector('.fieldType').name = `${prefix}.fieldType`;
+    updateOptionIndexes(row, prefix);
+    const nestedContainer = row.querySelector(':scope > .nested-container');
+    if (nestedContainer) {
+      const nestedRows = nestedContainer.querySelectorAll(':scope > .nested-row');
+      nestedRows.forEach((nrow, idx) => {
+        setRowNames(nrow, `${prefix}.nestedFields[${idx}]`);
+      });
+    }
+  }
+
+  function updateOptionIndexes(row, prefix) {
+    const container = row.querySelector(':scope > .options-container');
+    if (!container) return;
+    const options = container.querySelectorAll(':scope > .option-row');
+    options.forEach((opt, k) => {
+      opt.querySelector('.optionText').name = `${prefix}.options[${k}].text`;
+      opt.querySelector('.optionValue').name = `${prefix}.options[${k}].value`;
+    });
+  }
+
+  function updateMandatoryButtons() {
+    const rows = document.querySelectorAll('#fieldsContainer > .field-row');
+    rows.forEach((row, idx) => {
+      const actionCol = row.querySelector('.action-col');
+      if (modeSelect.value === 'new' && idx === 0) {
+        actionCol.innerHTML = '';
+      } else {
+        if (!actionCol.querySelector('button')) {
+          actionCol.innerHTML = '<button type="button" class="btn btn-danger" onclick="removeFieldRow(this)">-</button>';
+        }
+      }
+    });
+  }
 
   const componentNameInput = document.getElementById('componentName');
   const errorDiv = document.getElementById('nameError');
   const createButton = document.getElementById('createButton');
-  const projectName = document.getElementById("projectName").value;
+  const projectName = document.getElementById('projectName').value;
 
   function debounce(func, delay) {
     let timer;
@@ -17,7 +191,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const checkComponentNameAvailability = debounce(() => {
     const componentName = componentNameInput.value.trim();
     if (!componentName) {
-      errorDiv.innerText = "";
+      errorDiv.innerText = '';
       errorDiv.classList.remove('text-danger', 'text-success');
       componentNameInput.classList.remove('is-invalid');
       validateFormFields();
@@ -28,24 +202,21 @@ document.addEventListener("DOMContentLoaded", function () {
       .then(response => response.json())
       .then(isAvailable => {
         if (isAvailable === false) {
-          //  Exact match found
-          errorDiv.innerText = "⚠️ Component name already exists. Please choose another.";
+          errorDiv.innerText = '⚠️ Component name already exists. Please choose another.';
           errorDiv.classList.add('text-danger');
           errorDiv.classList.remove('text-success');
           componentNameInput.classList.add('is-invalid');
           createButton.disabled = true;
         } else {
-          // Name is available
-          errorDiv.innerText = "✅ Component name is available.";
+          errorDiv.innerText = '✅ Component name is available.';
           errorDiv.classList.remove('text-danger');
           errorDiv.classList.add('text-success');
           componentNameInput.classList.remove('is-invalid');
           validateFormFields();
         }
       })
-      .catch(err => {
-        console.error("Error checking component name:", err);
-        errorDiv.innerText = "⚠️ Server error while checking component name.";
+      .catch(() => {
+        errorDiv.innerText = '⚠️ Server error while checking component name.';
         errorDiv.classList.add('text-danger');
         errorDiv.classList.remove('text-success');
         componentNameInput.classList.add('is-invalid');
@@ -55,73 +226,44 @@ document.addEventListener("DOMContentLoaded", function () {
 
   componentNameInput.addEventListener('input', checkComponentNameAvailability);
 
-  window.autoFillFieldName = function (labelInput) {
-    const row = labelInput.closest('.field-row');
-    const nameInput = row.querySelector('.fieldName');
-    const labelValue = labelInput.value.trim();
-
-    const camelCase = labelValue
-      .replace(/[^a-zA-Z0-9 ]/g, '')
-      .split(/\s+/)
-      .map((word, i) => i === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join('');
-
-    nameInput.value = camelCase;
-    validateFormFields();
-  };
-
-  window.addFieldRow = function () {
-    const container = document.getElementById('fieldsContainer');
-    const firstRow = container.querySelector('.field-row');
-    const newRow = firstRow.cloneNode(true);
-
-    newRow.querySelectorAll('input').forEach(input => input.value = "");
-    newRow.querySelectorAll('select').forEach(select => select.value = "");
-
-    newRow.querySelector('.fieldLabel').setAttribute('name', `fields[${fieldIndex}].fieldLabel`);
-    newRow.querySelector('.fieldName').setAttribute('name', `fields[${fieldIndex}].fieldName`);
-    newRow.querySelector('.fieldType').setAttribute('name', `fields[${fieldIndex}].fieldType`);
-
-    const colAuto = newRow.querySelector('.col-auto');
-    colAuto.innerHTML = `<button type="button" class="btn btn-danger" onclick="removeFieldRow(this)">-</button>`;
-
-    newRow.classList.add('animate__animated', 'animate__fadeIn');
-    container.appendChild(newRow);
-    fieldIndex++;
-  };
-
-  window.removeFieldRow = function (button) {
-    const row = button.closest('.field-row');
-    const container = document.getElementById('fieldsContainer');
-    if (container.querySelectorAll('.field-row').length > 1) {
-      row.classList.add('removed');
-      setTimeout(() => row.remove(), 300);
-    }
-    validateFormFields();
-  };
-
   window.validateFormFields = function () {
-    const componentName = componentNameInput.value.trim();
-    const componentGroup = document.getElementById('componentGroup').value;
-
-    if (!componentName || !componentGroup || componentNameInput.classList.contains('is-invalid')) {
+    const name = componentNameInput.value.trim();
+    const group = document.getElementById('componentGroup').value;
+    const mode = modeSelect.value;
+    const superTypeValue = document.getElementById('superType').value;
+    if (!name || !group || componentNameInput.classList.contains('is-invalid')) {
       createButton.disabled = true;
       return;
     }
-
-    const rows = document.querySelectorAll('.field-row');
+    if (mode === 'extend' && !superTypeValue) {
+      createButton.disabled = true;
+      return;
+    }
+    const rows = document.querySelectorAll('#fieldsContainer .field-row, #fieldsContainer .nested-row');
+    if (mode === 'new' && rows.length === 0) {
+      createButton.disabled = true;
+      return;
+    }
     for (let row of rows) {
       const label = row.querySelector('.fieldLabel').value.trim();
-      const name = row.querySelector('.fieldName').value.trim();
+      const fname = row.querySelector('.fieldName').value.trim();
       const type = row.querySelector('.fieldType').value;
-      if (!label || !name || !type) {
+      if (!label || !fname || !type) {
         createButton.disabled = true;
         return;
       }
+      const optionInputs = row.querySelectorAll('.option-row input');
+      for (let inp of optionInputs) {
+        if (!inp.value.trim()) {
+          createButton.disabled = true;
+          return;
+        }
+      }
     }
-
     createButton.disabled = false;
   };
 
   document.addEventListener('input', validateFormFields);
+  document.addEventListener('change', validateFormFields);
+  updateIndexes();
 });

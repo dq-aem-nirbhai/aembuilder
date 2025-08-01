@@ -2,18 +2,27 @@ package com.aem.builder.util;
 
 import com.aem.builder.model.DTO.ComponentField;
 import com.aem.builder.model.DTO.ComponentRequest;
+import com.aem.builder.model.DTO.OptionItem;
 import com.aem.builder.model.Enum.FieldType;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * Utility class for generating AEM component files, dialogs, and models.
  */
+@Slf4j
 public class FileGenerationUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(FileGenerationUtil.class);
@@ -26,12 +35,28 @@ public class FileGenerationUtil {
         try {
             String basePath = "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
                     + projectName + "/components/";
-            String modelBasePath = "generated-projects/" + projectName + "/core/src/main/java/com/" + projectName
-                    + "/core/models";
-            String packageName = "com." + projectName + ".core.models";
+
+
+            Path javaSourceRoot = Paths.get("generated-projects/" + projectName + "/core/src/main/java/");
+
+            // Find models directory
+            Path modelPath = findModelBasePath(javaSourceRoot);
+
+            log.info("ModelPath{}",modelPath);
+
+
+            // Get full model base path
+            String modelBasePath = modelPath.toString();
+
+            log.info("ModelBasePath{}",modelBasePath);
+
+            // 5. Convert to Java package name
+            String packageName = javaSourceRoot.relativize(modelPath).toString().replace(File.separatorChar, '.');
+
+            log.info("PackageName {}",packageName);
 
             generateComponent(basePath, modelBasePath, packageName, request.getComponentName(),
-                    request.getComponentGroup(), request.getFields());
+                    request.getComponentGroup(), request.getSuperType(), request.getFields());
             logger.info("FILEGEN: Successfully generated all files for project: {}", projectName);
         } catch (Exception e) {
             logger.info("FILEGEN: Error generating files for project: {}", projectName, e);
@@ -39,11 +64,27 @@ public class FileGenerationUtil {
         }
     }
 
+    // Helper method to locate the 'models' directory under src/main/java
+    private static Path findModelBasePath(Path javaSourceRoot) throws IOException {
+        try (Stream<Path> paths = Files.walk(javaSourceRoot)) {
+            Optional<Path> modelPath = paths
+                    .filter(Files::isDirectory)
+                    .filter(p -> p.getFileName().toString().equals("models"))
+                    .findFirst();
+
+            return modelPath.orElseThrow(() ->
+                    new IOException("models directory not found under: " + javaSourceRoot));
+        }
+    }
+
+
+
+
     /**
      * Generates component folders, content.xml, HTL, dialog, and Sling model.
      */
     public static void generateComponent(String basePath, String modelBasePath, String packageName,
-            String componentName, String componentGroup, List<ComponentField> fields) throws Exception {
+            String componentName, String componentGroup, String superType, List<ComponentField> fields) throws Exception {
         logger.info("COMPONENT: Generating component '{}'", componentName);
 
         String componentFolder = basePath + "/" + componentName;
@@ -51,10 +92,19 @@ public class FileGenerationUtil {
 
         new File(dialogFolder).mkdirs();
 
-        generateComponentContentXml(componentFolder, componentName, componentGroup);
-        generateHTL(componentFolder, fields, packageName, componentName);
-        generateDialogContentXml(componentName, dialogFolder, fields);
-        generateSlingModel(modelBasePath, packageName, componentName, fields);
+        boolean extendsComponent = superType != null && !superType.isBlank();
+        boolean hasFields = fields != null && !fields.isEmpty();
+
+        generateComponentContentXml(componentFolder, componentName, componentGroup, superType);
+        generateHTL(componentFolder, fields, packageName, componentName, superType);
+
+        if (hasFields) {
+            generateDialogContentXml(componentName, dialogFolder, superType, fields);
+        }
+
+        if (!extendsComponent || hasFields) {
+            generateSlingModel(modelBasePath, packageName, componentName, fields);
+        }
 
         logger.info("COMPONENT: Finished generating component '{}'", componentName);
     }
@@ -62,8 +112,8 @@ public class FileGenerationUtil {
     /**
      * Generates the .content.xml for the component.
      */
-    private static void generateComponentContentXml(String folderPath, String componentName, String componentGroup)
-            throws Exception {
+    private static void generateComponentContentXml(String folderPath, String componentName, String componentGroup,
+            String superType) throws Exception {
         logger.info("CONTENTXML: Generating .content.xml for component '{}'", componentName);
         String content = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
                 "<jcr:root xmlns:sling=\"http://sling.apache.org/jcr/sling/1.0\"\n" +
@@ -71,7 +121,10 @@ public class FileGenerationUtil {
                 "          xmlns:jcr=\"http://www.jcp.org/jcr/1.0\"\n" +
                 "          jcr:primaryType=\"cq:Component\"\n" +
                 "          jcr:title=\"" + componentName + "\"\n" +
-                "          componentGroup=\"" + componentGroup + "\"/>";
+                "          componentGroup=\"" + componentGroup + "\"" +
+                (superType != null && !superType.isBlank()
+                        ? "\n          sling:resourceSuperType=\"" + superType + "\"" : "") +
+                "/>";
         FileUtils.writeStringToFile(new File(folderPath + "/.content.xml"), content, StandardCharsets.UTF_8);
         logger.info("CONTENTXML: .content.xml generated at {}/.content.xml", folderPath);
     }
@@ -80,16 +133,28 @@ public class FileGenerationUtil {
      * Generates the HTL (HTML Template Language) file for the component.
      */
     private static void generateHTL(String folderPath, List<ComponentField> fields, String packageName,
-            String componentName) throws Exception {
+            String componentName, String superType) throws Exception {
         logger.info("HTL: Generating HTL for component '{}'", componentName);
         String modelClassName = capitalize(componentName) + "Model";
         StringBuilder sb = new StringBuilder();
 
-        sb.append("<sly data-sly-use.model=\"")
-                .append(packageName).append(".").append(modelClassName).append("\"/>\n")
-                .append("<sly data-sly-use.placeholderTemplate=\"core/wcm/components/commons/v1/templates.html\"/>\n")
-                .append("<sly data-sly-test.hasContent=\"${!model.empty}\">\n");
+        boolean extending = superType != null && !superType.isBlank();
+        boolean hasFields = fields != null && !fields.isEmpty();
 
+        if (extending && !hasFields) {
+            sb.append("<sly data-sly-resource=\"${@ resourceType='")
+                    .append(superType).append("'}\"/>\n");
+        } else {
+            sb.append("<sly data-sly-use.model=\"")
+                    .append(packageName).append(".").append(modelClassName).append("\"/>\n");
+
+            sb.append("<sly data-sly-use.placeholderTemplate=\"core/wcm/components/commons/v1/templates.html\"/>\n")
+                    .append("<sly data-sly-test.hasContent=\"${!model.empty}\">\n");
+            if (extending) {
+                sb.append("<sly data-sly-resource=\"${@ resourceType='")
+                        .append(superType).append("'}\"/>\n");
+            }
+            if (hasFields) {
         for (ComponentField field : fields) {
             String fieldName = field.getFieldName();
             String fieldLabel = field.getFieldLabel();
@@ -103,10 +168,7 @@ public class FileGenerationUtil {
                     sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append(" && model.")
                             .append(fieldName).append(".size > 0}\">\n")
                             .append("    <ul data-sly-list.item=\"${model.").append(fieldName).append("}\">\n");
-                    for (ComponentField nested : field.getNestedFields()) {
-                        sb.append("      <li>").append(nested.getFieldLabel())
-                                .append(": ${item.").append(nested.getFieldName()).append("}</li>\n");
-                    }
+                    appendNestedHTL(sb, field.getNestedFields(), "item", "      ");
                     sb.append("    </ul>\n")
                             .append("  </sly>\n");
                 }
@@ -125,16 +187,18 @@ public class FileGenerationUtil {
                             .append("  </sly>\n");
                 }
                 case "image", "fileupload" -> {
-                    sb.append("  <sly data-sly-test=\"${model.fileReference}\">\n")
+                    sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append("}\">\n")
                             .append("    <p>").append(fieldLabel);
-                    if (fieldType.equals("image")) {
-                        sb.append(": <img src=\"${model.fileReference}\" alt=\"").append(fieldLabel)
+
+
+                        sb.append(": <img src=\"${model.").append(fieldName)
+                                .append("}\" alt=\"").append(fieldLabel)
                                 .append("\" style=\"max-width:100%; height:auto;\"/></p>\n");
-                    } else {
-                        sb.append(": <a href=\"${model.fileReference}\" download>Download File</a></p>\n");
-                    }
+
+
                     sb.append("  </sly>\n");
                 }
+
                 case "pathfield" -> {
                     sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append("}\">\n")
                             .append("    <p>").append(fieldLabel).append(": <a href=\"${model.")
@@ -156,8 +220,10 @@ public class FileGenerationUtil {
             }
         }
 
-        sb.append("</sly>\n");
-        sb.append("<sly data-sly-call=\"${placeholderTemplate.placeholder @ isEmpty = !hasContent}\" />\n");
+            sb.append("</sly>\n");
+            sb.append("<sly data-sly-call=\"${placeholderTemplate.placeholder @ isEmpty = !hasContent}\" />\n");
+            }
+        }
 
         FileUtils.writeStringToFile(new File(folderPath + "/" + componentName + ".html"), sb.toString(),
                 StandardCharsets.UTF_8);
@@ -165,14 +231,79 @@ public class FileGenerationUtil {
     }
 
     /**
+     * Recursively appends HTL markup for nested multifields.
+     */
+    private static void appendNestedHTL(StringBuilder sb, List<ComponentField> nestedFields, String modelVar, String indent) {
+        if (nestedFields == null || nestedFields.isEmpty()) return;
+
+        for (ComponentField nested : nestedFields) {
+            String fieldName = nested.getFieldName();
+            String fieldLabel = nested.getFieldLabel();
+            String fieldType = nested.getFieldType().toLowerCase();
+
+            sb.append(indent).append("<sly data-sly-test=\"${").append(modelVar).append(".")
+                    .append(fieldName).append("}\">\n");
+
+            switch (fieldType) {
+                case "image", "fileupload" -> {
+                    sb.append(indent).append("  <sly data-sly-test=\"${").append(modelVar).append(".").append(fieldName).append("}\">\n");
+                    sb.append(indent).append("    <p>").append(fieldLabel);
+
+
+                        sb.append(": <img src=\"${").append(modelVar).append(".").append(fieldName)
+                                .append("}\" alt=\"").append(fieldLabel)
+                                .append("\" style=\"max-width:100%; height:auto;\"/></p>\n");
+
+                        sb.append(": <a href=\"${").append(modelVar).append(".").append(fieldName)
+                                .append("}\" download>Download File</a></p>\n");
+
+
+                    sb.append(indent).append("  </sly>\n");
+                }
+
+
+                case "richtext" -> sb.append(indent).append("  <p>").append(fieldLabel).append(": ${")
+                        .append(modelVar).append(".").append(fieldName).append(" @ context='html'}</p>\n");
+                case "pathfield" -> sb.append(indent).append("  <p>").append(fieldLabel).append(": <a href=\"${")
+                        .append(modelVar).append(".").append(fieldName).append("}\">${")
+                        .append(modelVar).append(".").append(fieldName).append("}</a></p>\n");
+                case "checkbox" -> sb.append(indent).append("  <p>").append(fieldLabel)
+                        .append(": <input type=\"checkbox\" disabled checked=\"checked\"/></p>\n");
+                case "checkboxgroup", "multiselect" -> sb.append(indent).append("  <ul data-sly-list.item=\"${")
+                        .append(modelVar).append(".").append(fieldName).append("}\">\n")
+                        .append(indent).append("    <li>${item}</li>\n")
+                        .append(indent).append("  </ul>\n");
+                case "multifield" -> {
+                    String newVar = modelVar + "." + fieldName;
+                    sb.append(indent).append("  <ul data-sly-list.nestedItem=\"${")
+                            .append(newVar).append("}\">\n");
+                    appendNestedHTL(sb, nested.getNestedFields(), "nestedItem", indent + "    ");
+                    sb.append(indent).append("  </ul>\n");
+                }
+                default -> sb.append(indent).append("  <p>").append(fieldLabel).append(": ${")
+                        .append(modelVar).append(".").append(fieldName).append("}</p>\n");
+            }
+
+            sb.append(indent).append("</sly>\n");
+        }
+    }
+
+    /**
      * Generates the dialog .content.xml for the component.
      */
-    public static void generateDialogContentXml(String componentName, String dialogFolder, List<ComponentField> fields)
-            throws Exception {
+    public static void generateDialogContentXml(String componentName, String dialogFolder, String superType,
+            List<ComponentField> fields) throws Exception {
+        if (fields == null || fields.isEmpty()) {
+            logger.info("DIALOG: Skipping dialog generation for component '{}' as no fields defined", componentName);
+            return;
+        }
         logger.info("DIALOG: Generating dialog .content.xml for component '{}'", componentName);
         String dialogTitle = componentName + " Dialog";
 
         StringBuilder sb = new StringBuilder();
+        String superTypeAttr = (superType != null && !superType.isBlank())
+                ? "\n                          sling:resourceSuperType=\"" + superType + "/cq:dialog\""
+                : "";
         sb.append(String.format("""
                 <?xml version="1.0" encoding="UTF-8"?>
                 <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
@@ -181,10 +312,10 @@ public class FileGenerationUtil {
                           xmlns:nt="http://www.jcp.org/jcr/nt/1.0"
                           jcr:primaryType="nt:unstructured"
                           jcr:title="%s"
-                          sling:resourceType="cq/gui/components/authoring/dialog">
-                  <content
-                    jcr:primaryType="nt:unstructured"
-                    sling:resourceType="granite/ui/components/coral/foundation/container">
+                          sling:resourceType="cq/gui/components/authoring/dialog"%s>
+                <content
+                  jcr:primaryType="nt:unstructured"
+                  sling:resourceType="granite/ui/components/coral/foundation/container">
                     <items
                       jcr:primaryType="nt:unstructured">
                       <tabs
@@ -198,7 +329,7 @@ public class FileGenerationUtil {
                             sling:resourceType="granite/ui/components/coral/foundation/container">
                             <items
                               jcr:primaryType="nt:unstructured">
-                """, dialogTitle));
+                """, dialogTitle, superTypeAttr));
 
         for (ComponentField field : fields) {
             String nodeName = field.getFieldName();
@@ -228,7 +359,7 @@ public class FileGenerationUtil {
         String type = field.getFieldType().toLowerCase();
         String label = field.getFieldLabel();
         String name = field.getFieldName();
-        List<String> options = field.getOptions();
+        List<OptionItem> options = field.getOptions();
         List<ComponentField> nested = field.getNestedFields();
 
         return switch (type) {
@@ -282,10 +413,11 @@ public class FileGenerationUtil {
                         .append("    <items jcr:primaryType=\"nt:unstructured\">\n");
                 if (options != null) {
                     for (int i = 0; i < options.size(); i++) {
+                        OptionItem opt = options.get(i);
                         sb.append("      <option").append(i + 1).append("\n")
                                 .append("        jcr:primaryType=\"nt:unstructured\"\n")
-                                .append("        text=\"").append(options.get(i)).append("\"\n")
-                                .append("        value=\"").append(options.get(i)).append("\"/>\n");
+                                .append("        text=\"").append(opt.getText()).append("\"\n")
+                                .append("        value=\"").append(opt.getValue()).append("\"/>\n");
                     }
                 }
                 sb.append("    </items>\n")
@@ -308,10 +440,11 @@ public class FileGenerationUtil {
                         .append("    <items jcr:primaryType=\"nt:unstructured\">\n");
                 if (options != null) {
                     for (int i = 0; i < options.size(); i++) {
+                        OptionItem opt = options.get(i);
                         sb.append("      <option").append(i + 1).append("\n")
                                 .append("        jcr:primaryType=\"nt:unstructured\"\n")
-                                .append("        text=\"").append(options.get(i)).append("\"\n")
-                                .append("        value=\"").append(options.get(i)).append("\"/>\n");
+                                .append("        text=\"").append(opt.getText()).append("\"\n")
+                                .append("        value=\"").append(opt.getValue()).append("\"/>\n");
                     }
                 }
                 sb.append("    </items>\n")
@@ -336,15 +469,17 @@ public class FileGenerationUtil {
                         .append("    sling:resourceType=\"").append(getResourceType(type)).append("\"\n")
                         .append("    autoStart=\"{Boolean}false\"\n")
                         .append("    class=\"cq-droptarget\"\n")
-                        .append("    fileNameParameter=\"./fileName\"\n")
-                        .append("    fileReferenceParameter=\"./fileReference\"\n")
+                        .append("    fieldLabel=\"").append(label).append("\"\n")
+                        .append("    fileNameParameter=\"./").append(name).append("FileName\"\n") // this is fine
+                        .append("    fileReferenceParameter=\"./").append(name).append("\"\n") // this is what your Sling Model will use
                         .append("    mimeTypes=\"[image/gif,image/jpeg,image/png,image/tiff,image/svg+xml]\"\n")
                         .append("    multiple=\"{Boolean}false\"\n")
-                        .append("    name=\"./").append(name).append("\"\n")
-                        .append("    title=\"").append(label).append("\"\n")
-                        .append("    uploadUrl=\"${request.contextPath}/content/dam\"/>\n");
+                        .append("    name=\"./file\"\n") //  fixed to mimic your example
+                        .append("    uploadUrl=\"/content/dam\"/>\n"); //  removed `${request.contextPath}`
                 yield sb.toString();
             }
+
+
             case "multifield" -> {
                 StringBuilder sb = new StringBuilder();
                 sb.append("  <").append(nodeName).append("\n")
@@ -427,7 +562,6 @@ public class FileGenerationUtil {
                 case "checkboxgroup", "multiselect" ->
                     sb.append("    @ValueMapValue\nprivate List<String> ").append(name).append(";\n\n");
                 case "numberfield" -> sb.append("    @ValueMapValue\nprivate double ").append(name).append(";\n\n");
-                case "image", "fileupload" -> sb.append("    @ValueMapValue\nprivate String fileReference;\n\n");
                 default -> sb.append("    @ValueMapValue\nprivate String ").append(name).append(";\n\n");
             }
         }
@@ -449,8 +583,6 @@ public class FileGenerationUtil {
                             .append("        return ").append(name).append(";\n    }\n\n");
                 case "numberfield" -> sb.append("    public double get").append(getter).append("() {\n")
                         .append("        return ").append(name).append(";\n    }\n\n");
-                case "image", "fileupload" -> sb.append("    public String getFileReference() {\n")
-                        .append("        return fileReference;\n    }\n\n");
                 default -> sb.append("    public String get").append(getter).append("() {\n")
                         .append("        return ").append(name).append(";\n    }\n\n");
             }
@@ -469,7 +601,6 @@ public class FileGenerationUtil {
                     emptyChecks.add("(" + name + " == null || " + name + ".isEmpty())");
                 case "checkbox" -> emptyChecks.add("!" + name);
                 case "numberfield" -> emptyChecks.add(name + " == 0");
-                case "image", "fileupload" -> emptyChecks.add("(fileReference == null || fileReference.isEmpty())");
                 default -> emptyChecks.add("(" + name + " == null || " + name + ".isEmpty())");
             }
         }
@@ -499,7 +630,8 @@ public class FileGenerationUtil {
                 .append("import org.apache.sling.api.resource.Resource;\n")
                 .append("import org.apache.sling.models.annotations.DefaultInjectionStrategy;\n")
                 .append("import org.apache.sling.models.annotations.Model;\n")
-                .append("import org.apache.sling.models.annotations.injectorspecific.ValueMapValue;\n\n")
+                .append("import org.apache.sling.models.annotations.injectorspecific.ValueMapValue;\n")
+                .append("import org.apache.sling.models.annotations.injectorspecific.ChildResource;\n\n")
                 .append("@Model(adaptables = Resource.class, defaultInjectionStrategy = DefaultInjectionStrategy.OPTIONAL)\n")
                 .append("public class ").append(className).append(" {\n\n");
 
@@ -510,14 +642,18 @@ public class FileGenerationUtil {
             logger.info("CHILDMODEL: Adding nested field '{}' of type '{}'", subName, type);
 
             switch (type) {
+                case "multifield" -> {
+                    generateChildModelClass(modelBasePath, packageName, componentName, subField);
+                    sb.append("    @ChildResource\n")
+                            .append("    private List<").append(capitalize(subName)).append("> ")
+                            .append(subName).append(";\n\n");
+                }
                 case "checkbox" -> sb.append("    @ValueMapValue\n")
                         .append("    private boolean ").append(subName).append(";\n\n");
                 case "numberfield" -> sb.append("    @ValueMapValue\n")
                         .append("    private double ").append(subName).append(";\n\n");
                 case "checkboxgroup", "multiselect" -> sb.append("    @ValueMapValue\n")
                         .append("    private List<String> ").append(subName).append(";\n\n");
-                case "image" -> sb.append("    @ValueMapValue\n")
-                        .append("    private String fileReference;\n\n");
                 default -> sb.append("    @ValueMapValue\n")
                         .append("    private String ").append(subName).append(";\n\n");
             }
@@ -530,6 +666,10 @@ public class FileGenerationUtil {
             String type = subField.getFieldType().toLowerCase();
 
             switch (type) {
+                case "multifield" ->
+                    sb.append("    public List<").append(capitalize(subName)).append("> get").append(getter)
+                            .append("() {\n")
+                            .append("        return ").append(subName).append(";\n    }\n\n");
                 case "checkbox" -> sb.append("    public boolean is").append(getter).append("() {\n")
                         .append("        return ").append(subName).append(";\n    }\n\n");
                 case "numberfield" -> sb.append("    public double get").append(getter).append("() {\n")
@@ -537,8 +677,7 @@ public class FileGenerationUtil {
                 case "checkboxgroup", "multiselect" ->
                     sb.append("    public List<String> get").append(getter).append("() {\n")
                             .append("        return ").append(subName).append(";\n    }\n\n");
-                case "image" -> sb.append("    public String getFileReference() {\n")
-                        .append("        return fileReference;\n    }\n\n");
+
                 default -> sb.append("    public String get").append(getter).append("() {\n")
                         .append("        return ").append(subName).append(";\n    }\n\n");
             }
@@ -562,11 +701,9 @@ public class FileGenerationUtil {
      * Reads the contents of a file as a String.
      */
     public static String readFile(File file) {
-        logger.info("FILEGEN: Reading file '{}'", file.getPath());
         try {
             return FileUtils.readFileToString(file, StandardCharsets.UTF_8);
         } catch (Exception e) {
-            logger.info("FILEGEN: Error reading file '{}'", file.getPath(), e);
             return "";
         }
     }
