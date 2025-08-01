@@ -9,6 +9,9 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Controller
 @RequiredArgsConstructor
 public class TemplatePolicyController {
@@ -38,14 +41,22 @@ public class TemplatePolicyController {
     }
 
     @PostMapping("/{project}/template/{template}/{component}/style")
-    public String addPolicy(@PathVariable String project,
-                            @PathVariable String template,
-                            @PathVariable String component,
-                            @RequestParam String name,
-                            @RequestParam String cssClass,
-                            RedirectAttributes redirectAttributes) {
-        policyService.addPolicy(project, component, new StylePolicy(name, cssClass));
-        redirectAttributes.addFlashAttribute("message", "Style policy added");
+    public String addPolicies(@PathVariable String project,
+                              @PathVariable String template,
+                              @PathVariable String component,
+                              @RequestParam("name") List<String> names,
+                              @RequestParam("cssClass") List<String> classes,
+                              RedirectAttributes redirectAttributes) {
+        List<StylePolicy> list = new ArrayList<>();
+        for (int i = 0; i < names.size(); i++) {
+            String n = names.get(i);
+            String c = i < classes.size() ? classes.get(i) : "";
+            if (!n.isBlank() && !c.isBlank()) {
+                list.add(new StylePolicy(n, c));
+            }
+        }
+        policyService.addPolicies(project, component, list);
+        redirectAttributes.addFlashAttribute("message", "Style policies saved");
         return "redirect:/" + project + "/template/" + template + "/" + component;
     }
 }

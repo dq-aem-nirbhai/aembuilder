@@ -25,18 +25,38 @@
 
     <div class="mt-4">
         <h5>Add Style Policy</h5>
-        <form th:action="@{'/' + ${projectName} + '/template/' + ${templateName} + '/' + ${componentName} + '/style'}" method="post">
-            <div class="mb-3">
-                <label class="form-label">Style Name</label>
-                <input type="text" class="form-control" name="name" required>
+        <form th:action="@{'/' + ${projectName} + '/template/' + ${templateName} + '/' + ${componentName} + '/style'}" method="post" id="styleForm">
+            <div id="styleList">
+                <div class="row g-2 mb-2 style-item">
+                    <div class="col">
+                        <input type="text" class="form-control" name="name" placeholder="Style Name" required>
+                    </div>
+                    <div class="col">
+                        <input type="text" class="form-control" name="cssClass" placeholder="CSS Class" required>
+                    </div>
+                    <div class="col-auto d-flex align-items-center">
+                        <button type="button" class="btn btn-danger btn-sm remove-btn" onclick="removeRow(this)">Remove</button>
+                    </div>
+                </div>
             </div>
-            <div class="mb-3">
-                <label class="form-label">CSS Class Name</label>
-                <input type="text" class="form-control" name="cssClass" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Add</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="addRow()">Add</button>
+            <button type="submit" class="btn btn-primary ms-2">Save</button>
         </form>
     </div>
 </div>
+<script>
+    function addRow() {
+        const template = document.querySelector('.style-item');
+        const clone = template.cloneNode(true);
+        clone.querySelectorAll('input').forEach(i => i.value = '');
+        document.getElementById('styleList').appendChild(clone);
+    }
+    function removeRow(btn) {
+        const rows = document.querySelectorAll('.style-item');
+        if (rows.length > 1) {
+            btn.closest('.style-item').remove();
+        }
+    }
+</script>
 </body>
 </html>
