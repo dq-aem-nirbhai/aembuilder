@@ -4,6 +4,7 @@ import com.aem.builder.model.DTO.ComponentRequest;
 import com.aem.builder.service.ComponentService;
 
 import com.aem.builder.util.FileGenerationUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -344,6 +345,31 @@ public class ComponentServiceImpl implements ComponentService {
     @Override
     public void generateComponent(String projectName, ComponentRequest request) {
         FileGenerationUtil.generateAllFiles(projectName, request);
+        saveMetadata(projectName, request);
+    }
+
+    @Override
+    public ComponentRequest getComponentDetails(String projectName, String componentName) throws IOException {
+        File meta = new File(PROJECTS_DIR + "/" + projectName + "/component-data/" + componentName + ".json");
+        if (!meta.exists()) {
+            return null;
+        }
+        ObjectMapper mapper = new ObjectMapper();
+        return mapper.readValue(meta, ComponentRequest.class);
+    }
+
+    private void saveMetadata(String projectName, ComponentRequest request) {
+        try {
+            File dir = new File(PROJECTS_DIR + "/" + projectName + "/component-data");
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+            File meta = new File(dir, request.getComponentName() + ".json");
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.writerWithDefaultPrettyPrinter().writeValue(meta, request);
+        } catch (IOException e) {
+            log.error("Failed to save component metadata", e);
+        }
     }
 
 

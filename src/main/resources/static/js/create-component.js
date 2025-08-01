@@ -179,6 +179,47 @@ document.addEventListener("DOMContentLoaded", function () {
   const errorDiv = document.getElementById('nameError');
   const createButton = document.getElementById('createButton');
   const projectName = document.getElementById('projectName').value;
+  const editComponent = document.body.getAttribute('data-edit-component');
+
+  if (editComponent) {
+    fetch(`/component/details/${projectName}/${editComponent}`)
+      .then(r => r.json())
+      .then(data => {
+        if (!data) return;
+        componentNameInput.value = data.componentName;
+        componentNameInput.readOnly = true;
+        document.getElementById('componentGroup').value = data.componentGroup;
+        if (data.superType) {
+          modeSelect.value = 'extend';
+          toggleSuperType();
+          document.getElementById('superType').value = data.superType;
+        }
+        document.querySelectorAll('#fieldsContainer .field-row').forEach(e => e.remove());
+        if (Array.isArray(data.fields)) {
+          data.fields.forEach(f => {
+            addFieldRow();
+            const row = document.getElementById('fieldsContainer').lastElementChild;
+            row.querySelector('.fieldLabel').value = f.fieldLabel;
+            row.querySelector('.fieldName').value = f.fieldName;
+            row.querySelector('.fieldType').value = f.fieldType;
+            handleFieldTypeChange(row.querySelector('.fieldType'));
+            if (Array.isArray(f.options)) {
+              const optContainer = row.querySelector('.options-container');
+              f.options.forEach(o => {
+                const div = document.createElement('div');
+                div.className = 'option-row input-group mb-2';
+                div.innerHTML = `<input type="text" class="form-control optionText" placeholder="Text" required value="${o.text}">
+      <input type="text" class="form-control optionValue" placeholder="Value" required value="${o.value}">
+      <button type="button" class="btn btn-danger" onclick="removeOptionRow(this)">-</button>`;
+                optContainer.appendChild(div);
+              });
+            }
+          });
+        }
+        updateIndexes();
+        validateFormFields();
+      });
+  }
 
   function debounce(func, delay) {
     let timer;

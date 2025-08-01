@@ -61,12 +61,24 @@ public class ComponentController {
         }
     }
 
+    @GetMapping("/component/details/{project}/{component}")
+    @ResponseBody
+    public ComponentRequest getComponentDetails(@PathVariable String project,
+                                                @PathVariable String component) throws IOException {
+        return componentService.getComponentDetails(project, component);
+    }
+
 
 
     //component creation
     @GetMapping("/create/{project}")
-    public String showComponentForm(@PathVariable String project, Model model) {
+    public String showComponentForm(@PathVariable String project,
+                                    @RequestParam(value = "component", required = false) String component,
+                                    Model model) {
         model.addAttribute("projectName", project);
+        if (component != null && !component.isBlank()) {
+            model.addAttribute("editComponentName", component);
+        }
 
 
         var typeResourceMap = FieldType.getTypeResourceMap();

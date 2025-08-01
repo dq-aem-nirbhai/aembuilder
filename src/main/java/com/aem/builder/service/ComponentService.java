@@ -27,6 +27,8 @@ public interface ComponentService {
     List<String> getComponentGroups(String projectName);
     void generateComponent(String projectName, ComponentRequest request);
 
+    ComponentRequest getComponentDetails(String projectName, String componentName) throws IOException;
+
     //component checking
     boolean isComponentNameAvailable(String projectName, String componentName);
 

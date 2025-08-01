@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/css/create-component.css">
   <script th:src="@{/js/create-component.js}"></script>
 </head>
-<body>
+<body th:attr="data-edit-component=${editComponentName}">
 
 <!-- Navbar -->
 <div th:replace="fragments/navbar :: navbar"></div>
