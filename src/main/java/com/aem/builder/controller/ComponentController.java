@@ -63,9 +63,13 @@ public class ComponentController {
 
     @GetMapping("/component/details/{project}/{component}")
     @ResponseBody
-    public ComponentRequest getComponentDetails(@PathVariable String project,
-                                                @PathVariable String component) throws IOException {
-        return componentService.getComponentDetails(project, component);
+    public ResponseEntity<ComponentRequest> getComponentDetails(@PathVariable String project,
+                                                                @PathVariable String component) throws IOException {
+        ComponentRequest details = componentService.getComponentDetails(project, component);
+        if (details == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(details);
     }
 
 

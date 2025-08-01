@@ -182,10 +182,13 @@ document.addEventListener("DOMContentLoaded", function () {
   const editComponent = document.body.getAttribute('data-edit-component');
 
   if (editComponent) {
-    fetch(`/component/details/${projectName}/${editComponent}`)
-      .then(r => r.json())
+    const url = `/component/details/${projectName}/${encodeURIComponent(editComponent)}`;
+    fetch(url)
+      .then(r => {
+        if (!r.ok) throw new Error('No metadata');
+        return r.json();
+      })
       .then(data => {
-        if (!data) return;
         componentNameInput.value = data.componentName;
         componentNameInput.readOnly = true;
         document.getElementById('componentGroup').value = data.componentGroup;
@@ -218,6 +221,9 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         updateIndexes();
         validateFormFields();
+      })
+      .catch(() => {
+        console.warn('No metadata found for component', editComponent);
       });
   }
 
