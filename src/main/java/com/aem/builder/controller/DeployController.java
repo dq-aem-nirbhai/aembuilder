@@ -31,6 +31,7 @@ public class DeployController {
         List<String> templates = templateService.fetchTemplatesFromGeneratedProjects(projectName);
         model.addAttribute("components", components);
         model.addAttribute("templates", templates);
+        model.addAttribute("projectName", projectName);
         model.addAttribute("canDeploy", true);
         logger.debug("DEPLOY: Added attributes to model for project: {}", projectName);
         return "deploy";

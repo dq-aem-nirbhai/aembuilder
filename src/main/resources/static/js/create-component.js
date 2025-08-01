@@ -1,10 +1,12 @@
 document.addEventListener("DOMContentLoaded", function () {
-  let fieldIndex = 1;
+  let fieldIndex = document.querySelectorAll('.field-row').length;
 
   const componentNameInput = document.getElementById('componentName');
   const errorDiv = document.getElementById('nameError');
   const createButton = document.getElementById('createButton');
   const projectName = document.getElementById("projectName").value;
+  const originalNameElem = document.getElementById('originalName');
+  const originalName = originalNameElem ? originalNameElem.value.trim() : null;
 
   function debounce(func, delay) {
     let timer;
@@ -16,6 +18,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const checkComponentNameAvailability = debounce(() => {
     const componentName = componentNameInput.value.trim();
+    if (originalName && componentName === originalName) {
+      errorDiv.innerText = "";
+      errorDiv.classList.remove('text-danger', 'text-success');
+      componentNameInput.classList.remove('is-invalid');
+      validateFormFields();
+      return;
+    }
     if (!componentName) {
       errorDiv.innerText = "";
       errorDiv.classList.remove('text-danger', 'text-success');

@@ -83,6 +83,30 @@ public class ComponentController {
         return "redirect:/" + project;
     }
 
+    // component edit form
+    @GetMapping("/{project}/edit/{component}")
+    public String showEditComponent(@PathVariable String project,
+                                    @PathVariable String component,
+                                    Model model) {
+        ComponentRequest details = componentService.getComponentDetails(project, component);
+        model.addAttribute("projectName", project);
+        model.addAttribute("componentRequest", details);
+        model.addAttribute("originalName", component);
+        model.addAttribute("fieldTypes", FieldType.getTypeResourceMap());
+        model.addAttribute("componentGroups", componentService.getComponentGroups(project));
+        return "edit-component";
+    }
+
+    @PostMapping("/component/update/{project}")
+    public String updateComponent(@PathVariable String project,
+                                  @RequestParam String originalName,
+                                  @ModelAttribute ComponentRequest request,
+                                  Model model) {
+        componentService.updateComponent(project, originalName, request);
+        model.addAttribute("message", "Component updated successfully!");
+        return "redirect:/" + project;
+    }
+
     //component checking
     @GetMapping("/check-componentName/{projectName}")
     public ResponseEntity<Boolean> checkComponentNameExists(
