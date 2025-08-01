@@ -134,6 +134,12 @@ public class TemplateController {
         }
     }
 
+    @GetMapping("/{projectName}/policies")
+    public String showPolicyEditor(@PathVariable String projectName, Model model) {
+        model.addAttribute("projectName", projectName);
+        return "policy-ui";
+    }
+
 
 
 }

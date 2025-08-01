@@ -99,3 +99,7 @@ git clone https://github.com/your-org/aem-project-generator.git
 cd aem-project-generator
 ./mvnw spring-boot:run
  
+
+
+### Policy Editor
+Access `/{{projectName}}/policies` to manage component policies for any template. The page lists templates, allowed components, and existing policies. New or updated policies are saved back into the corresponding `.content.xml` files under `conf/<project>/settings/wcm`.
