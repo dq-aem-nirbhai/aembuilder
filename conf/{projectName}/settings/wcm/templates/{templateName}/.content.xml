@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jcr:root
+    xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
+    xmlns:jcr="http://www.jcp.org/jcr/1.0"
+    jcr:primaryType="cq:Template">
+    <jcr:content
+        jcr:primaryType="cq:PageContent"
+        cq:templateType="/conf/{projectName}/settings/wcm/template-types/page"
+        cq:lastModified="{Date}"
+        cq:lastModifiedBy="admin"
+        jcr:description="{description}"
+        jcr:title="{templateName}"
+        status="enabled"/>
+</jcr:root>

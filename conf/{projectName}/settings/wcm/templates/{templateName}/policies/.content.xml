@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jcr:root
+    xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
+    xmlns:jcr="http://www.jcp.org/jcr/1.0"
+    jcr:primaryType="cq:Page">
+    <jcr:content
+        jcr:primaryType="cq:PageContent"
+        sling:resourceType="wcm/core/components/policies/mappings"
+        cq:policy="{projectName}/components/page/policy"/>
+    <root jcr:primaryType="nt:unstructured">
+        <container jcr:primaryType="nt:unstructured">
+            <title jcr:primaryType="nt:unstructured" cq:policy="{projectName}/components/title/policy_{timestamp}_title"/>
+            <text jcr:primaryType="nt:unstructured" cq:policy="{projectName}/components/text/policy_{timestamp}_text"/>
+            <image jcr:primaryType="nt:unstructured" cq:policy="{projectName}/components/image/policy_{timestamp}_image"/>
+            <container jcr:primaryType="nt:unstructured" cq:policy="{projectName}/components/container/policy_{timestamp}_container"/>
+            <experiencefragment jcr:primaryType="nt:unstructured" cq:policy="{projectName}/components/experiencefragment/policy_{timestamp}_experiencefragment"/>
+            <form jcr:primaryType="nt:unstructured" cq:policy="{projectName}/components/form/policy_{timestamp}_form"/>
+            <download jcr:primaryType="nt:unstructured" cq:policy="{projectName}/components/download/policy_{timestamp}_download"/>
+            <teaser jcr:primaryType="nt:unstructured" cq:policy="{projectName}/components/teaser/policy_{timestamp}_teaser"/>
+            <page jcr:primaryType="nt:unstructured" cq:policy="{projectName}/components/page/policy_{timestamp}_page"/>
+        </container>
+    </root>
+</jcr:root>

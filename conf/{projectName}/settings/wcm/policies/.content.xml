@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jcr:root
+    xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
+    xmlns:jcr="http://www.jcp.org/jcr/1.0"
+    xmlns:cq="http://www.day.com/jcr/cq/1.0"
+    xmlns:rep="internal"
+    jcr:primaryType="cq:Page"
+    jcr:mixinTypes="[rep:AccessControllable]">
+    <jcr:content jcr:primaryType="cq:PageContent"/>
+    <rep:policy jcr:primaryType="rep:ACL"/>
+    <title jcr:primaryType="cq:Page">
+        <policy_{timestamp}_title jcr:primaryType="cq:Page">
+            <jcr:content jcr:primaryType="nt:unstructured" sling:resourceType="wcm/core/components/policy/policy">
+                <cq:styleGroups jcr:primaryType="nt:unstructured">
+                    <style1 jcr:primaryType="nt:unstructured" cq:styleLabel="H1" cq:styleId="h1" cq:styleClasses="cmp-title--h1"/>
+                    <style2 jcr:primaryType="nt:unstructured" cq:styleLabel="H2" cq:styleId="h2" cq:styleClasses="cmp-title--h2"/>
+                </cq:styleGroups>
+            </jcr:content>
+        </policy_{timestamp}_title>
+    </title>
+    <text jcr:primaryType="cq:Page">
+        <policy_{timestamp}_text jcr:primaryType="cq:Page">
+            <jcr:content jcr:primaryType="nt:unstructured" sling:resourceType="wcm/core/components/policy/policy"/>
+        </policy_{timestamp}_text>
+    </text>
+    <image jcr:primaryType="cq:Page">
+        <policy_{timestamp}_image jcr:primaryType="cq:Page">
+            <jcr:content jcr:primaryType="nt:unstructured" sling:resourceType="wcm/core/components/policy/policy" allowUpload="true"/>
+        </policy_{timestamp}_image>
+    </image>
+    <container jcr:primaryType="cq:Page">
+        <policy_{timestamp}_container jcr:primaryType="cq:Page">
+            <jcr:content jcr:primaryType="nt:unstructured" sling:resourceType="wcm/core/components/policy/policy">
+                <cq:authoring jcr:primaryType="nt:unstructured">
+                    <assetToComponentMapping jcr:primaryType="nt:unstructured"/>
+                </cq:authoring>
+            </jcr:content>
+        </policy_{timestamp}_container>
+    </container>
+    <experiencefragment jcr:primaryType="cq:Page">
+        <policy_{timestamp}_experiencefragment jcr:primaryType="cq:Page">
+            <jcr:content jcr:primaryType="nt:unstructured" sling:resourceType="wcm/core/components/policy/policy"/>
+        </policy_{timestamp}_experiencefragment>
+    </experiencefragment>
+    <form jcr:primaryType="cq:Page">
+        <policy_{timestamp}_form jcr:primaryType="cq:Page">
+            <jcr:content jcr:primaryType="nt:unstructured" sling:resourceType="wcm/core/components/policy/policy"/>
+        </policy_{timestamp}_form>
+    </form>
+    <download jcr:primaryType="cq:Page">
+        <policy_{timestamp}_download jcr:primaryType="cq:Page">
+            <jcr:content jcr:primaryType="nt:unstructured" sling:resourceType="wcm/core/components/policy/policy"/>
+        </policy_{timestamp}_download>
+    </download>
+    <teaser jcr:primaryType="cq:Page">
+        <policy_{timestamp}_teaser jcr:primaryType="cq:Page">
+            <jcr:content jcr:primaryType="nt:unstructured" sling:resourceType="wcm/core/components/policy/policy"/>
+        </policy_{timestamp}_teaser>
+    </teaser>
+    <page jcr:primaryType="cq:Page">
+        <policy_{timestamp}_page jcr:primaryType="cq:Page">
+            <jcr:content jcr:primaryType="nt:unstructured" sling:resourceType="wcm/core/components/policy/policy"/>
+        </policy_{timestamp}_page>
+    </page>
+</jcr:root>
