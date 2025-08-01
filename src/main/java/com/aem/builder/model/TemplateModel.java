@@ -17,8 +17,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class TemplateModel {
-    private List<String> resourceTemplates;
-    private List<String>projectTemplates;
+
     private String name;
     private String title;
     private String description;
