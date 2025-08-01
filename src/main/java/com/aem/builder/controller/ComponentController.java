@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Controller
 @RequiredArgsConstructor
@@ -66,7 +67,22 @@ public class ComponentController {
     @GetMapping("/create/{project}")
     public String showComponentForm(@PathVariable String project, Model model) {
         model.addAttribute("projectName", project);
-        model.addAttribute("fieldTypes", FieldType.getTypeResourceMap());
+
+
+        var typeResourceMap = FieldType.getTypeResourceMap();
+
+        var sortedByKey = typeResourceMap.entrySet()
+                .stream()
+                .sorted(Map.Entry.comparingByKey()) // sort alphabetically by key
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (v1, v2) -> v1,
+                        LinkedHashMap::new // keep sorted order
+                ));
+
+
+        model.addAttribute("fieldTypes", sortedByKey);
         model.addAttribute("componentGroups", componentService.getComponentGroups(project));
         // Components that can be extended (core components + existing ones)
         // Use a LinkedHashSet to avoid duplicates while preserving order

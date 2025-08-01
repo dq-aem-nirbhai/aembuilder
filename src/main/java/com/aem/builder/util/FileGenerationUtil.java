@@ -4,17 +4,25 @@ import com.aem.builder.model.DTO.ComponentField;
 import com.aem.builder.model.DTO.ComponentRequest;
 import com.aem.builder.model.DTO.OptionItem;
 import com.aem.builder.model.Enum.FieldType;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * Utility class for generating AEM component files, dialogs, and models.
  */
+@Slf4j
 public class FileGenerationUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(FileGenerationUtil.class);
@@ -27,9 +35,25 @@ public class FileGenerationUtil {
         try {
             String basePath = "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
                     + projectName + "/components/";
-            String modelBasePath = "generated-projects/" + projectName + "/core/src/main/java/com/" + projectName
-                    + "/core/models";
-            String packageName = "com." + projectName + ".core.models";
+
+
+            Path javaSourceRoot = Paths.get("generated-projects/" + projectName + "/core/src/main/java/");
+
+            // Find models directory
+            Path modelPath = findModelBasePath(javaSourceRoot);
+
+            log.info("ModelPath{}",modelPath);
+
+
+            // Get full model base path
+            String modelBasePath = modelPath.toString();
+
+            log.info("ModelBasePath{}",modelBasePath);
+
+            // 5. Convert to Java package name
+            String packageName = javaSourceRoot.relativize(modelPath).toString().replace(File.separatorChar, '.');
+
+            log.info("PackageName {}",packageName);
 
             generateComponent(basePath, modelBasePath, packageName, request.getComponentName(),
                     request.getComponentGroup(), request.getSuperType(), request.getFields());
@@ -39,6 +63,22 @@ public class FileGenerationUtil {
             e.printStackTrace();
         }
     }
+
+    // Helper method to locate the 'models' directory under src/main/java
+    private static Path findModelBasePath(Path javaSourceRoot) throws IOException {
+        try (Stream<Path> paths = Files.walk(javaSourceRoot)) {
+            Optional<Path> modelPath = paths
+                    .filter(Files::isDirectory)
+                    .filter(p -> p.getFileName().toString().equals("models"))
+                    .findFirst();
+
+            return modelPath.orElseThrow(() ->
+                    new IOException("models directory not found under: " + javaSourceRoot));
+        }
+    }
+
+
+
 
     /**
      * Generates component folders, content.xml, HTL, dialog, and Sling model.
@@ -150,14 +190,11 @@ public class FileGenerationUtil {
                     sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append("}\">\n")
                             .append("    <p>").append(fieldLabel);
 
-                    if (fieldType.equals("image")) {
+
                         sb.append(": <img src=\"${model.").append(fieldName)
                                 .append("}\" alt=\"").append(fieldLabel)
                                 .append("\" style=\"max-width:100%; height:auto;\"/></p>\n");
-                    } else {
-                        sb.append(": <a href=\"${model.").append(fieldName)
-                                .append("}\" download>Download File</a></p>\n");
-                    }
+
 
                     sb.append("  </sly>\n");
                 }
@@ -212,14 +249,14 @@ public class FileGenerationUtil {
                     sb.append(indent).append("  <sly data-sly-test=\"${").append(modelVar).append(".").append(fieldName).append("}\">\n");
                     sb.append(indent).append("    <p>").append(fieldLabel);
 
-                    if (fieldType.equals("image")) {
+
                         sb.append(": <img src=\"${").append(modelVar).append(".").append(fieldName)
                                 .append("}\" alt=\"").append(fieldLabel)
                                 .append("\" style=\"max-width:100%; height:auto;\"/></p>\n");
-                    } else {
+
                         sb.append(": <a href=\"${").append(modelVar).append(".").append(fieldName)
                                 .append("}\" download>Download File</a></p>\n");
-                    }
+
 
                     sb.append(indent).append("  </sly>\n");
                 }
@@ -664,11 +701,9 @@ public class FileGenerationUtil {
      * Reads the contents of a file as a String.
      */
     public static String readFile(File file) {
-        logger.info("FILEGEN: Reading file '{}'", file.getPath());
         try {
             return FileUtils.readFileToString(file, StandardCharsets.UTF_8);
         } catch (Exception e) {
-            logger.info("FILEGEN: Error reading file '{}'", file.getPath(), e);
             return "";
         }
     }
