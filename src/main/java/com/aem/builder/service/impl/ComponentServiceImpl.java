@@ -387,6 +387,7 @@ public class ComponentServiceImpl implements ComponentService {
         String path = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
         File folder = new File(path);
         Set<String> groups = new HashSet<>();
+        groups.add(projectName);
         if (folder.exists()) {
             File[] subDirs = folder.listFiles(File::isDirectory);
             if (subDirs != null) {
@@ -404,6 +405,9 @@ public class ComponentServiceImpl implements ComponentService {
                 }
             }
         }
+        groups.removeIf(g -> g.equals(projectName + " - Content")
+                || g.equals(projectName + " - Structure")
+                || g.equals(".hidden"));
         return groups.isEmpty() ? List.of(projectName) : new ArrayList<>(groups);
     }
 
