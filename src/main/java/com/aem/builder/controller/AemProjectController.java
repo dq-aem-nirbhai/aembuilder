@@ -1,7 +1,7 @@
 package com.aem.builder.controller;
 
 import com.aem.builder.model.AemProjectModel;
-import com.aem.builder.service.impl.AemProjectServiceImpl;
+import com.aem.builder.service.AemProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -15,12 +15,12 @@ import java.io.IOException;
 public class AemProjectController {
 
 
-    private final AemProjectServiceImpl aemProjectService;
+    private final AemProjectService aemProjectService;
 
     @GetMapping("/create")
-    public String test(Model model) throws IOException {
-
+    public String showCreateForm(Model model) throws IOException {
         model.addAttribute("aemProjectModel", new AemProjectModel());
+        model.addAttribute("existingProjects", aemProjectService.getExistingProjects());
         return "create";
 
     }
@@ -32,3 +32,4 @@ public class AemProjectController {
         return "dashboard";
     }
 }
+

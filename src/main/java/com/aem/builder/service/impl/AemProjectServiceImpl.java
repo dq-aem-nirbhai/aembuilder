@@ -7,6 +7,10 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.io.IOException;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 @Service
 public class AemProjectServiceImpl implements AemProjectService {
     @Override
@@ -81,5 +85,25 @@ public class AemProjectServiceImpl implements AemProjectService {
         }
     }
 
+    @Override
+    public List<String> getExistingProjects() {
+        String baseDir = System.getProperty("user.dir") + "/generated-projects/";
+        File directory = new File(baseDir);
+
+        if (!directory.exists() || !directory.isDirectory()) {
+            return Collections.emptyList();
+        }
+
+        File[] dirs = directory.listFiles(File::isDirectory);
+        if (dirs == null) {
+            return Collections.emptyList();
+        }
+
+        List<String> names = new ArrayList<>();
+        for (File dir : dirs) {
+            names.add(dir.getName());
+        }
+        return names;
+    }
 
 }
