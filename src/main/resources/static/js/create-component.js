@@ -8,7 +8,10 @@ document.addEventListener("DOMContentLoaded", function () {
     } else {
       extendsDiv.style.display = 'none';
       document.getElementById('superType').value = '';
-      if (document.getElementById('fieldsContainer').childElementCount === 0) {
+      if (
+        document.getElementById('fieldsContainer').childElementCount === 0 &&
+        (!window.existingFields || window.existingFields.length === 0)
+      ) {
         addFieldRow();
       }
     }
@@ -19,7 +22,6 @@ document.addEventListener("DOMContentLoaded", function () {
     toggleSuperType();
     validateFormFields();
   });
-  toggleSuperType();
 
   function createBaseRow(isNested, level = 0) {
     const template = document.getElementById('fieldRowTemplate');
@@ -175,6 +177,54 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  function populateFromData(fields, container, level = 0) {
+    fields.forEach(f => {
+      const row = createBaseRow(level > 0, level);
+      row.querySelector('.fieldLabel').value = f.fieldLabel || '';
+      row.querySelector('.fieldName').value = f.fieldName || '';
+      row.querySelector('.fieldType').value = f.fieldType || '';
+      container.appendChild(row);
+      handleFieldTypeChange(row.querySelector('.fieldType'));
+
+      if (f.options && f.options.length > 0 && row.querySelector('.options-container')) {
+        const optContainer = row.querySelector('.options-container');
+        const addBtn = optContainer.querySelector('button');
+        f.options.forEach(opt => {
+          addOptionRow(addBtn);
+          const opts = optContainer.querySelectorAll('.option-row');
+          const o = opts[opts.length - 1];
+          o.querySelector('.optionText').value = opt.text;
+          o.querySelector('.optionValue').value = opt.value;
+        });
+      }
+
+      if (f.nestedFields && f.nestedFields.length > 0 && row.querySelector('.nested-container')) {
+        const nestedContainer = row.querySelector('.nested-container');
+        const addBtn = nestedContainer.querySelector('button');
+        f.nestedFields.forEach(nf => {
+          addNestedFieldRow(addBtn);
+          const rows = nestedContainer.querySelectorAll('.nested-row');
+          const nr = rows[rows.length - 1];
+          nr.querySelector('.fieldLabel').value = nf.fieldLabel || '';
+          nr.querySelector('.fieldName').value = nf.fieldName || '';
+          nr.querySelector('.fieldType').value = nf.fieldType || '';
+          handleFieldTypeChange(nr.querySelector('.fieldType'));
+          if (nf.options && nf.options.length > 0 && nr.querySelector('.options-container')) {
+            const optContainer = nr.querySelector('.options-container');
+            const btn = optContainer.querySelector('button');
+            nf.options.forEach(opt => {
+              addOptionRow(btn);
+              const opts = optContainer.querySelectorAll('.option-row');
+              const o = opts[opts.length - 1];
+              o.querySelector('.optionText').value = opt.text;
+              o.querySelector('.optionValue').value = opt.value;
+            });
+          }
+        });
+      }
+    });
+  }
+
   const componentNameInput = document.getElementById('componentName');
   const errorDiv = document.getElementById('nameError');
   const createButton = document.getElementById('createButton');
@@ -265,5 +315,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   document.addEventListener('input', validateFormFields);
   document.addEventListener('change', validateFormFields);
+  if (window.existingFields && window.existingFields.length > 0) {
+    populateFromData(window.existingFields, document.getElementById('fieldsContainer'));
+  }
+  toggleSuperType();
   updateIndexes();
+  validateFormFields();
 });

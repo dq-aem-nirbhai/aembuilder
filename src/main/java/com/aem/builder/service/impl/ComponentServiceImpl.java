@@ -1,6 +1,9 @@
 package com.aem.builder.service.impl;
 
+import com.aem.builder.model.DTO.ComponentField;
 import com.aem.builder.model.DTO.ComponentRequest;
+import com.aem.builder.model.DTO.OptionItem;
+import com.aem.builder.model.Enum.FieldType;
 import com.aem.builder.service.ComponentService;
 
 import com.aem.builder.util.FileGenerationUtil;
@@ -27,6 +30,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
 @Service
 @RequiredArgsConstructor
@@ -466,11 +470,102 @@ public class ComponentServiceImpl implements ComponentService {
             req.setComponentName(componentName);
             req.setComponentGroup(root.getAttribute("componentGroup"));
             req.setSuperType(root.getAttribute("sling:resourceSuperType"));
-            req.setFields(new ArrayList<>()); // Field parsing not implemented
+
+            // Parse dialog fields if present
+            List<ComponentField> fields = new ArrayList<>();
+            File dialogXml = new File(basePath + "/_cq_dialog/.content.xml");
+            if (dialogXml.exists()) {
+                Document dialogDoc = builder.parse(dialogXml);
+                Element dialogRoot = dialogDoc.getDocumentElement();
+
+                // Build reverse map of resourceType -> fieldType
+                Map<String, String> resourceToType = FieldType.getTypeResourceMap().entrySet().stream()
+                        .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
+
+                Element items = getChild(dialogRoot, "content");
+                items = items != null ? getChild(items, "items") : null;
+                items = items != null ? getChild(items, "tabs") : null;
+                items = items != null ? getChild(items, "items") : null;
+                items = items != null ? getChild(items, "tab1") : null;
+                items = items != null ? getChild(items, "items") : null;
+
+                if (items != null) {
+                    NodeList children = items.getChildNodes();
+                    for (int i = 0; i < children.getLength(); i++) {
+                        if (children.item(i) instanceof Element el) {
+                            fields.add(parseField(el, resourceToType));
+                        }
+                    }
+                }
+            }
+            req.setFields(fields);
             return req;
         } catch (Exception e) {
             log.error("Failed to load component {}", componentName, e);
             return null;
         }
+    }
+
+    private ComponentField parseField(Element el, Map<String, String> reverseMap) {
+        ComponentField field = new ComponentField();
+        String nameAttr = el.getAttribute("name");
+        if (nameAttr != null && nameAttr.startsWith("./")) {
+            field.setFieldName(nameAttr.substring(2));
+        } else {
+            field.setFieldName(el.getTagName());
+        }
+        field.setFieldLabel(el.getAttribute("fieldLabel"));
+        String resourceType = el.getAttribute("sling:resourceType");
+        String type = reverseMap.getOrDefault(resourceType, "");
+        field.setFieldType(type);
+
+        // Handle options for select/checkboxgroup/radiogroup/multiselect
+        if (Arrays.asList("select", "multiselect", "checkboxgroup", "radiogroup").contains(type)) {
+            Element itemsEl = getChild(el, "items");
+            if (itemsEl != null) {
+                List<OptionItem> options = new ArrayList<>();
+                NodeList opts = itemsEl.getChildNodes();
+                for (int i = 0; i < opts.getLength(); i++) {
+                    if (opts.item(i) instanceof Element optEl) {
+                        OptionItem opt = new OptionItem();
+                        opt.setText(optEl.getAttribute("text"));
+                        opt.setValue(optEl.getAttribute("value"));
+                        options.add(opt);
+                    }
+                }
+                field.setOptions(options);
+            }
+        }
+
+        // Handle multifield nested fields
+        if ("multifield".equals(type)) {
+            Element fieldEl = getChild(el, "field");
+            Element itemsEl = fieldEl != null ? getChild(fieldEl, "items") : null;
+            if (itemsEl != null) {
+                List<ComponentField> nested = new ArrayList<>();
+                NodeList nodes = itemsEl.getChildNodes();
+                for (int i = 0; i < nodes.getLength(); i++) {
+                    if (nodes.item(i) instanceof Element nfEl) {
+                        nested.add(parseField(nfEl, reverseMap));
+                    }
+                }
+                field.setNestedFields(nested);
+            }
+        }
+
+        return field;
+    }
+
+    private Element getChild(Element parent, String name) {
+        if (parent == null) {
+            return null;
+        }
+        NodeList list = parent.getChildNodes();
+        for (int i = 0; i < list.getLength(); i++) {
+            if (list.item(i) instanceof Element el && name.equals(el.getNodeName())) {
+                return el;
+            }
+        }
+        return null;
     }
 }
