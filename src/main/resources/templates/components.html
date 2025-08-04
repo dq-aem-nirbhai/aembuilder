@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Templates</title>
+    <title>Components</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 2rem; }
         ul { list-style: none; padding: 0; }
@@ -12,18 +12,19 @@
     </style>
 </head>
 <body>
-<h1>Available Templates</h1>
-<ul id="templates"></ul>
-<script>
-    fetch('/api/templates')
+<h1>Components</h1>
+<ul id="components"></ul>
+<script th:inline="javascript">
+    const templateId = [[${templateId}]];
+    fetch(`/api/templates/${templateId}/components`)
         .then(r => r.json())
         .then(data => {
-            const list = document.getElementById('templates');
-            data.forEach(t => {
+            const list = document.getElementById('components');
+            data.forEach(c => {
                 const li = document.createElement('li');
                 const a = document.createElement('a');
-                a.href = `/template/${t.id}/components`;
-                a.innerText = t.name;
+                a.href = `/template/${templateId}/component/${c.id}/policy`;
+                a.innerText = c.name;
                 li.appendChild(a);
                 list.appendChild(li);
             });

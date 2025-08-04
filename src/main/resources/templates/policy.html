@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Policy Editor</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; }
+        .group { border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; }
+        .styles { margin-left: 1rem; }
+        label { display: block; margin-top: .5rem; }
+        button { margin-top: .5rem; }
+    </style>
+</head>
+<body>
+<h1>Component Policy</h1>
+<label>Existing Policies
+    <select id="policySelect"></select>
+</label>
+<label>Policy Name <input id="policyName"></label>
+<label>Title <input id="policyTitle"></label>
+<label>Default Class <input id="defaultClass"></label>
+<div id="groups"></div>
+<button type="button" id="addGroup">Add Group</button>
+<br><br>
+<button type="button" id="savePolicy">Save Policy</button>
+<script th:inline="javascript">
+    const templateId = [[${templateId}]];
+    const componentId = [[${componentId}]];
+
+    function createStyleRow(style) {
+        const div = document.createElement('div');
+        div.className = 'style-row';
+        const name = document.createElement('input');
+        name.placeholder = 'Style name';
+        name.value = style?.name || '';
+        const className = document.createElement('input');
+        className.placeholder = 'Class name';
+        className.value = style?.className || '';
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.innerText = 'Remove Style';
+        remove.onclick = () => div.remove();
+        div.appendChild(name);
+        div.appendChild(className);
+        div.appendChild(remove);
+        return div;
+    }
+
+    function createGroup(group) {
+        const container = document.createElement('div');
+        container.className = 'group';
+        const nameLabel = document.createElement('label');
+        nameLabel.innerText = 'Group Name';
+        const name = document.createElement('input');
+        name.value = group?.name || '';
+        nameLabel.appendChild(name);
+        const stylesDiv = document.createElement('div');
+        stylesDiv.className = 'styles';
+        (group?.styles || []).forEach(s => stylesDiv.appendChild(createStyleRow(s)));
+        const addStyle = document.createElement('button');
+        addStyle.type = 'button';
+        addStyle.innerText = 'Add Style';
+        addStyle.onclick = () => stylesDiv.appendChild(createStyleRow());
+        const removeGroup = document.createElement('button');
+        removeGroup.type = 'button';
+        removeGroup.innerText = 'Remove Group';
+        removeGroup.onclick = () => container.remove();
+        container.appendChild(nameLabel);
+        container.appendChild(stylesDiv);
+        container.appendChild(addStyle);
+        container.appendChild(removeGroup);
+        return container;
+    }
+
+    const groupsDiv = document.getElementById('groups');
+    document.getElementById('addGroup').onclick = () => groupsDiv.appendChild(createGroup());
+
+    function loadPolicies() {
+        fetch(`/api/templates/${templateId}/components/${componentId}/policies`)
+            .then(r => r.json())
+            .then(policies => {
+                const select = document.getElementById('policySelect');
+                select.innerHTML = '<option value="">--New Policy--</option>';
+                policies.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.innerText = p.name;
+                    select.appendChild(opt);
+                });
+                select.onchange = () => {
+                    const id = select.value;
+                    if (id) {
+                        fetch(`/api/templates/${templateId}/components/${componentId}/policies/${id}`)
+                            .then(r => r.json())
+                            .then(setForm);
+                    } else {
+                        setForm({});
+                    }
+                };
+            });
+    }
+
+    function setForm(policy) {
+        document.getElementById('policyName').value = policy.name || '';
+        document.getElementById('policyTitle').value = policy.title || '';
+        document.getElementById('defaultClass').value = policy.defaultClass || '';
+        groupsDiv.innerHTML = '';
+        (policy.groups || []).forEach(g => groupsDiv.appendChild(createGroup(g)));
+    }
+
+    document.getElementById('savePolicy').onclick = () => {
+        const select = document.getElementById('policySelect');
+        const policy = {
+            id: select.value || null,
+            name: document.getElementById('policyName').value,
+            title: document.getElementById('policyTitle').value,
+            defaultClass: document.getElementById('defaultClass').value,
+            groups: Array.from(groupsDiv.children).map(g => ({
+                name: g.querySelector('input').value,
+                styles: Array.from(g.querySelector('.styles').children).map(s => ({
+                    name: s.children[0].value,
+                    className: s.children[1].value
+                }))
+            }))
+        };
+        const method = policy.id ? 'PUT' : 'POST';
+        const url = `/api/templates/${templateId}/components/${componentId}/policies` + (policy.id ? `/${policy.id}` : '');
+        fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(policy)
+        }).then(() => loadPolicies());
+    };
+
+    loadPolicies();
+</script>
+</body>
+</html>
