@@ -80,17 +80,15 @@ public class HomeServiceImpl implements HomeService {
     }
 
     /**
-     * Recursively search for a directory containing a pom.xml and ui.apps folder.
+     * Locate an AEM project root that contains a pom.xml and at least one "ui.apps" module
+     * somewhere beneath it. The search returns the deepest matching directory so that parent
+     * folders that merely aggregate multiple projects are ignored.
      */
     private File findAemProjectRoot(File directory) {
         if (directory == null) {
             return null;
         }
-        File pom = new File(directory, "pom.xml");
-        File uiApps = new File(directory, "ui.apps");
-        if (pom.exists() && uiApps.isDirectory()) {
-            return directory;
-        }
+
         File[] children = directory.listFiles(File::isDirectory);
         if (children != null) {
             for (File child : children) {
@@ -100,7 +98,31 @@ public class HomeServiceImpl implements HomeService {
                 }
             }
         }
+
+        File pom = new File(directory, "pom.xml");
+        if (pom.exists() && containsUiApps(directory)) {
+            return directory;
+        }
         return null;
+    }
+
+    /**
+     * Recursively check whether the given directory contains a "ui.apps" folder.
+     */
+    private boolean containsUiApps(File directory) {
+        File uiApps = new File(directory, "ui.apps");
+        if (uiApps.isDirectory()) {
+            return true;
+        }
+        File[] children = directory.listFiles(File::isDirectory);
+        if (children != null) {
+            for (File child : children) {
+                if (containsUiApps(child)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
 
