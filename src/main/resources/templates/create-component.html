@@ -41,9 +41,12 @@
     <!-- Component Group -->
     <div class="mb-3">
       <label class="form-label">Component Group</label>
-      <select class="form-select" name="componentGroup" id="componentGroup" th:value="${componentData?.componentGroup}" required>
+      <select class="form-select" name="componentGroup" id="componentGroup" required>
         <option value="">-- Select Component Group --</option>
-        <option th:each="group : ${componentGroups}" th:value="${group}" th:text="${group}"></option>
+        <option th:each="group : ${componentGroups}"
+                th:value="${group}"
+                th:text="${group}"
+                th:selected="${group == componentData?.componentGroup}"></option>
       </select>
     </div>
 
@@ -102,8 +105,8 @@
   <div th:replace="fragments/navbar :: footer"></div>
 </footer>
 <script th:inline="javascript">
-  const editMode = [[${editMode}]];
-  const componentData = /*[[${componentData}]]*/ null;
+  window.editMode = [[${editMode}]];
+  window.componentData = /*[[${componentData}]]*/ {};
 </script>
 </body>
 </html>
