@@ -39,19 +39,18 @@ public class HomeServiceImpl implements HomeService {
             Files.createDirectories(extractDir);
             unzip(zipPath, extractDir);
 
-            File[] contents = extractDir.toFile().listFiles();
-            if (contents == null || contents.length == 0) {
-                throw new IllegalArgumentException("This is not an AEM structure file");
-            }
-            File root = (contents.length == 1 && contents[0].isDirectory()) ? contents[0] : extractDir.toFile();
-
-            if (!(new File(root, "pom.xml").exists() && new File(root, "ui.apps").isDirectory())) {
+            File root = findAemProjectRoot(extractDir.toFile());
+            if (root == null) {
                 throw new IllegalArgumentException("This is not an AEM structure file");
             }
 
             Path projectsDir = Paths.get(PROJECTS_DIR);
             Files.createDirectories(projectsDir);
-            Path target = projectsDir.resolve(root.getName());
+
+            String projectName = root.equals(extractDir.toFile())
+                    ? file.getOriginalFilename().replaceFirst("\\.zip$", "")
+                    : root.getName();
+            Path target = projectsDir.resolve(projectName);
             if (Files.exists(target)) {
                 throw new IllegalArgumentException("Project already exists");
             }
@@ -78,6 +77,30 @@ public class HomeServiceImpl implements HomeService {
                 }
             }
         }
+    }
+
+    /**
+     * Recursively search for a directory containing a pom.xml and ui.apps folder.
+     */
+    private File findAemProjectRoot(File directory) {
+        if (directory == null) {
+            return null;
+        }
+        File pom = new File(directory, "pom.xml");
+        File uiApps = new File(directory, "ui.apps");
+        if (pom.exists() && uiApps.isDirectory()) {
+            return directory;
+        }
+        File[] children = directory.listFiles(File::isDirectory);
+        if (children != null) {
+            for (File child : children) {
+                File result = findAemProjectRoot(child);
+                if (result != null) {
+                    return result;
+                }
+            }
+        }
+        return null;
     }
 }
 
