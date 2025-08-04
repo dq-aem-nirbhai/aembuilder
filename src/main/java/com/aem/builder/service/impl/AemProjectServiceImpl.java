@@ -10,6 +10,15 @@ import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.FileInputStream;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.Comparator;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
@@ -146,9 +155,9 @@ public class AemProjectServiceImpl implements AemProjectService {
                 }
 
                 try {
-                    BasicFileAttributes attr = Files.readAttributes(new File(projectsFolder, name).toPath(),
-                            BasicFileAttributes.class);
-                    createdDate = attr.creationTime().toInstant().atZone(java.time.ZoneId.systemDefault())
+                    var path = new File(projectsFolder, name).toPath();
+                    createdDate = Files.getLastModifiedTime(path).toInstant()
+                            .atZone(java.time.ZoneId.systemDefault())
                             .format(DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm"));
                 } catch (Exception ignored) {
                 }
@@ -157,6 +166,43 @@ public class AemProjectServiceImpl implements AemProjectService {
             }
         }
         return projects;
+    }
+
+    @Override
+    public void importAemProject(MultipartFile file) throws Exception {
+        Path projectDir = Path.of(PROJECTS_DIR, "imported-project");
+
+        if (Files.exists(projectDir)) {
+            Files.walk(projectDir)
+                    .sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.delete(path);
+                        } catch (IOException ignored) {
+                        }
+                    });
+        }
+
+        Files.createDirectories(projectDir);
+
+        Path tempFile = Files.createTempFile("upload", ".zip");
+        file.transferTo(tempFile.toFile());
+
+        try (ZipInputStream zis = new ZipInputStream(new FileInputStream(tempFile.toFile()))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                Path newPath = projectDir.resolve(entry.getName());
+                if (entry.isDirectory()) {
+                    Files.createDirectories(newPath);
+                } else {
+                    Files.createDirectories(newPath.getParent());
+                    Files.copy(zis, newPath, StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        }
+
+        Files.deleteIfExists(tempFile);
+        Files.setLastModifiedTime(projectDir, FileTime.from(Instant.now()));
     }
 
 
