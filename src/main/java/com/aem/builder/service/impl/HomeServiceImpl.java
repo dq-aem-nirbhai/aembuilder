@@ -80,9 +80,7 @@ public class HomeServiceImpl implements HomeService {
     }
 
     /**
-     * Locate an AEM project root that contains a pom.xml and at least one "ui.apps" module
-     * somewhere beneath it. The search returns the deepest matching directory so that parent
-     * folders that merely aggregate multiple projects are ignored.
+     * Locate the deepest directory that matches the expected AEM project structure.
      */
     private File findAemProjectRoot(File directory) {
         if (directory == null) {
@@ -99,27 +97,47 @@ public class HomeServiceImpl implements HomeService {
             }
         }
 
-        File pom = new File(directory, "pom.xml");
-        if (pom.exists() && containsUiApps(directory)) {
-            return directory;
-        }
-        return null;
+        return isValidAemStructure(directory) ? directory : null;
     }
 
     /**
-     * Recursively check whether the given directory contains a "ui.apps" folder.
+     * Validate that the directory contains the required AEM project modules and files.
      */
-    private boolean containsUiApps(File directory) {
-        File uiApps = new File(directory, "ui.apps");
-        if (uiApps.isDirectory()) {
-            return true;
+    private boolean isValidAemStructure(File directory) {
+        String[] requiredDirs = {
+                "all", "core", "dispatcher", "it.tests", "ui.apps",
+                "ui.config", "ui.content", "ui.frontend", "ui.tests"
+        };
+        String[] requiredFiles = {"pom.xml", "archetype.properties", "readme.md", "license"};
+
+        for (String dir : requiredDirs) {
+            if (!hasChild(directory, dir, true)) {
+                return false;
+            }
         }
-        File[] children = directory.listFiles(File::isDirectory);
-        if (children != null) {
-            for (File child : children) {
-                if (containsUiApps(child)) {
-                    return true;
+        if (!(hasChild(directory, "ui.apps.structure", true) || hasChild(directory, "ui.apps.structured", true))) {
+            return false;
+        }
+        for (String file : requiredFiles) {
+            if (file.equals("license")) {
+                if (!(hasChild(directory, "license", false) || hasChild(directory, "LICENSE", false))) {
+                    return false;
                 }
+            } else if (!hasChild(directory, file, false)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean hasChild(File directory, String name, boolean expectDirectory) {
+        File[] children = directory.listFiles();
+        if (children == null) {
+            return false;
+        }
+        for (File child : children) {
+            if (child.getName().equalsIgnoreCase(name)) {
+                return expectDirectory ? child.isDirectory() : child.isFile();
             }
         }
         return false;
