@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <script th:src="@{/js/policy-editor.js}"></script>
+    <title>Policy Editor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="d-flex flex-column min-vh-100">
+<div th:replace="fragments/navbar :: navbar"></div>
+<main class="container py-4 flex-grow-1">
+    <h1 class="mb-4">Policy Editor</h1>
+    <input type="hidden" id="projectName" th:value="${projectName}"/>
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <label class="form-label">Template</label>
+            <select id="templateSelect" class="form-select"></select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Component</label>
+            <select id="componentSelect" class="form-select"></select>
+        </div>
+    </div>
+    <form id="policyForm">
+        <div class="mb-3">
+            <label class="form-label">Policy Name</label>
+            <input type="text" id="policyName" class="form-control"/>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Title</label>
+            <input type="text" id="policyTitle" class="form-control"/>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea id="policyDescription" class="form-control"></textarea>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Default CSS Class</label>
+            <input type="text" id="defaultCss" class="form-control"/>
+        </div>
+        <div id="styleGroups"></div>
+        <button type="button" id="addGroupBtn" class="btn btn-secondary mt-2">Add Style Group</button>
+        <button type="button" id="savePolicy" class="btn btn-primary mt-2">Save</button>
+    </form>
+</main>
+<footer class="mt-auto" th:replace="fragments/navbar :: footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
