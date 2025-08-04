@@ -14,7 +14,7 @@
 <div th:replace="fragments/navbar :: navbar"></div>
 
 <div class="container mt-4 mb-5">
-  <h2 class="mb-4 animate__animated animate__fadeInDown">Create AEM Component for [[${projectName}]]</h2>
+  <h2 class="mb-4 animate__animated animate__fadeInDown" th:text="${editMode} ? 'Edit AEM Component for ' + ${projectName} : 'Create AEM Component for ' + ${projectName}"></h2>
 
   <a th:href="@{'/' + ${projectName}}" class="btn btn-outline-secondary mb-3">← Back to DeployPage</a>
 
@@ -27,14 +27,14 @@
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 
-  <form id="componentForm" th:action="@{'/component/create/' + ${projectName}}" method="post">
+  <form id="componentForm" th:action="${editMode} ? @{'/component/update/' + ${projectName}} : @{'/component/create/' + ${projectName}}" method="post">
     <!-- Hidden input to pass projectName into JS -->
     <input type="hidden" id="projectName" th:value="${projectName}">
 
     <!-- Component Name -->
     <div class="mb-3">
       <label class="form-label">Component Name</label>
-      <input type="text" class="form-control" name="componentName" id="componentName" required>
+      <input type="text" class="form-control" name="componentName" id="componentName" th:value="${componentData?.componentName}" th:readonly="${editMode}" required>
       <div id="nameError" class="mt-1" style="font-size: 0.9rem;"></div>
     </div>
 
@@ -43,7 +43,10 @@
       <label class="form-label">Component Group</label>
       <select class="form-select" name="componentGroup" id="componentGroup" required>
         <option value="">-- Select Component Group --</option>
-        <option th:each="group : ${componentGroups}" th:value="${group}" th:text="${group}"></option>
+        <option th:each="group : ${componentGroups}"
+                th:value="${group}"
+                th:text="${group}"
+                th:selected="${group == componentData?.componentGroup}"></option>
       </select>
     </div>
 
@@ -59,7 +62,7 @@
     <!-- Extends Component -->
     <div class="mb-3" id="extendsComponentDiv" style="display:none">
       <label class="form-label">Extends Component</label>
-      <select class="form-select" name="superType" id="superType">
+      <select class="form-select" name="superType" id="superType" th:value="${componentData?.superType}">
         <option value="">-- Select Component --</option>
         <option th:each="entry : ${availableComponents.entrySet()}" th:value="${entry.key}" th:text="${entry.value}"></option>
       </select>
@@ -93,7 +96,7 @@
     <button type="button" class="btn btn-primary mb-3" onclick="addFieldRow()">+ Add Field</button><br>
 
     <!-- Create Component Button -->
-    <button type="submit" class="btn btn-primary" id="createButton" disabled>Create Component</button>
+    <button type="submit" class="btn btn-primary" id="createButton" th:text="${editMode} ? 'Update Component' : 'Create Component'" disabled>Create Component</button>
   </form>
 </div>
 
@@ -101,7 +104,9 @@
 <footer>
   <div th:replace="fragments/navbar :: footer"></div>
 </footer>
-
-
+<script th:inline="javascript">
+  window.editMode = [[${editMode}]];
+  window.componentData = JSON.parse(/*[[${componentJson}]]*/ '{}');
+</script>
 </body>
 </html>
