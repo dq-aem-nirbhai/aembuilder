@@ -1,5 +1,6 @@
 package com.aem.builder.service.impl;
 
+import com.aem.builder.model.PolicyModel;
 import com.aem.builder.model.TemplateModel;
 import com.aem.builder.service.TemplateService;
 
@@ -249,6 +250,102 @@ public class TemplateServiceImpl implements TemplateService {
         Files.createDirectories(filePath.getParent());
         Files.write(filePath, content.getBytes(StandardCharsets.UTF_8));
         System.out.println("Written file: " + path);
+    }
+
+    @Override
+    public List<String> getAllowedComponents(String projectName, String templateName) {
+        List<String> components = new ArrayList<>();
+        try {
+            String structurePath = "generated-projects/" + projectName +
+                    "/ui.content/src/main/content/jcr_root/conf/" + projectName +
+                    "/settings/wcm/templates/" + templateName + "/structure/.content.xml";
+            File file = new File(structurePath);
+            if (!file.exists()) {
+                return components;
+            }
+            DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            Document doc = builder.parse(file);
+            Node root = doc.getElementsByTagName("root").item(0);
+            if (root != null) {
+                NodeList children = root.getChildNodes();
+                for (int i = 0; i < children.getLength(); i++) {
+                    Node n = children.item(i);
+                    if (n.getNodeType() == Node.ELEMENT_NODE) {
+                        Element e = (Element) n;
+                        String resourceType = e.getAttribute("sling:resourceType");
+                        if (resourceType != null && !resourceType.isEmpty()) {
+                            String name = resourceType.substring(resourceType.lastIndexOf('/') + 1);
+                            components.add(name);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return components;
+    }
+
+    @Override
+    public void savePolicy(String projectName, String templateName, String component, PolicyModel policy) {
+        try {
+            String policyFolder = "generated-projects/" + projectName +
+                    "/ui.content/src/main/content/jcr_root/conf/" + projectName +
+                    "/settings/wcm/policies/" + component + "/" + policy.getPolicyName();
+            new File(policyFolder).mkdirs();
+
+            // Build XML content
+            StringBuilder xml = new StringBuilder();
+            xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+            xml.append("<jcr:root xmlns:sling=\"http://sling.apache.org/jcr/sling/1.0\" xmlns:cq=\"http://www.day.com/jcr/cq/1.0\" xmlns:jcr=\"http://www.jcp.org/jcr/1.0\" jcr:primaryType=\"nt:unstructured\"");
+            if (policy.getDefaultClass() != null && !policy.getDefaultClass().isEmpty()) {
+                xml.append(" cq:styleDefaultClasses=\"").append(policy.getDefaultClass()).append("\"");
+            }
+            xml.append(">\n");
+            xml.append("  <cq:styleGroups jcr:primaryType=\"nt:unstructured\">\n");
+            int gi = 0;
+            for (PolicyModel.StyleGroup group : policy.getGroups()) {
+                xml.append("    <group" + gi + " jcr:primaryType=\"nt:unstructured\" cq:styleGroupLabel=\"")
+                   .append(group.getName()).append("\">\n");
+                int si = 0;
+                for (PolicyModel.Style style : group.getStyles()) {
+                    xml.append("      <style" + gi + "_" + si + " jcr:primaryType=\"nt:unstructured\" cq:styleClass=\"")
+                       .append(style.getClassName()).append("\" cq:styleLabel=\"")
+                       .append(style.getName()).append("\"/>\n");
+                    si++;
+                }
+                xml.append("    </group" + gi + ">\n");
+                gi++;
+            }
+            xml.append("  </cq:styleGroups>\n");
+            xml.append("</jcr:root>\n");
+
+            writeFile(policyFolder + "/.content.xml", xml.toString());
+
+            // Update template policies mapping
+            String mappingFile = "generated-projects/" + projectName +
+                    "/ui.content/src/main/content/jcr_root/conf/" + projectName +
+                    "/settings/wcm/templates/" + templateName + "/policies/.content.xml";
+            File mapping = new File(mappingFile);
+            DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            Document doc = builder.parse(mapping);
+            Element root = doc.getDocumentElement();
+            Element content = (Element) root.getElementsByTagName("jcr:content").item(0);
+
+            // find or create component mapping
+            Element rootMap = (Element) content.getElementsByTagName("root").item(0);
+            Element compElement = doc.createElement(component);
+            compElement.setAttribute("jcr:primaryType", "nt:unstructured");
+            compElement.setAttribute("sling:resourceType", "wcm/core/components/policies/mapping");
+            compElement.setAttribute("cq:policy", projectName + "/components/" + component + "/" + policy.getPolicyName());
+            rootMap.appendChild(compElement);
+
+            Transformer transformer = TransformerFactory.newInstance().newTransformer();
+            transformer.transform(new DOMSource(doc), new StreamResult(mapping));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 

@@ -1,6 +1,7 @@
   package com.aem.builder.controller;
 
 
+import com.aem.builder.model.PolicyModel;
 import com.aem.builder.model.TemplateModel;
 import com.aem.builder.service.ComponentService;
 import com.aem.builder.service.TemplateService;
@@ -132,6 +133,38 @@ public class TemplateController {
             model.addAttribute("error", "Template update failed: " + e.getMessage());
             return "createtemplate";
         }
+    }
+
+    @GetMapping("/{projectName}/templates/{templateName}")
+    public String showTemplateComponents(@PathVariable String projectName,
+                                         @PathVariable String templateName,
+                                         Model model) {
+        List<String> components = templateService.getAllowedComponents(projectName, templateName);
+        model.addAttribute("projectName", projectName);
+        model.addAttribute("templateName", templateName);
+        model.addAttribute("components", components);
+        return "template-components";
+    }
+
+    @GetMapping("/{projectName}/templates/{templateName}/{component}")
+    public String showComponentPolicy(@PathVariable String projectName,
+                                      @PathVariable String templateName,
+                                      @PathVariable String component,
+                                      Model model) {
+        model.addAttribute("projectName", projectName);
+        model.addAttribute("templateName", templateName);
+        model.addAttribute("component", component);
+        model.addAttribute("policy", new PolicyModel());
+        return "template-policy";
+    }
+
+    @PostMapping("/{projectName}/templates/{templateName}/{component}")
+    public String saveComponentPolicy(@PathVariable String projectName,
+                                      @PathVariable String templateName,
+                                      @PathVariable String component,
+                                      @ModelAttribute("policy") PolicyModel policyModel) {
+        templateService.savePolicy(projectName, templateName, component, policyModel);
+        return "redirect:/" + projectName + "/templates/" + templateName;
     }
 
 

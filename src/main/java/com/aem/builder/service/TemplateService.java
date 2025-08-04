@@ -9,6 +9,8 @@ import javax.xml.transform.TransformerException;
 import java.io.IOException;
 import java.util.List;
 
+import com.aem.builder.model.PolicyModel;
+
 
 
 public interface TemplateService {
@@ -35,4 +37,12 @@ public interface TemplateService {
 
 
     public void updateTemplate(TemplateModel updatedModel, String projectName, String oldTemplateName) throws ParserConfigurationException, IOException, SAXException, TransformerException;
+
+    /**
+     * Returns a list of component names that are configured in the structure of the given template.
+     * This is used by the UI to show which components are available in the template's root layout container.
+     */
+    List<String> getAllowedComponents(String projectName, String templateName);
+
+    void savePolicy(String projectName, String templateName, String component, PolicyModel policy);
 }
