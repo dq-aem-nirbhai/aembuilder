@@ -266,4 +266,67 @@ document.addEventListener("DOMContentLoaded", function () {
   document.addEventListener('input', validateFormFields);
   document.addEventListener('change', validateFormFields);
   updateIndexes();
+
+  if (window.editMode) {
+    loadComponentData(window.componentData || {});
+  }
+
+  function loadComponentData(data) {
+    if (!data) return;
+    componentNameInput.value = data.componentName || '';
+    componentNameInput.readOnly = true;
+    document.getElementById('componentGroup').value = data.componentGroup || '';
+    if (data.superType) {
+      modeSelect.value = 'extend';
+      toggleSuperType();
+      document.getElementById('superType').value = data.superType;
+    } else {
+      modeSelect.value = 'new';
+      toggleSuperType();
+    }
+    const container = document.getElementById('fieldsContainer');
+    container.innerHTML = '';
+    if (data.fields) {
+      data.fields.forEach(f => {
+        const row = createBaseRow(false);
+        row.querySelector('.action-col').innerHTML = '<button type="button" class="btn btn-danger" onclick="removeFieldRow(this)">-</button>';
+        container.appendChild(row);
+        populateFieldRow(row, f);
+      });
+    }
+    updateIndexes();
+    validateFormFields();
+  }
+
+  function populateFieldRow(row, field, level = 0) {
+    row.querySelector('.fieldLabel').value = field.fieldLabel || '';
+    row.querySelector('.fieldName').value = field.fieldName || '';
+    row.querySelector('.fieldType').value = field.fieldType || '';
+    handleFieldTypeChange(row.querySelector('.fieldType'));
+
+    if (field.options && field.options.length > 0) {
+      const container = row.querySelector('.options-container');
+      const addBtn = container.querySelector('button');
+      container.innerHTML = '';
+      field.options.forEach(opt => {
+        const div = document.createElement('div');
+        div.className = 'option-row input-group mb-2';
+        div.innerHTML = `<input type="text" class="form-control optionText" placeholder="Text" value="${opt.text}" required>` +
+          `<input type="text" class="form-control optionValue" placeholder="Value" value="${opt.value}" required>` +
+          `<button type="button" class="btn btn-danger" onclick="removeOptionRow(this)">-</button>`;
+        container.appendChild(div);
+      });
+      container.appendChild(addBtn);
+    }
+
+    if (field.fieldType === 'multifield' && field.nestedFields) {
+      const container = row.querySelector('.nested-container');
+      const addBtn = container.querySelector('button');
+      field.nestedFields.forEach(nf => {
+        const nrow = createBaseRow(true, level + 1);
+        container.insertBefore(nrow, addBtn);
+        populateFieldRow(nrow, nf, level + 1);
+      });
+    }
+  }
 });
