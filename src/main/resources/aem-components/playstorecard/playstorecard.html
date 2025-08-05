@@ -1,0 +1,21 @@
+<div class="playstore-card" data-sly-use.model="com.aem.builder.slingModels.PlayStroreCardModel">
+    <!-- Title -->
+    <h2 class="playstore-card__title" data-sly-test="${model.titlefield}">
+        ${card.titlefield}
+    </h2>
+
+    <!-- Description -->
+    <div class="playstore-card__description" data-sly-test="${model.description}">
+        <p>${card.description @ context='html'}</p>
+    </div>
+
+    <!-- App Store Links -->
+    <div class="playstore-card__badges" data-sly-test="${model.firstImageReference || model.secondImageReference}">
+        <a href="${model.firstImageLinkURL}" class="playstore-card__badge-link" data-sly-test="${model.firstImageReference}">
+            <img src="${model.firstImageReference}" alt="Google Play" class="playstore-card__badge"/>
+        </a>
+        <a href="${model.secondImageLinkURL}" class="playstore-card__badge-link" data-sly-test="${model.secondImageReference}">
+            <img src="${model.secondImageReference}" alt="App Store" class="playstore-card__badge"/>
+        </a>
+    </div>
+</div>

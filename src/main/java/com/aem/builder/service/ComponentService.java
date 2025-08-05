@@ -27,6 +27,12 @@ public interface ComponentService {
     List<String> getComponentGroups(String projectName);
     void generateComponent(String projectName, ComponentRequest request);
 
+    Map<String, String> fetchComponentsWithGroups(String projectName);
+
+    ComponentRequest loadComponent(String projectName, String componentName);
+
+    void updateComponent(String projectName, ComponentRequest request);
+
     //component checking
     boolean isComponentNameAvailable(String projectName, String componentName);
 

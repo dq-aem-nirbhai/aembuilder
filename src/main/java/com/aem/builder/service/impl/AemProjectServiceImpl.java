@@ -158,6 +158,4 @@ public class AemProjectServiceImpl implements AemProjectService {
         }
         return projects;
     }
-
-
 }

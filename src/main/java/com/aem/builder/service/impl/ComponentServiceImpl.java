@@ -1,6 +1,9 @@
 package com.aem.builder.service.impl;
 
+import com.aem.builder.model.DTO.ComponentField;
 import com.aem.builder.model.DTO.ComponentRequest;
+import com.aem.builder.model.DTO.OptionItem;
+import com.aem.builder.model.Enum.FieldType;
 import com.aem.builder.service.ComponentService;
 
 import com.aem.builder.util.FileGenerationUtil;
@@ -8,17 +11,28 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FileUtils;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
-import java.io.IOException;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +51,33 @@ public class ComponentServiceImpl implements ComponentService {
                     .collect(Collectors.toList());
         }
         return List.of();
+    }
+
+    @Override
+    public Map<String, String> fetchComponentsWithGroups(String projectName) {
+        Map<String, String> result = new LinkedHashMap<>();
+        File componentsDir = new File(PROJECTS_DIR,
+                projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components");
+        if (componentsDir.exists()) {
+            File[] dirs = componentsDir.listFiles(File::isDirectory);
+            if (dirs != null) {
+                for (File comp : dirs) {
+                    File contentXml = new File(comp, ".content.xml");
+                    String group = "";
+                    if (contentXml.exists()) {
+                        String content = FileGenerationUtil.readFile(contentXml);
+                        if (content.contains("componentGroup")) {
+                            int idx = content.indexOf("componentGroup");
+                            int start = content.indexOf("\"", idx) + 1;
+                            int end = content.indexOf("\"", start);
+                            group = content.substring(start, end);
+                        }
+                    }
+                    result.put(comp.getName(), group);
+                }
+            }
+        }
+        return result;
     }
 
     @Override
@@ -80,6 +121,142 @@ public class ComponentServiceImpl implements ComponentService {
             }
         }
         return existingProjects;
+    }
+
+    @Override
+    public ComponentRequest loadComponent(String projectName, String componentName) {
+        String basePath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName
+                + "/components/" + componentName;
+        String group = "";
+        String superType = null;
+        List<ComponentField> fields = new ArrayList<>();
+
+        try {
+            File contentXml = new File(basePath, ".content.xml");
+            if (contentXml.exists()) {
+                String content = FileGenerationUtil.readFile(contentXml);
+                if (content.contains("componentGroup")) {
+                    int idx = content.indexOf("componentGroup");
+                    int start = content.indexOf("\"", idx) + 1;
+                    int end = content.indexOf("\"", start);
+                    group = content.substring(start, end);
+                }
+                if (content.contains("sling:resourceSuperType")) {
+                    int idx = content.indexOf("sling:resourceSuperType");
+                    int start = content.indexOf("\"", idx) + 1;
+                    int end = content.indexOf("\"", start);
+                    superType = content.substring(start, end);
+                }
+            }
+
+            File dialogXml = new File(basePath + "/_cq_dialog/.content.xml");
+            if (dialogXml.exists()) {
+                DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+                factory.setNamespaceAware(false);
+                DocumentBuilder builder = factory.newDocumentBuilder();
+                Document doc = builder.parse(dialogXml);
+
+                Element root = doc.getDocumentElement();
+                Element content = (Element) root.getElementsByTagName("content").item(0);
+                if (content != null) {
+                    Element items = (Element) content.getElementsByTagName("items").item(0);
+                    if (items != null) {
+                        Element tabs = (Element) items.getElementsByTagName("tabs").item(0);
+                        if (tabs != null) {
+                            Element tabsItems = (Element) tabs.getElementsByTagName("items").item(0);
+                            if (tabsItems != null) {
+                                Element tab1 = (Element) tabsItems.getElementsByTagName("tab1").item(0);
+                                if (tab1 != null) {
+                                    Element tabItems = (Element) tab1.getElementsByTagName("items").item(0);
+                                    if (tabItems != null) {
+                                        NodeList fieldNodes = tabItems.getChildNodes();
+                                        for (int i = 0; i < fieldNodes.getLength(); i++) {
+                                            Node node = fieldNodes.item(i);
+                                            if (node instanceof Element elem) {
+                                                fields.add(parseField(elem));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to load component {}", componentName, e);
+        }
+
+        ComponentRequest req = new ComponentRequest();
+        req.setProjectName(projectName);
+        req.setComponentName(componentName);
+        req.setComponentGroup(group);
+        req.setSuperType(superType);
+        req.setFields(fields);
+        return req;
+    }
+
+    @Override
+    public void updateComponent(String projectName, ComponentRequest request) {
+        String compPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName
+                + "/components/" + request.getComponentName();
+        try {
+            FileUtils.deleteDirectory(new File(compPath));
+        } catch (IOException e) {
+            log.warn("Could not clean component folder before update", e);
+        }
+        FileGenerationUtil.generateAllFiles(projectName, request);
+    }
+
+    private String getFieldTypeFromResource(String resourceType) {
+        return FieldType.getTypeResourceMap().entrySet().stream()
+                .filter(e -> e.getValue().equals(resourceType))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse("");
+    }
+
+    private ComponentField parseField(Element elem) {
+        String fieldLabel = elem.getAttribute("fieldLabel");
+        String nameAttr = elem.getAttribute("name");
+        String fieldName = nameAttr.startsWith("./") ? nameAttr.substring(2) : nameAttr;
+        String resourceType = elem.getAttribute("sling:resourceType");
+        String fieldType = getFieldTypeFromResource(resourceType);
+
+        List<OptionItem> options = null;
+        List<ComponentField> nested = null;
+
+        if ("multifield".equals(fieldType)) {
+            Element fieldElem = (Element) elem.getElementsByTagName("field").item(0);
+            if (fieldElem != null) {
+                Element items = (Element) fieldElem.getElementsByTagName("items").item(0);
+                if (items != null) {
+                    nested = new ArrayList<>();
+                    NodeList nodes = items.getChildNodes();
+                    for (int i = 0; i < nodes.getLength(); i++) {
+                        Node n = nodes.item(i);
+                        if (n instanceof Element child) {
+                            nested.add(parseField(child));
+                        }
+                    }
+                }
+            }
+        } else if (fieldType.equals("select") || fieldType.equals("multiselect")
+                || fieldType.equals("checkboxgroup") || fieldType.equals("radiogroup")) {
+            Element items = (Element) elem.getElementsByTagName("items").item(0);
+            if (items != null) {
+                options = new ArrayList<>();
+                NodeList nodes = items.getChildNodes();
+                for (int i = 0; i < nodes.getLength(); i++) {
+                    Node n = nodes.item(i);
+                    if (n instanceof Element opt) {
+                        options.add(new OptionItem(opt.getAttribute("text"), opt.getAttribute("value")));
+                    }
+                }
+            }
+        }
+
+        return new ComponentField(fieldName, fieldLabel, fieldType, nested, options);
     }
 
     @Override
@@ -135,16 +312,25 @@ public class ComponentServiceImpl implements ComponentService {
 
         String slingModelsSourcePath = System.getProperty("user.dir") + "/src/main/java/com/aem/builder/slingModels";
 
-        String slingModelsTargetPath = System.getProperty("user.dir") +
-                "/generated-projects/" + projectName +
-                "/core/src/main/java/com/" + projectName + "/core/models";
+        Path javaSourceRoot = Paths.get("generated-projects/" + projectName + "/core/src/main/java/");
+
+        // Find models directory
+        Path modelPath = findModelBasePath(javaSourceRoot);
+        log.info("ModelPath{}",modelPath);
+
+        // Get full model base path
+        String modelBasePath = modelPath.toString();
+
+        log.info("ModelBasePath{}",modelBasePath);
+
+        // 5. Convert to Java package name
+        String packageName = javaSourceRoot.relativize(modelPath).toString().replace(File.separatorChar, '.');
 
         Set<String> copiedModels = new HashSet<>();
 
         for (String component : selectedComponents) {
             try {
                 File source = new File("src/main/resources/aem-components/" + component);
-                //File destination = new File(targetPath + "/" + source.getName());
                 File destination = new File(targetPath + "/" + component);
 
                 if (!source.exists()) {
@@ -174,7 +360,9 @@ public class ComponentServiceImpl implements ComponentService {
 
                 if (html.exists() && parentModel != null) {
                     String htmlContent = FileUtils.readFileToString(html, "UTF-8");
-                    String fqcn = extractFullyQualifiedClassName(parentModel, "com." + projectName + ".core.models");
+                    //String fqcn = extractFullyQualifiedClassName(parentModel, "com." + projectName + ".core.models");
+                    String fqcn = extractFullyQualifiedClassName(parentModel, packageName);
+
                     if (fqcn != null) {
                         htmlContent = htmlContent.replaceAll("data-sly-use\\.model=\"[^\"]+\"",
                                 "data-sly-use.model=\"" + fqcn + "\"");
@@ -184,7 +372,8 @@ public class ComponentServiceImpl implements ComponentService {
 
                 // Copy model and its dependencies
                 if (parentModel != null && parentModel.exists()) {
-                    copyModelAndDependencies(parentModel, slingModelsSourcePath, slingModelsTargetPath, projectName, copiedModels);
+                   copyModelAndDependencies(parentModel, slingModelsSourcePath, modelBasePath,packageName, copiedModels);
+
                 } else {
                     System.out.println("No matching Sling Model found for: " + component);
                 }
@@ -192,6 +381,20 @@ public class ComponentServiceImpl implements ComponentService {
                 System.err.println("Failed to process component: " + component);
                 e.printStackTrace();
             }
+        }
+    }
+
+    private static Path findModelBasePath(Path javaSourceRoot)  {
+        try (Stream<Path> paths = Files.walk(javaSourceRoot)) {
+            Optional<Path> modelPath = paths
+                    .filter(Files::isDirectory)
+                    .filter(p -> p.getFileName().toString().equals("models"))
+                    .findFirst();
+
+            return modelPath.orElseThrow(() ->
+                    new IOException("models directory not found under: " + javaSourceRoot));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -223,7 +426,7 @@ public class ComponentServiceImpl implements ComponentService {
         return null;
     }
 
-    private void copyModelAndDependencies(File modelFile, String sourceBase, String targetBase, String projectName, Set<String> copiedModels) throws IOException {
+    private void copyModelAndDependencies(File modelFile, String sourceBase, String targetBase,String targetPackageName,  Set<String> copiedModels) throws IOException {
         if (modelFile == null || !modelFile.exists()) return;
 
         String modelName = modelFile.getName();
@@ -232,9 +435,20 @@ public class ComponentServiceImpl implements ComponentService {
         String originalContent = FileUtils.readFileToString(modelFile, "UTF-8");
 
         // Update package declaration
-        String content = originalContent.replace("package com.aem.builder.slingModels;", "package com." + projectName + ".core.models;");
+       // String content = originalContent.replace("package com.aem.builder.slingModels;", "package com." + projectName + ".core.models;");
 
-        // Update import statements for internal model classes
+        /*String content = originalContent.replaceAll(
+                "package\\s+com\\.aem\\.builder\\.[\\w.]+;",
+                "package com." + projectName + ".core.models;"
+        );*/
+
+        String content = originalContent.replaceFirst(
+                "package\\s+com\\.aem\\.builder\\.[\\w.]+;",
+                "package " + targetPackageName + ";"
+        );
+
+
+        /*// Update import statements for internal model classes
         Pattern importPattern = Pattern.compile("import\\s+com\\.aem\\.builder\\.slingModels\\.(\\w+);");
         Matcher importMatcher = importPattern.matcher(content);
         StringBuffer updatedContent = new StringBuffer();
@@ -260,7 +474,36 @@ public class ComponentServiceImpl implements ComponentService {
             if (depFile.exists()) {
                 copyModelAndDependencies(depFile, sourceBase, targetBase, projectName, copiedModels);
             }
+        }*/
+
+        // Update import statements for internal model classes
+        Pattern importPattern = Pattern.compile("import\\s+com\\.aem\\.builder\\.slingModels\\.(\\w+);");
+        Matcher importMatcher = importPattern.matcher(content);
+        StringBuffer updatedContent = new StringBuffer();
+        while (importMatcher.find()) {
+            String className = importMatcher.group(1);
+            String newImport = "import " + targetPackageName + "." + className + ";";
+            importMatcher.appendReplacement(updatedContent, Matcher.quoteReplacement(newImport));
         }
+        importMatcher.appendTail(updatedContent);
+        content = updatedContent.toString();
+
+        // Write to destination file
+        File destFile = new File(targetBase, modelFile.getName());
+        destFile.getParentFile().mkdirs();
+        FileUtils.writeStringToFile(destFile, content, "UTF-8");
+        copiedModels.add(modelName);
+        System.out.println("Sling Model copied: " + destFile.getAbsolutePath());
+
+// Recursively copy dependencies
+        Set<String> dependentTypes = extractReferencedModelTypes(originalContent);
+        for (String type : dependentTypes) {
+            File depFile = new File(sourceBase, type + ".java");
+            if (depFile.exists()) {
+                copyModelAndDependencies(depFile, sourceBase, targetBase, targetPackageName, copiedModels);
+            }
+        }
+
     }
 
     private Set<String> extractReferencedModelTypes(String content) {
