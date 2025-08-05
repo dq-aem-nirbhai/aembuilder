@@ -1,1 +1,6 @@
-spring.application.name=aembuilder
+spring:
+  application:
+    name: aembuilder
+
+server:
+  port: 8081

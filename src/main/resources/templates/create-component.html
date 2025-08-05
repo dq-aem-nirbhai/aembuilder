@@ -4,19 +4,17 @@
   <title>Create AEM Component</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <link rel="stylesheet" href="/css/create-component.css">
-  <script th:src="@{/js/create-component.js}"></script>
 </head>
 <body>
 
 <!-- Navbar -->
 <div th:replace="fragments/navbar :: navbar"></div>
 
-<div class="container mt-4 mb-5">
-  <h2 class="mb-4 animate__animated animate__fadeInDown">Create AEM Component for [[${projectName}]]</h2>
+<div class="container mt-4 mb-5 animate__animated animate__fadeIn">
+ 
 
-  <a th:href="@{'/' + ${projectName}}" class="btn btn-outline-secondary mb-3">← Back to DeployPage</a>
+  <a th:href="@{'/' + ${projectName}}" class="btn btn-outline-secondary mb-3">← Back to Deploy Page</a>
 
   <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert">
     <span th:text="${message}"></span>
@@ -27,18 +25,16 @@
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 
-  <form id="componentForm" th:action="@{'/component/create/' + ${projectName}}" method="post">
-    <!-- Hidden input to pass projectName into JS -->
+  <form id="componentForm" th:action="@{'/component/create/' + ${projectName}}" method="post" class="card p-4 shadow-sm border-0 bg-light">
     <input type="hidden" id="projectName" th:value="${projectName}">
 
-    <!-- Component Name -->
     <div class="mb-3">
+       <h2 class="mb-4 text-primary" style="display: flex; justify-content: center;">Create AEM Component for  <span th:text="${projectName}"></span></h2>
       <label class="form-label">Component Name</label>
       <input type="text" class="form-control" name="componentName" id="componentName" required>
-      <div id="nameError" class="mt-1" style="font-size: 0.9rem;"></div>
+      <div id="nameError" class="mt-1 small"></div>
     </div>
 
-    <!-- Component Group -->
     <div class="mb-3">
       <label class="form-label">Component Group</label>
       <select class="form-select" name="componentGroup" id="componentGroup" required>
@@ -47,7 +43,6 @@
       </select>
     </div>
 
-    <!-- Creation Mode -->
     <div class="mb-3">
       <label class="form-label">Creation Mode</label>
       <select class="form-select" id="creationMode" name="creationMode">
@@ -56,7 +51,6 @@
       </select>
     </div>
 
-    <!-- Extends Component -->
     <div class="mb-3" id="extendsComponentDiv" style="display:none">
       <label class="form-label">Extends Component</label>
       <select class="form-select" name="superType" id="superType">
@@ -65,11 +59,11 @@
       </select>
     </div>
 
-    <!-- Dialog Fields -->
     <div id="fieldsContainer" class="mb-3">
-      <label>Dialog Fields</label>
+      <label class="form-label">Dialog Fields</label>
     </div>
-    <div id="fieldRowTemplate" class="field-row border p-2 mb-3" style="display:none">
+
+    <div id="fieldRowTemplate" class="field-row border p-2 mb-3 bg-white rounded shadow-sm" style="display:none">
       <div class="row g-2 align-items-end">
         <div class="col">
           <input type="text" class="form-control fieldLabel" placeholder="Field Label" oninput="autoFillFieldName(this)" >
@@ -78,7 +72,7 @@
           <input type="text" class="form-control fieldName" placeholder="Field Name" >
         </div>
         <div class="col">
-          <select class="form-select fieldType" onchange="handleFieldTypeChange(this)" >
+          <select class="form-select fieldType" onchange="handleFieldTypeChange(this)">
             <option value="">-- Select Type --</option>
             <option th:each="type : ${fieldTypes}" th:value="${type.key}" th:text="${type.key}"></option>
           </select>
@@ -89,19 +83,63 @@
       <div class="nested-container mt-2"></div>
     </div>
 
-    <!-- Add Field Button -->
-    <button type="button" class="btn btn-primary mb-3" onclick="addFieldRow()">+ Add Field</button><br>
+    <button type="button" class="btn btn-outline-primary mb-3" onclick="addFieldRow()">+ Add Field</button><br>
 
-    <!-- Create Component Button -->
-    <button type="submit" class="btn btn-primary" id="createButton" disabled>Create Component</button>
+    <button type="submit" class="btn btn-success" id="createButton" disabled>Create Component</button>
   </form>
 </div>
 
-<!-- Footer -->
 <footer>
   <div th:replace="fragments/navbar :: footer"></div>
 </footer>
 
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/create-component.js"></script>
 </body>
 </html>
+<style>
+  .field-row.animate__animated {
+  animation-duration: 0.5s;
+}
+
+.field-row.removed {
+  animation: fadeOut 0.3s forwards;
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; height: auto; }
+  to { opacity: 0; height: 0; margin: 0; padding: 0; overflow: hidden; }
+}
+
+input.is-invalid {
+  border-color: #dc3545;
+}
+
+footer {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  background-color: #f8f9fa;
+  padding: 10px 0;
+  text-align: center;
+  box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+}
+
+.nested-row {
+  border: 1px dashed #ced4da;
+  padding: 10px;
+}
+
+select.form-select option {
+  text-transform: capitalize;
+}
+
+.card {
+  animation: fadeInUp 0.6s;
+}
+
+#nameError {
+  font-size: 0.9rem;
+}
+
+</style>

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AEM Tool Builder</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --brand-blue: #2563eb;
+      --brand-blue-dark: #1d4ed8;
+      --text-dark: #0f172a;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at 25% 25%, #e0e7ff, #f8fafc 60%);
+      color: var(--text-dark);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      animation: fadeIn 1s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .navbar {
+      background-color: #0D6EFd;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      z-index: 20;
+    }
+
+    .navbar-brand {
+      font-weight: 700;
+      font-size: 1.75rem;
+      color: #fff !important;
+      padding-left: 20px;
+    }
+
+    .navbar-brand:hover,
+    .navbar-brand:focus {
+      color: #fff !important;
+      text-decoration: none;
+    }
+
+    .container-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 40px 20px;
+      gap: 60px;
+      flex-wrap: wrap;
+      animation: fadeIn 1.2s ease-out;
+    }
+
+    .text-content h1 {
+      font-size: 3rem;
+      font-weight: 700;
+      line-height: 1.2;
+      background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-dark));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 1rem;
+      animation: fadeIn 1.4s ease;
+    }
+
+    .text-content .lead {
+      color: #475569;
+      margin: 0 auto 2.5rem;
+      max-width: 620px;
+      font-size: 1.125rem;
+      animation: fadeIn 1.6s ease;
+    }
+
+    .btn-primary-custom {
+      background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-dark));
+      color: #ffffff;
+      border: none;
+      border-radius: 30px;
+      padding: 0.75rem 2rem;
+      font-weight: 600;
+      transition: transform .2s ease, box-shadow .2s ease;
+      box-shadow: 0 6px 20px rgba(37,99,235,0.3);
+      animation: fadeIn 1.8s ease;
+    }
+
+    .btn-primary-custom:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 24px rgba(37,99,235,0.4);
+      color: #fff;
+    }
+
+    /* Orbit animation */
+    .icon-orbit {
+      position: relative;
+      width: 420px;
+      height: 420px;
+      margin-bottom: 40px;
+    }
+
+    .center-icon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 110px;
+      height: 110px;
+      background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 15px rgba(0,0,0,0.05);
+      animation: pulse 3.5s infinite;
+      z-index: 10;
+    }
+
+    .center-icon i {
+      font-size: 42px;
+      color: var(--text-dark);
+    }
+
+    .orbit-icon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(0deg) translateX(200px);
+      font-size: 28px;
+      padding: 16px;
+      background: rgba(255,255,255,0.85);
+      border-radius: 14px;
+      color: var(--text-dark);
+      backdrop-filter: blur(6px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      animation: orbit 10s linear infinite;
+      transition: transform 0.3s ease;
+    }
+
+    .orbit-icon:hover {
+      transform: scale(1.1) rotate(0deg) translateX(200px);
+      background-color: var(--brand-blue);
+      color: white;
+    }
+
+    .orbit-icon:nth-child(2) { animation-delay: 0s; }
+    .orbit-icon:nth-child(3) { animation-delay: 1.5s; }
+    .orbit-icon:nth-child(4) { animation-delay: 3s; }
+    .orbit-icon:nth-child(5) { animation-delay: 4.5s; }
+    .orbit-icon:nth-child(6) { animation-delay: 6s; }
+    .orbit-icon:nth-child(7) { animation-delay: 7.5s; }
+    .orbit-icon:nth-child(8) { animation-delay: 9s; }
+
+    @keyframes orbit {
+      from {
+        transform: translate(-50%, -50%) rotate(0deg) translateX(200px) rotate(0deg);
+      }
+      to {
+        transform: translate(-50%, -50%) rotate(360deg) translateX(200px) rotate(-360deg);
+      }
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(37,99,235,0.35); }
+      70% { box-shadow: 0 0 0 30px rgba(37,99,235,0); }
+      100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); }
+    }
+
+    .merged {
+      animation: mergeIntoCenter 1s forwards;
+    }
+
+    @keyframes mergeIntoCenter {
+      to {
+        transform: translate(-50%, -50%) rotate(0deg) translateX(0px);
+        opacity: 0;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .icon-orbit {
+        width: 320px;
+        height: 320px;
+      }
+
+      .text-content h1 {
+        font-size: 2.25rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg">
+  <div class="container-fluid">
+    <span class="navbar-brand">AEM Tool Builder</span>
+  </div>
+</nav>
+
+<div class="container-wrapper">
+  <div class="text-content">
+    <h1>Supercharge Your<br/>AEM Development<br/>with One‑Click Project Generation</h1>
+    <p class="lead">Skip the terminal. No need to remember Maven commands.<br/>Fill in a few details and instantly generate fully structured AEM projects.</p>
+    <a href="/dashboard" class="btn btn-primary-custom" onclick="handleClick(event)">Create Project</a>
+  </div>
+
+  <div class="icon-orbit" id="iconOrbit">
+    <div class="center-icon"><i class="bi bi-cpu-fill"></i></div>
+    <i class="bi bi-list orbit-icon"></i>
+    <i class="bi bi-terminal orbit-icon"></i>
+    <i class="bi bi-lightning-charge-fill orbit-icon"></i>
+    <i class="bi bi-download orbit-icon"></i>
+    <i class="bi bi-file-earmark-code orbit-icon"></i>
+    <i class="bi bi-box-seam orbit-icon"></i>
+    <i class="bi bi-diagram-3-fill orbit-icon"></i>
+  </div>
+</div>
+
+<script>
+  function handleClick(event) {
+    event.preventDefault();
+    mergeIcons();
+    setTimeout(() => {
+      window.location.href = "/dashboard";
+    }, 4000);
+  }
+
+  function mergeIcons() {
+    const icons = document.querySelectorAll('.orbit-icon');
+    icons.forEach((icon, i) => {
+      setTimeout(() => {
+        icon.classList.add('merged');
+      }, i * 100);
+    });
+  }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+<footer class="text-center mt-auto py-4 bg-white shadow-sm border-top">
+  <div class="container">
+    <small class="text-muted">© 2025 AEM Tool Builder. All rights reserved.</small>
+  </div>
+</footer>
+
+</html>
