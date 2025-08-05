@@ -45,10 +45,124 @@ public class PolicyServiceImpl implements PolicyService {
 
     @Override
     public List<String> getAllowedComponents(String projectName, String templateName) {
-        // For now simply return all components present in the project. A more
-        // elaborate implementation could inspect the template's structure to
-        // determine the allowed components for the layout container.
-        return componentService.fetchComponentsFromGeneratedProjects(projectName);
+        try {
+            Path confBase = projectConfBase(projectName);
+
+            // 1. Locate the layout container marked editable in the template structure
+            Path structureFile = confBase.resolve(Paths.get(
+                    "settings/wcm/templates", templateName, "structure/.content.xml"));
+            if (!Files.exists(structureFile)) {
+                return componentService.fetchComponentsFromGeneratedProjects(projectName);
+            }
+
+            DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            Document structureDoc = builder.parse(structureFile.toFile());
+            Element jcrContent = (Element) structureDoc.getDocumentElement()
+                    .getElementsByTagName("jcr:content").item(0);
+            List<String> editablePath = findEditablePath(jcrContent, new ArrayList<>());
+            if (editablePath.isEmpty()) {
+                return componentService.fetchComponentsFromGeneratedProjects(projectName);
+            }
+
+            // 2. Find the policy reference for that container in the template's policy mapping
+            Path mappingFile = confBase.resolve(Paths.get(
+                    "settings/wcm/templates", templateName, "policies/.content.xml"));
+            if (!Files.exists(mappingFile)) {
+                return componentService.fetchComponentsFromGeneratedProjects(projectName);
+            }
+
+            Document mappingDoc = builder.parse(mappingFile.toFile());
+            Element mappingContent = (Element) mappingDoc.getDocumentElement()
+                    .getElementsByTagName("jcr:content").item(0);
+            Element current = mappingContent;
+            for (String segment : editablePath) {
+                Element next = null;
+                NodeList children = current.getChildNodes();
+                for (int i = 0; i < children.getLength(); i++) {
+                    Node n = children.item(i);
+                    if (n.getNodeType() != Node.ELEMENT_NODE) continue;
+                    if (segment.equals(n.getNodeName())) {
+                        next = (Element) n;
+                        break;
+                    }
+                }
+                if (next == null) {
+                    return componentService.fetchComponentsFromGeneratedProjects(projectName);
+                }
+                current = next;
+            }
+
+            String policyRef = current.getAttribute("cq:policy");
+            if (policyRef == null || policyRef.isEmpty()) {
+                return componentService.fetchComponentsFromGeneratedProjects(projectName);
+            }
+            if (policyRef.startsWith("/")) {
+                policyRef = policyRef.substring(1);
+            }
+
+            // 3. Read the policy definition to extract allowed components
+            Path policyFile = confBase.resolve(Paths.get(
+                    "settings/wcm/policies", policyRef, ".content.xml"));
+            if (!Files.exists(policyFile)) {
+                // fallback to simplified location used when saving policies
+                policyFile = confBase.resolve(Paths.get(
+                        "settings/wcm/policies", policyRef + ".content.xml"));
+                if (!Files.exists(policyFile)) {
+                    return componentService.fetchComponentsFromGeneratedProjects(projectName);
+                }
+            }
+
+            Document policyDoc = builder.parse(policyFile.toFile());
+            Element policyRoot = policyDoc.getDocumentElement();
+            String compsAttr = policyRoot.getAttribute("components");
+            if (compsAttr == null || compsAttr.isEmpty()) {
+                return componentService.fetchComponentsFromGeneratedProjects(projectName);
+            }
+            compsAttr = compsAttr.trim();
+            if (compsAttr.startsWith("[")) {
+                compsAttr = compsAttr.substring(1);
+            }
+            if (compsAttr.endsWith("]")) {
+                compsAttr = compsAttr.substring(0, compsAttr.length() - 1);
+            }
+
+            String[] comps = compsAttr.split(",");
+            List<String> allowed = new ArrayList<>();
+            for (String c : comps) {
+                String comp = c.trim();
+                if (comp.isEmpty()) continue;
+                int idx = comp.lastIndexOf('/');
+                allowed.add(idx >= 0 ? comp.substring(idx + 1) : comp);
+            }
+            return allowed;
+        } catch (Exception e) {
+            // On any failure fall back to returning all components in the project
+            return componentService.fetchComponentsFromGeneratedProjects(projectName);
+        }
+    }
+
+    /**
+     * Recursively search for the first element marked as editable and return
+     * its relative path from the provided parent element.
+     */
+    private List<String> findEditablePath(Element parent, List<String> path) {
+        NodeList children = parent.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node n = children.item(i);
+            if (n.getNodeType() != Node.ELEMENT_NODE) continue;
+            Element e = (Element) n;
+            List<String> newPath = new ArrayList<>(path);
+            newPath.add(e.getNodeName());
+            String editable = e.getAttribute("editable");
+            if (editable != null && editable.contains("true")) {
+                return newPath;
+            }
+            List<String> deeper = findEditablePath(e, newPath);
+            if (!deeper.isEmpty()) {
+                return deeper;
+            }
+        }
+        return List.of();
     }
 
     @Override
