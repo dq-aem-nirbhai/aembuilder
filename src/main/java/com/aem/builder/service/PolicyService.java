@@ -16,6 +16,11 @@ public interface PolicyService {
     PolicyModel loadPolicy(String projectName, String templateName, String componentName);
 
     /**
+     * List names of all available policies for the project.
+     */
+    List<String> listPolicies(String projectName);
+
+    /**
      * Persist a policy for the given component.
      */
     void savePolicy(String projectName, String templateName, String componentName, PolicyModel policy);

@@ -33,6 +33,24 @@ public class PolicyController {
         return "template-components";
     }
 
+    @GetMapping("/policies")
+    @ResponseBody
+    public List<String> listPolicies(@PathVariable String projectName,
+                                     @PathVariable String templateName) {
+        return policyService.listPolicies(projectName);
+    }
+
+    @GetMapping("/policies/{component}/edit")
+    public String editPolicyPage(@PathVariable String projectName,
+                                 @PathVariable String templateName,
+                                 @PathVariable("component") String componentName,
+                                 Model model) {
+        model.addAttribute("projectName", projectName);
+        model.addAttribute("templateName", templateName);
+        model.addAttribute("componentName", componentName);
+        return "policy-editor";
+    }
+
     @GetMapping("/policies/{component}")
     @ResponseBody
     public PolicyModel loadPolicy(@PathVariable String projectName,

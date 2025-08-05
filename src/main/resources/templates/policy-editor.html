@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Policy Editor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script th:src="@{/js/policy-editor.js}"></script>
+</head>
+<body class="d-flex flex-column min-vh-100" th:attr="data-project=${projectName},data-template=${templateName},data-component=${componentName}">
+<div th:replace="fragments/navbar :: navbar"></div>
+<main class="container mt-4 flex-grow-1">
+    <h2 th:text="'Policy: ' + ${componentName}"></h2>
+    <a th:href="@{'/' + ${projectName} + '/templates/' + ${templateName}}" class="btn btn-outline-secondary mb-3">&larr; Back</a>
+
+    <div class="mb-3">
+        <label class="form-label">Existing Policy</label>
+        <select id="existingPolicies" class="form-select"></select>
+    </div>
+
+    <form id="policyForm">
+        <div class="mb-3">
+            <label class="form-label">Title</label>
+            <input type="text" class="form-control" name="title" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <input type="text" class="form-control" name="description">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Default CSS Class</label>
+            <input type="text" class="form-control" name="defaultCssClass">
+        </div>
+        <div id="styleGroups"></div>
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addStyleGroup()">Add Style Group</button>
+    </form>
+    <button class="btn btn-primary mt-3" onclick="savePolicy()">Save</button>
+</main>
+<div th:replace="fragments/navbar :: footer"></div>
+</body>
+</html>
+

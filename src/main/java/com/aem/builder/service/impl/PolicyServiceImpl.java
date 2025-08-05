@@ -25,6 +25,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Service responsible for reading and writing simplified AEM component
@@ -213,6 +215,25 @@ public class PolicyServiceImpl implements PolicyService {
     }
 
     @Override
+    public List<String> listPolicies(String projectName) {
+        Path policiesDir = projectConfBase(projectName).resolve("settings/wcm/policies");
+        if (!Files.exists(policiesDir)) {
+            return List.of();
+        }
+        try (Stream<Path> stream = Files.list(policiesDir)) {
+            return stream
+                    .filter(p -> p.getFileName().toString().endsWith(".content.xml"))
+                    .map(p -> {
+                        String name = p.getFileName().toString();
+                        return name.substring(0, name.indexOf(".content.xml"));
+                    })
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    @Override
     public void savePolicy(String projectName, String templateName, String componentName, PolicyModel policy) {
         try {
             Path confBase = projectConfBase(projectName);
@@ -301,8 +322,82 @@ public class PolicyServiceImpl implements PolicyService {
             rootMap.appendChild(comp);
 
             transformer.transform(new DOMSource(mappingDoc), new StreamResult(templatePoliciesFile.toFile()));
+
+            // Update global policies mapping file
+            Path globalPoliciesFile = confBase.resolve("settings/wcm/policies/.content.xml");
+            Document globalDoc;
+            Element globalRoot;
+            if (Files.exists(globalPoliciesFile)) {
+                globalDoc = builder.parse(globalPoliciesFile.toFile());
+                globalRoot = globalDoc.getDocumentElement();
+            } else {
+                globalDoc = builder.newDocument();
+                globalRoot = globalDoc.createElement("jcr:root");
+                globalRoot.setAttribute("xmlns:sling", "http://sling.apache.org/jcr/sling/1.0");
+                globalRoot.setAttribute("xmlns:cq", "http://www.day.com/jcr/cq/1.0");
+                globalRoot.setAttribute("xmlns:jcr", "http://www.jcp.org/jcr/1.0");
+                globalRoot.setAttribute("xmlns:nt", "http://www.jcp.org/jcr/nt/1.0");
+                globalRoot.setAttribute("jcr:primaryType", "cq:Page");
+                Element jcrContent = globalDoc.createElement("jcr:content");
+                jcrContent.setAttribute("jcr:primaryType", "nt:unstructured");
+                jcrContent.setAttribute("sling:resourceType", "wcm/core/components/policies/mappings");
+                Element rootMap2 = globalDoc.createElement("root");
+                rootMap2.setAttribute("jcr:primaryType", "nt:unstructured");
+                rootMap2.setAttribute("sling:resourceType", "wcm/core/components/policies/mapping");
+                jcrContent.appendChild(rootMap2);
+                globalRoot.appendChild(jcrContent);
+                globalDoc.appendChild(globalRoot);
+            }
+
+            Element globalContent = (Element) globalRoot.getElementsByTagName("jcr:content").item(0);
+            Element globalRootMap = (Element) globalContent.getElementsByTagName("root").item(0);
+            NodeList existingGlobal = globalRootMap.getElementsByTagName(componentName);
+            for (int i = 0; i < existingGlobal.getLength(); i++) {
+                globalRootMap.removeChild(existingGlobal.item(i));
+            }
+            Element globalComp = globalDoc.createElement(componentName);
+            globalComp.setAttribute("jcr:primaryType", "nt:unstructured");
+            globalComp.setAttribute("sling:resourceType", "wcm/core/components/policies/mapping");
+            globalComp.setAttribute("cq:policy", projectName + "/settings/wcm/policies/" + componentName);
+            globalRootMap.appendChild(globalComp);
+            transformer.transform(new DOMSource(globalDoc), new StreamResult(globalPoliciesFile.toFile()));
+
+            // Update structure file to reference policy
+            Path structureFile = confBase.resolve(
+                    Paths.get("settings/wcm/templates", templateName, "structure/.content.xml"));
+            if (Files.exists(structureFile)) {
+                Document structureDoc = builder.parse(structureFile.toFile());
+                Element contentRoot = (Element) structureDoc.getDocumentElement()
+                        .getElementsByTagName("jcr:content").item(0);
+                Element editable = findEditableElement(contentRoot);
+                if (editable != null) {
+                    editable.setAttribute("cq:policy", projectName + "/settings/wcm/policies/" + componentName);
+                    transformer.transform(new DOMSource(structureDoc), new StreamResult(structureFile.toFile()));
+                }
+            }
         } catch (Exception e) {
             throw new RuntimeException("Unable to save policy", e);
         }
+    }
+
+    /**
+     * Find first element marked editable in the structure.
+     */
+    private Element findEditableElement(Element parent) {
+        NodeList children = parent.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node n = children.item(i);
+            if (n.getNodeType() != Node.ELEMENT_NODE) continue;
+            Element e = (Element) n;
+            String editable = e.getAttribute("editable");
+            if (editable != null && editable.contains("true")) {
+                return e;
+            }
+            Element deeper = findEditableElement(e);
+            if (deeper != null) {
+                return deeper;
+            }
+        }
+        return null;
     }
 }

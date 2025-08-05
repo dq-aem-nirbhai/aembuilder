@@ -1,16 +1,10 @@
-let currentComponent = null;
+let currentComponent = document.body.getAttribute('data-component');
 
-function openPolicyModal(card) {
-    currentComponent = card.getAttribute('data-component');
-    const modal = new bootstrap.Modal(document.getElementById('policyModal'));
-    loadPolicy();
-    modal.show();
-}
-
-function loadPolicy() {
+function loadPolicy(component) {
     const project = document.body.getAttribute('data-project');
     const template = document.body.getAttribute('data-template');
-    fetch(`/${project}/templates/${template}/policies/${currentComponent}`)
+    const target = component || currentComponent;
+    fetch(`/${project}/templates/${template}/policies/${target}`)
         .then(r => r.json())
         .then(data => {
             const form = document.getElementById('policyForm');
@@ -21,6 +15,23 @@ function loadPolicy() {
             groupsContainer.innerHTML = '';
             (data.styleGroups || []).forEach(g => {
                 addStyleGroup(g);
+            });
+        });
+}
+
+function populateExistingPolicies() {
+    const project = document.body.getAttribute('data-project');
+    const template = document.body.getAttribute('data-template');
+    fetch(`/${project}/templates/${template}/policies`)
+        .then(r => r.json())
+        .then(list => {
+            const select = document.getElementById('existingPolicies');
+            select.innerHTML = '<option value="">Select existing policy</option>';
+            list.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
             });
         });
 }
@@ -98,13 +109,21 @@ function savePolicy() {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(policy)
     }).then(() => {
-        const modal = bootstrap.Modal.getInstance(document.getElementById('policyModal'));
-        modal.hide();
+        window.location.href = `/${project}/templates/${template}`;
     });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const body = document.body;
-    body.setAttribute('data-project', body.getAttribute('data-project') || document.getElementById('projectName')?.value);
-    body.setAttribute('data-template', body.getAttribute('data-template') || document.getElementById('templateName')?.value);
+    populateExistingPolicies();
+    loadPolicy();
+    document.getElementById('existingPolicies').addEventListener('change', e => {
+        if (e.target.value) {
+            loadPolicy(e.target.value);
+        } else {
+            const form = document.getElementById('policyForm');
+            form.reset();
+            document.getElementById('styleGroups').innerHTML = '';
+        }
+    });
 });
+
