@@ -42,21 +42,33 @@
     function openComponentModal() {
         const projectName = getProjectName();
         fetch(`/fetch-components/${projectName}`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error('Failed to load components');
+                }
+                return res.json();
+            })
             .then(data => {
                 renderList('componentList', data, selectedComponents, 'component');
                 new bootstrap.Modal(document.getElementById('componentModal')).show();
-            });
+            })
+            .catch(err => console.error('Error fetching components:', err));
     }
 
     function openTemplateModal() {
         const projectName = getProjectName();
         fetch(`/fetch-templates/${projectName}`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error('Failed to load templates');
+                }
+                return res.json();
+            })
             .then(data => {
                 renderList('templateList', data, selectedTemplates, 'template');
                 new bootstrap.Modal(document.getElementById('templateModal')).show();
-            });
+            })
+            .catch(err => console.error('Error fetching templates:', err));
     }
 
     function addSelected(type) {
@@ -160,20 +172,42 @@
 
     function viewComponent(project, component) {
         fetch(`/${project}/component/source?componentName=${component}`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error('Failed to load component source');
+                }
+                return res.json();
+            })
             .then(data => {
                 document.getElementById('htmlCode').textContent = data.html || '';
                 document.getElementById('javaCode').textContent = data.java || 'No Java class';
                 new bootstrap.Modal(document.getElementById('codeModal')).show();
+            })
+            .catch(err => {
+                document.getElementById('htmlCode').textContent = 'Error loading component source';
+                document.getElementById('javaCode').textContent = '';
+                new bootstrap.Modal(document.getElementById('codeModal')).show();
+                console.error('Error fetching component source:', err);
             });
     }
 
     function viewTemplate(project, template) {
         fetch(`/${project}/template/source?templateName=${template}`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error('Failed to load template source');
+                }
+                return res.json();
+            })
             .then(data => {
                 document.getElementById('htmlCode').textContent = data.html || '';
                 document.getElementById('javaCode').textContent = data.java || 'No Java class';
                 new bootstrap.Modal(document.getElementById('codeModal')).show();
+            })
+            .catch(err => {
+                document.getElementById('htmlCode').textContent = 'Error loading template source';
+                document.getElementById('javaCode').textContent = '';
+                new bootstrap.Modal(document.getElementById('codeModal')).show();
+                console.error('Error fetching template source:', err);
             });
     }
