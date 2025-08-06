@@ -41,7 +41,10 @@ public class PolicyController {
                                    @PathVariable String template,
                                    @RequestParam("resource") String component,
                                    Model model) {
-        Map<String, PolicyModel> policies = policyService.getPolicies(project, component);
+        Map<String, PolicyModel>    policies = policyService.getPolicies(project, component);
+
+
+        log.info("Policies>>....>>{}");
         model.addAttribute("projectName", project);
         model.addAttribute("templateName", template);
         model.addAttribute("component", component);
