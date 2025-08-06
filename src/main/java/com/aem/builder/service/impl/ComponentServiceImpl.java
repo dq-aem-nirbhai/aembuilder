@@ -166,15 +166,18 @@ public class ComponentServiceImpl implements ComponentService {
                         if (tabs != null) {
                             Element tabsItems = (Element) tabs.getElementsByTagName("items").item(0);
                             if (tabsItems != null) {
-                                Element tab1 = (Element) tabsItems.getElementsByTagName("tab1").item(0);
-                                if (tab1 != null) {
-                                    Element tabItems = (Element) tab1.getElementsByTagName("items").item(0);
-                                    if (tabItems != null) {
-                                        NodeList fieldNodes = tabItems.getChildNodes();
-                                        for (int i = 0; i < fieldNodes.getLength(); i++) {
-                                            Node node = fieldNodes.item(i);
-                                            if (node instanceof Element elem) {
-                                                fields.add(parseField(elem));
+                                NodeList tabNodes = tabsItems.getChildNodes();
+                                for (int t = 0; t < tabNodes.getLength(); t++) {
+                                    Node tabNode = tabNodes.item(t);
+                                    if (tabNode instanceof Element tabElement) {
+                                        Element tabItems = (Element) tabElement.getElementsByTagName("items").item(0);
+                                        if (tabItems != null) {
+                                            NodeList fieldNodes = tabItems.getChildNodes();
+                                            for (int i = 0; i < fieldNodes.getLength(); i++) {
+                                                Node node = fieldNodes.item(i);
+                                                if (node instanceof Element elem) {
+                                                    fields.add(parseField(elem));
+                                                }
                                             }
                                         }
                                     }
