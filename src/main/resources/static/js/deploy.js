@@ -157,3 +157,23 @@
         document.getElementById('deployBtn').disabled = true;
         return true;
     }
+
+    function viewComponent(project, component) {
+        fetch(`/${project}/component/source?componentName=${component}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('htmlCode').textContent = data.html || '';
+                document.getElementById('javaCode').textContent = data.java || 'No Java class';
+                new bootstrap.Modal(document.getElementById('codeModal')).show();
+            });
+    }
+
+    function viewTemplate(project, template) {
+        fetch(`/${project}/template/source?templateName=${template}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('htmlCode').textContent = data.html || '';
+                document.getElementById('javaCode').textContent = data.java || 'No Java class';
+                new bootstrap.Modal(document.getElementById('codeModal')).show();
+            });
+    }

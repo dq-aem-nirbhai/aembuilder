@@ -136,11 +136,10 @@ public class TemplateController {
 
 
 
+    @GetMapping("/{projectName}/template/source")
+    @ResponseBody
+    public Map<String, String> getTemplateSource(@PathVariable String projectName,
+                                                 @RequestParam String templateName) {
+        return templateService.getTemplateSource(projectName, templateName);
+    }
 }
-
-
-
-
-
-
-

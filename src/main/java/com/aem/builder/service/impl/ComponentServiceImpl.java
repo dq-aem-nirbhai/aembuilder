@@ -615,4 +615,46 @@ public class ComponentServiceImpl implements ComponentService {
 
         return true; // Available if no exact case-sensitive match found
     }
+
+    @Override
+    public Map<String, String> getComponentSource(String projectName, String componentName) {
+        Map<String, String> result = new HashMap<>();
+        String compBase = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName
+                + "/components/" + componentName + "/";
+
+        // Read HTL/HTML file
+        File htmlFile = new File(compBase + componentName + ".html");
+        try {
+            result.put("html", htmlFile.exists() ? FileGenerationUtil.readFile(htmlFile) : "");
+        } catch (IOException e) {
+            log.error("Failed to read HTML for component {}", componentName, e);
+            result.put("html", "");
+        }
+
+        // Locate Sling Model
+        Path javaRoot = Paths.get(PROJECTS_DIR + "/" + projectName + "/core/src/main/java/");
+        try (Stream<Path> paths = Files.walk(javaRoot)) {
+            Optional<Path> modelDir = paths.filter(Files::isDirectory)
+                    .filter(p -> p.getFileName().toString().equals("models"))
+                    .findFirst();
+            if (modelDir.isPresent()) {
+                String className = capitalize(componentName) + "Model.java";
+                Path modelFile = modelDir.get().resolve(className);
+                result.put("java", Files.exists(modelFile) ? Files.readString(modelFile) : "");
+            } else {
+                result.put("java", "");
+            }
+        } catch (IOException e) {
+            log.error("Failed to read model for component {}", componentName, e);
+            result.put("java", "");
+        }
+        return result;
+    }
+
+    private String capitalize(String str) {
+        if (str == null || str.isEmpty()) {
+            return str;
+        }
+        return str.substring(0, 1).toUpperCase() + str.substring(1);
+    }
 }

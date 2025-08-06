@@ -186,4 +186,11 @@ public class ComponentController {
         return ResponseEntity.ok(isAvailable); // true means name is available
     }
 
+    @GetMapping("/{projectName}/component/source")
+    @ResponseBody
+    public Map<String, String> getComponentSource(@PathVariable String projectName,
+                                                  @RequestParam String componentName) {
+        return componentService.getComponentSource(projectName, componentName);
+    }
+
 }

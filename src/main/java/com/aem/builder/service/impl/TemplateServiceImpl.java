@@ -29,10 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.*;
 
 
 @Service
@@ -425,6 +422,21 @@ public class TemplateServiceImpl implements TemplateService {
 
     }
 
+    @Override
+    public Map<String, String> getTemplateSource(String projectName, String templateName) {
+        Map<String, String> result = new HashMap<>();
+        String path = PROJECTS_DIR + "/" + projectName
+                + "/ui.content/src/main/content/jcr_root/conf/" + projectName
+                + "/settings/wcm/templates/" + templateName + "/.content.xml";
+        File file = new File(path);
+        try {
+            result.put("html", file.exists() ? Files.readString(file.toPath()) : "");
+        } catch (IOException e) {
+            result.put("html", "");
+        }
+        result.put("java", "");
+        return result;
+    }
 
 
 }

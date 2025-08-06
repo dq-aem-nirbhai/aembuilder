@@ -8,6 +8,7 @@ import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerException;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 
 
@@ -35,4 +36,6 @@ public interface TemplateService {
 
 
     public void updateTemplate(TemplateModel updatedModel, String projectName, String oldTemplateName) throws ParserConfigurationException, IOException, SAXException, TransformerException;
+
+    Map<String, String> getTemplateSource(String projectName, String templateName);
 }

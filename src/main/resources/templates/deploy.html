@@ -48,7 +48,8 @@
                         <div class="border rounded p-2 bg-light text-center shadow-sm d-flex justify-content-between align-items-center">
                             <span th:text="${component}"></span>
                             <a th:if="${#lists.contains(editableComponents, component)}"
-                               th:href="@{/{projectName}/editcomponent(componentName=${component}, projectName=${projectName})}"
+                               href="#"
+                               th:attr="onclick='viewComponent(\'' + ${projectName} + '\',\'' + ${component} + '\')'"
                                class="btn btn-sm btn-outline-secondary ms-2">Edit</a>
                         </div>
                     </div>
@@ -72,7 +73,8 @@
 
                             <!-- Show Edit button only if template is NOT page-content or xf-web-variation -->
                             <a th:if="${template != 'page-content' and template != 'xf-web-variation'}"
-                               th:href="@{/{projectName}/edittemplate(templateName=${template}, projectName=${projectName})}"
+                               href="#"
+                               th:attr="onclick='viewTemplate(\'' + ${projectName} + '\',\'' + ${template} + '\')'"
                                class="btn btn-sm btn-outline-secondary ms-2">Edit</a>
                         </div>
                     </div>
@@ -114,6 +116,36 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary" onclick="addSelectedTemplates()">Add Selected</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Code Modal -->
+<div class="modal fade" id="codeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Source Viewer</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="html-tab" data-bs-toggle="tab" data-bs-target="#htmlContent" type="button" role="tab">HTML</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="java-tab" data-bs-toggle="tab" data-bs-target="#javaContent" type="button" role="tab">Java</button>
+                    </li>
+                </ul>
+                <div class="tab-content pt-3">
+                    <div class="tab-pane fade show active" id="htmlContent" role="tabpanel">
+                        <pre><code id="htmlCode"></code></pre>
+                    </div>
+                    <div class="tab-pane fade" id="javaContent" role="tabpanel">
+                        <pre><code id="javaCode"></code></pre>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

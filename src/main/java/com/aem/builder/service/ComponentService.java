@@ -36,4 +36,7 @@ public interface ComponentService {
     //component checking
     boolean isComponentNameAvailable(String projectName, String componentName);
 
+    //view source
+    Map<String, String> getComponentSource(String projectName, String componentName);
+
 }
