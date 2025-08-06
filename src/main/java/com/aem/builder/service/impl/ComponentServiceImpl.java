@@ -150,10 +150,27 @@ public class ComponentServiceImpl implements ComponentService {
             }
 
             File dialogXml = new File(basePath + "/_cq_dialog/.content.xml");
-            fields.addAll(parseDialogFile(dialogXml));
 
-            if (fields.isEmpty() && superType != null) {
+            // load fields from super type first so local overrides can replace them
+            if (superType != null) {
                 fields.addAll(loadFieldsFromSuperType(superType, projectName));
+            }
+
+            // merge local dialog fields, overriding any from the super type
+            List<ComponentField> localFields = parseDialogFile(dialogXml);
+            for (ComponentField f : localFields) {
+                int idx = -1;
+                for (int i = 0; i < fields.size(); i++) {
+                    if (fields.get(i).getFieldName().equals(f.getFieldName())) {
+                        idx = i;
+                        break;
+                    }
+                }
+                if (idx >= 0) {
+                    fields.set(idx, f);
+                } else {
+                    fields.add(f);
+                }
             }
         } catch (Exception e) {
             log.error("Failed to load component {}", componentName, e);
@@ -251,15 +268,18 @@ public class ComponentServiceImpl implements ComponentService {
                     if (tabs != null) {
                         Element tabsItems = (Element) tabs.getElementsByTagName("items").item(0);
                         if (tabsItems != null) {
-                            Element tab1 = (Element) tabsItems.getElementsByTagName("tab1").item(0);
-                            if (tab1 != null) {
-                                Element tabItems = (Element) tab1.getElementsByTagName("items").item(0);
-                                if (tabItems != null) {
-                                    NodeList fieldNodes = tabItems.getChildNodes();
-                                    for (int i = 0; i < fieldNodes.getLength(); i++) {
-                                        Node node = fieldNodes.item(i);
-                                        if (node instanceof Element elem) {
-                                            fields.add(parseField(elem));
+                            NodeList tabNodes = tabsItems.getChildNodes();
+                            for (int i = 0; i < tabNodes.getLength(); i++) {
+                                Node tabNode = tabNodes.item(i);
+                                if (tabNode instanceof Element tab) {
+                                    Element tabItems = (Element) tab.getElementsByTagName("items").item(0);
+                                    if (tabItems != null) {
+                                        NodeList fieldNodes = tabItems.getChildNodes();
+                                        for (int j = 0; j < fieldNodes.getLength(); j++) {
+                                            Node node = fieldNodes.item(j);
+                                            if (node instanceof Element elem) {
+                                                fields.add(parseField(elem));
+                                            }
                                         }
                                     }
                                 }
@@ -275,22 +295,68 @@ public class ComponentServiceImpl implements ComponentService {
     }
 
     private List<ComponentField> loadFieldsFromSuperType(String superType, String projectName) {
+        List<ComponentField> fields = new ArrayList<>();
         try {
-            if (superType.startsWith("/apps/")) {
-                File file = new File(PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root" + superType
-                        + "/_cq_dialog/.content.xml");
-                return parseDialogFile(file);
+            String relative = superType;
+            if (relative.startsWith("/apps/")) {
+                relative = relative.substring(6); // trim '/apps/'
+            }
+
+            File projectDir = new File(PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + relative);
+            File dialogFile = new File(projectDir, "_cq_dialog/.content.xml");
+            String parentSuper = null;
+
+            if (dialogFile.exists()) {
+                fields.addAll(parseDialogFile(dialogFile));
+                parentSuper = readSuperType(new File(projectDir, ".content.xml"));
             } else {
                 PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-                Resource res = resolver.getResource("classpath:/aem-components/" + superType + "/_cq_dialog/.content.xml");
-                if (res.exists()) {
-                    return parseDialogFile(res.getFile());
+                Resource dialogRes = resolver.getResource("classpath:/aem-components/" + relative + "/_cq_dialog/.content.xml");
+                if (dialogRes.exists()) {
+                    fields.addAll(parseDialogFile(dialogRes.getFile()));
                 }
+                Resource contentRes = resolver.getResource("classpath:/aem-components/" + relative + "/.content.xml");
+                if (contentRes.exists()) {
+                    parentSuper = readSuperType(contentRes.getFile());
+                }
+            }
+
+            if (parentSuper != null) {
+                List<ComponentField> parentFields = loadFieldsFromSuperType(parentSuper, projectName);
+                fields = mergeFieldLists(parentFields, fields);
             }
         } catch (Exception e) {
             log.error("Failed to load fields for super type {}", superType, e);
         }
-        return new ArrayList<>();
+        return fields;
+    }
+
+    private String readSuperType(File contentXml) {
+        try {
+            if (contentXml != null && contentXml.exists()) {
+                String content = FileGenerationUtil.readFile(contentXml);
+                if (content.contains("sling:resourceSuperType")) {
+                    int idx = content.indexOf("sling:resourceSuperType");
+                    int start = content.indexOf("\"", idx) + 1;
+                    int end = content.indexOf("\"", start);
+                    return content.substring(start, end);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to read super type from {}", contentXml, e);
+        }
+        return null;
+    }
+
+    private List<ComponentField> mergeFieldLists(List<ComponentField> base, List<ComponentField> overrides) {
+        Map<String, ComponentField> map = new LinkedHashMap<>();
+        for (ComponentField f : base) {
+            map.put(f.getFieldName(), f);
+        }
+        for (ComponentField f : overrides) {
+            map.put(f.getFieldName(), f);
+        }
+        return new ArrayList<>(map.values());
     }
 
     @Override
