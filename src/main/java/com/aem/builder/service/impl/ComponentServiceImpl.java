@@ -150,38 +150,10 @@ public class ComponentServiceImpl implements ComponentService {
             }
 
             File dialogXml = new File(basePath + "/_cq_dialog/.content.xml");
-            if (dialogXml.exists()) {
-                DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-                factory.setNamespaceAware(false);
-                DocumentBuilder builder = factory.newDocumentBuilder();
-                Document doc = builder.parse(dialogXml);
+            fields.addAll(parseDialogFile(dialogXml));
 
-                Element root = doc.getDocumentElement();
-                Element content = (Element) root.getElementsByTagName("content").item(0);
-                if (content != null) {
-                    Element items = (Element) content.getElementsByTagName("items").item(0);
-                    if (items != null) {
-                        Element tabs = (Element) items.getElementsByTagName("tabs").item(0);
-                        if (tabs != null) {
-                            Element tabsItems = (Element) tabs.getElementsByTagName("items").item(0);
-                            if (tabsItems != null) {
-                                Element tab1 = (Element) tabsItems.getElementsByTagName("tab1").item(0);
-                                if (tab1 != null) {
-                                    Element tabItems = (Element) tab1.getElementsByTagName("items").item(0);
-                                    if (tabItems != null) {
-                                        NodeList fieldNodes = tabItems.getChildNodes();
-                                        for (int i = 0; i < fieldNodes.getLength(); i++) {
-                                            Node node = fieldNodes.item(i);
-                                            if (node instanceof Element elem) {
-                                                fields.add(parseField(elem));
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+            if (fields.isEmpty() && superType != null) {
+                fields.addAll(loadFieldsFromSuperType(superType, projectName));
             }
         } catch (Exception e) {
             log.error("Failed to load component {}", componentName, e);
@@ -257,6 +229,68 @@ public class ComponentServiceImpl implements ComponentService {
         }
 
         return new ComponentField(fieldName, fieldLabel, fieldType, nested, options);
+    }
+
+    private List<ComponentField> parseDialogFile(File dialogXml) {
+        List<ComponentField> fields = new ArrayList<>();
+        try {
+            if (!dialogXml.exists()) {
+                return fields;
+            }
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(false);
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document doc = builder.parse(dialogXml);
+
+            Element root = doc.getDocumentElement();
+            Element content = (Element) root.getElementsByTagName("content").item(0);
+            if (content != null) {
+                Element items = (Element) content.getElementsByTagName("items").item(0);
+                if (items != null) {
+                    Element tabs = (Element) items.getElementsByTagName("tabs").item(0);
+                    if (tabs != null) {
+                        Element tabsItems = (Element) tabs.getElementsByTagName("items").item(0);
+                        if (tabsItems != null) {
+                            Element tab1 = (Element) tabsItems.getElementsByTagName("tab1").item(0);
+                            if (tab1 != null) {
+                                Element tabItems = (Element) tab1.getElementsByTagName("items").item(0);
+                                if (tabItems != null) {
+                                    NodeList fieldNodes = tabItems.getChildNodes();
+                                    for (int i = 0; i < fieldNodes.getLength(); i++) {
+                                        Node node = fieldNodes.item(i);
+                                        if (node instanceof Element elem) {
+                                            fields.add(parseField(elem));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to parse dialog file {}", dialogXml.getPath(), e);
+        }
+        return fields;
+    }
+
+    private List<ComponentField> loadFieldsFromSuperType(String superType, String projectName) {
+        try {
+            if (superType.startsWith("/apps/")) {
+                File file = new File(PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root" + superType
+                        + "/_cq_dialog/.content.xml");
+                return parseDialogFile(file);
+            } else {
+                PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+                Resource res = resolver.getResource("classpath:/aem-components/" + superType + "/_cq_dialog/.content.xml");
+                if (res.exists()) {
+                    return parseDialogFile(res.getFile());
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to load fields for super type {}", superType, e);
+        }
+        return new ArrayList<>();
     }
 
     @Override
