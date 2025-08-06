@@ -224,7 +224,9 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }, 400);
 
-  componentNameInput.addEventListener('input', checkComponentNameAvailability);
+  if (!window.editMode) {
+    componentNameInput.addEventListener('input', checkComponentNameAvailability);
+  }
 
   window.validateFormFields = function () {
     const name = componentNameInput.value.trim();
@@ -240,7 +242,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
     const rows = document.querySelectorAll('#fieldsContainer .field-row, #fieldsContainer .nested-row');
-    if (mode === 'new' && rows.length === 0) {
+    if (!window.editMode && mode === 'new' && rows.length === 0) {
       createButton.disabled = true;
       return;
     }
