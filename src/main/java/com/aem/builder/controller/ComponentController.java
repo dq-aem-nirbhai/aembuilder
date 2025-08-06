@@ -3,6 +3,8 @@ package com.aem.builder.controller;
 import com.aem.builder.model.DTO.ComponentRequest;
 import com.aem.builder.model.Enum.FieldType;
 import com.aem.builder.service.ComponentService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -85,6 +87,7 @@ public class ComponentController {
         model.addAttribute("fieldTypes", sortedByKey);
         model.addAttribute("componentGroups", componentService.getComponentGroups(project));
         model.addAttribute("editMode", false);
+        model.addAttribute("componentDataJson", "{}");
         // Components that can be extended (core components + existing ones)
         // Use a LinkedHashSet to avoid duplicates while preserving order
         Set<String> available = new LinkedHashSet<>();
@@ -140,6 +143,13 @@ public class ComponentController {
         }
         model.addAttribute("availableComponents", compMap);
         model.addAttribute("componentData", component);
+        String componentJson = "{}";
+        try {
+            componentJson = new ObjectMapper().writeValueAsString(component);
+        } catch (JsonProcessingException e) {
+            log.error("Error serializing component data", e);
+        }
+        model.addAttribute("componentDataJson", componentJson);
         return "create-component";
     }
 

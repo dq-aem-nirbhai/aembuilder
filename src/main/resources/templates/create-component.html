@@ -106,7 +106,7 @@
 </footer>
 <script th:inline="javascript">
   window.editMode = [[${editMode}]];
-  window.componentData = /*[[${componentData}]]*/ {};
+  window.componentData = JSON.parse(/*[[${componentDataJson}]]*/ '{}');
 </script>
 </body>
 </html>
