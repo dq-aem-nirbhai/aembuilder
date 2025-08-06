@@ -30,7 +30,9 @@ public class PolicyServiceImpl implements PolicyService {
 
     private DocumentBuilder newBuilder() {
         try {
-            return DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
+            return factory.newDocumentBuilder();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -69,15 +71,36 @@ public class PolicyServiceImpl implements PolicyService {
             }
             Document policyDoc = newBuilder().parse(policyFile);
             Element polRoot = policyDoc.getDocumentElement();
+
+            // First try attribute-based format: cq:allowedComponents="[a,b]"
             String allowed = polRoot.getAttribute("cq:allowedComponents");
-            if (allowed == null || allowed.isBlank()) {
+            if (allowed != null && !allowed.isBlank()) {
+                allowed = allowed.replace("[", "").replace("]", "");
+                return Arrays.stream(allowed.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .collect(Collectors.toList());
+            }
+
+            // Fallback: check child node representation
+            Element allowedEl = getChild(polRoot, "cq:allowedComponents");
+            if (allowedEl == null) {
+                allowedEl = getChild(polRoot, "allowedComponents");
+            }
+            if (allowedEl == null) {
                 return List.of();
             }
-            allowed = allowed.replace("[", "").replace("]", "");
-            return Arrays.stream(allowed.split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .collect(Collectors.toList());
+            List<String> components = new ArrayList<>();
+            NodeList comps = allowedEl.getElementsByTagName("*");
+            for (int i = 0; i < comps.getLength(); i++) {
+                Element comp = (Element) comps.item(i);
+                if (comp.hasAttribute("sling:resourceType")) {
+                    components.add(comp.getAttribute("sling:resourceType"));
+                } else if (comp.hasAttribute("component")) {
+                    components.add(comp.getAttribute("component"));
+                }
+            }
+            return components;
         } catch (Exception e) {
             log.error("Failed to read allowed components", e);
             return List.of();
