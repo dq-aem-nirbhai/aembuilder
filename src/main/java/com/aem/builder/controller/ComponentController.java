@@ -110,6 +110,7 @@ public class ComponentController {
                                         @PathVariable String projectName,
                                         Model model) {
         ComponentRequest component = componentService.loadComponent(projectName, componentName);
+        Map<String, String> sources = componentService.loadComponentSources(projectName, componentName);
         model.addAttribute("projectName", projectName);
 
         var typeResourceMap = FieldType.getTypeResourceMap();
@@ -140,6 +141,8 @@ public class ComponentController {
         }
         model.addAttribute("availableComponents", compMap);
         model.addAttribute("componentData", component);
+        model.addAttribute("componentHtml", sources.getOrDefault("html", ""));
+        model.addAttribute("componentJava", sources.getOrDefault("java", ""));
         return "create-component";
     }
 

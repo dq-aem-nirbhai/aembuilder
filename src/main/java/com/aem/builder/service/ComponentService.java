@@ -31,6 +31,8 @@ public interface ComponentService {
 
     ComponentRequest loadComponent(String projectName, String componentName);
 
+    Map<String, String> loadComponentSources(String projectName, String componentName);
+
     void updateComponent(String projectName, ComponentRequest request);
 
     //component checking

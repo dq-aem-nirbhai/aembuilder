@@ -98,6 +98,14 @@
     <!-- Create Component Button -->
     <button type="submit" class="btn btn-primary" id="createButton" th:text="${editMode} ? 'Update Component' : 'Create Component'" disabled>Create Component</button>
   </form>
+
+  <div th:if="${editMode}" class="mt-4">
+    <h5>Component HTL</h5>
+    <pre class="bg-light p-3 overflow-auto" th:text="${componentHtml}"></pre>
+
+    <h5 class="mt-3">Component Java</h5>
+    <pre class="bg-light p-3 overflow-auto" th:text="${componentJava}"></pre>
+  </div>
 </div>
 
 <!-- Footer -->
