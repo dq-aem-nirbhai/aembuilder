@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -165,15 +166,18 @@ public class ComponentServiceImpl implements ComponentService {
                         if (tabs != null) {
                             Element tabsItems = (Element) tabs.getElementsByTagName("items").item(0);
                             if (tabsItems != null) {
-                                Element tab1 = (Element) tabsItems.getElementsByTagName("tab1").item(0);
-                                if (tab1 != null) {
-                                    Element tabItems = (Element) tab1.getElementsByTagName("items").item(0);
-                                    if (tabItems != null) {
-                                        NodeList fieldNodes = tabItems.getChildNodes();
-                                        for (int i = 0; i < fieldNodes.getLength(); i++) {
-                                            Node node = fieldNodes.item(i);
-                                            if (node instanceof Element elem) {
-                                                fields.add(parseField(elem));
+                                NodeList tabNodes = tabsItems.getChildNodes();
+                                for (int t = 0; t < tabNodes.getLength(); t++) {
+                                    Node tabNode = tabNodes.item(t);
+                                    if (tabNode instanceof Element tabElement) {
+                                        Element tabItems = (Element) tabElement.getElementsByTagName("items").item(0);
+                                        if (tabItems != null) {
+                                            NodeList fieldNodes = tabItems.getChildNodes();
+                                            for (int i = 0; i < fieldNodes.getLength(); i++) {
+                                                Node node = fieldNodes.item(i);
+                                                if (node instanceof Element elem) {
+                                                    fields.add(parseField(elem));
+                                                }
                                             }
                                         }
                                     }
@@ -194,6 +198,44 @@ public class ComponentServiceImpl implements ComponentService {
         req.setSuperType(superType);
         req.setFields(fields);
         return req;
+    }
+
+    @Override
+    public Map<String, String> loadComponentSources(String projectName, String componentName) {
+        Map<String, String> sources = new HashMap<>();
+        Path htmlPath = Paths.get(PROJECTS_DIR, projectName,
+                "ui.apps/src/main/content/jcr_root/apps", projectName,
+                "components", componentName, componentName + ".html");
+        if (Files.exists(htmlPath)) {
+            try {
+                sources.put("html", FileUtils.readFileToString(htmlPath.toFile(), StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                log.error("Failed to read component html for {}", componentName, e);
+            }
+        }
+
+        Path javaRoot = Paths.get(PROJECTS_DIR, projectName, "core/src/main/java");
+        String modelFile = capitalize(componentName) + "Model.java";
+        try (Stream<Path> paths = Files.walk(javaRoot)) {
+            paths.filter(Files::isRegularFile)
+                    .filter(p -> p.getFileName().toString().equals(modelFile))
+                    .findFirst()
+                    .ifPresent(p -> {
+                        try {
+                            sources.put("java", FileUtils.readFileToString(p.toFile(), StandardCharsets.UTF_8));
+                        } catch (IOException e) {
+                            log.error("Failed to read component model for {}", componentName, e);
+                        }
+                    });
+        } catch (IOException e) {
+            log.error("Failed to locate model file for {}", componentName, e);
+        }
+        return sources;
+    }
+
+    private String capitalize(String input) {
+        return (input == null || input.isEmpty()) ? input
+                : input.substring(0, 1).toUpperCase() + input.substring(1);
     }
 
     @Override
