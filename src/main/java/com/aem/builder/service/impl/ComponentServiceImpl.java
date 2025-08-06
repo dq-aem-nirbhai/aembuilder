@@ -222,6 +222,10 @@ public class ComponentServiceImpl implements ComponentService {
         String fieldName = nameAttr.startsWith("./") ? nameAttr.substring(2) : nameAttr;
         String resourceType = elem.getAttribute("sling:resourceType");
         String fieldType = getFieldTypeFromResource(resourceType);
+        String multipleAttr = Optional.ofNullable(elem.getAttribute("multiple")).orElse("");
+        if ("select".equals(fieldType) && "true".equalsIgnoreCase(multipleAttr.replace("{Boolean}", ""))) {
+            fieldType = "multiselect";
+        }
 
         List<OptionItem> options = null;
         List<ComponentField> nested = null;

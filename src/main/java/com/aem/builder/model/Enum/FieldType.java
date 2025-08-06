@@ -11,7 +11,7 @@ public enum FieldType {
     CHECKBOXGROUP("checkboxgroup", "granite/ui/components/coral/foundation/form/checkboxgroup"),
     RADIOGROUP("radiogroup", "granite/ui/components/coral/foundation/form/radiogroup"),
     SELECT("select", "granite/ui/components/coral/foundation/form/select"),
-    MULTISELECT("multiselect", "granite/ui/components/coral/foundation/form/multifield"),
+    MULTISELECT("multiselect", "granite/ui/components/coral/foundation/form/select"),
     PATHFIELD("pathfield", "granite/ui/components/coral/foundation/form/pathfield"),
     AUTOCOMPLETE("autocomplete", "granite/ui/components/coral/foundation/form/autocomplete"),
     DATEPICKER("datepicker", "granite/ui/components/coral/foundation/form/datepicker"),
