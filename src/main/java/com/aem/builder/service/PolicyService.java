@@ -14,7 +14,7 @@ public interface PolicyService {
      * Fetch existing policies for a given component resource type.
      * Key of map is policy id (folder name).
      */
-    Map<String, PolicyModel> getPolicies(String project, String componentResourceType);
+    Map<String, PolicyModel>  getPolicies(String project, String component);
 
     /**
      * Save or update a policy and update template mappings.
