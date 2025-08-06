@@ -43,25 +43,52 @@ public class PolicyServiceImpl implements PolicyService {
     @Override
     public List<String> getAllowedComponents(String project, String template) {
         try {
-            String mappingPath = buildConfPath(project) + "/settings/wcm/templates/" + template + "/policies/.content.xml";
+            String base = buildConfPath(project) + "/settings/wcm/templates/" + template;
+            String structurePath = base + "/structure/.content.xml";
+            String containerPath = "root";
+            File structureFile = new File(structurePath);
+            if (structureFile.exists()) {
+                try {
+                    Document structDoc = newBuilder().parse(structureFile);
+                    Element structRoot = structDoc.getDocumentElement();
+                    Element content = getChild(structRoot, "jcr:content");
+                    if (content != null) {
+                        NodeList children = content.getChildNodes();
+                        for (int i = 0; i < children.getLength(); i++) {
+                            if (children.item(i) instanceof Element el) {
+                                String found = findLayoutContainerPath(el, el.getTagName());
+                                if (found != null) {
+                                    containerPath = found;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to parse template structure", e);
+                }
+            }
+
+            String mappingPath = base + "/policies/.content.xml";
             File mappingFile = new File(mappingPath);
             if (!mappingFile.exists()) {
                 return List.of();
             }
             Document doc = newBuilder().parse(mappingFile);
             Element root = doc.getDocumentElement();
-            String policyPath = null;
-            NodeList all = root.getElementsByTagName("*");
-            for (int i = 0; i < all.getLength(); i++) {
-                Element el = (Element) all.item(i);
-                if (el.hasAttribute("cq:policy")) {
-                    policyPath = el.getAttribute("cq:policy");
-                    break;
-                }
-            }
-            if (policyPath == null) {
+            Element content = getChild(root, "jcr:content");
+            if (content == null) {
                 return List.of();
             }
+            Element current = content;
+            for (String seg : containerPath.split("/")) {
+                current = getChild(current, seg);
+                if (current == null) break;
+            }
+            if (current == null || !current.hasAttribute("cq:policy")) {
+                return List.of();
+            }
+            String policyPath = current.getAttribute("cq:policy");
             String policyFilePath = buildConfPath(project) + "/settings/wcm/policies/" + policyPath + "/.content.xml";
             File policyFile = new File(policyFilePath);
             if (!policyFile.exists()) {
@@ -82,6 +109,28 @@ public class PolicyServiceImpl implements PolicyService {
             log.error("Failed to read allowed components", e);
             return List.of();
         }
+    }
+
+    private String findLayoutContainerPath(Element element, String path) {
+        String resourceType = element.getAttribute("sling:resourceType");
+        boolean isContainer = resourceType != null && resourceType.contains("container");
+        boolean editable = element.hasAttribute("editable") && element.getAttribute("editable").contains("true");
+        if (isContainer && editable) {
+            return path;
+        }
+        NodeList children = element.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            if (children.item(i) instanceof Element child) {
+                String found = findLayoutContainerPath(child, path + "/" + child.getTagName());
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        if (isContainer) {
+            return path;
+        }
+        return null;
     }
 
     @Override
