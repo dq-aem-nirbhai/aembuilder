@@ -140,6 +140,8 @@ public class ComponentController {
         }
         model.addAttribute("availableComponents", compMap);
         model.addAttribute("componentData", component);
+        model.addAttribute("htmlCode", componentService.getComponentHtml(projectName, componentName));
+        model.addAttribute("javaCode", componentService.getComponentJava(projectName, componentName));
         return "create-component";
     }
 

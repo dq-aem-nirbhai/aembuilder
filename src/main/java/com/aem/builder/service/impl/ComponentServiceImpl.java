@@ -208,6 +208,43 @@ public class ComponentServiceImpl implements ComponentService {
         FileGenerationUtil.generateAllFiles(projectName, request);
     }
 
+    @Override
+    public String getComponentHtml(String projectName, String componentName) {
+        Path htmlPath = Paths.get(PROJECTS_DIR, projectName, "ui.apps", "src", "main", "content", "jcr_root",
+                "apps", projectName, "components", componentName, componentName + ".html");
+        try {
+            return Files.readString(htmlPath);
+        } catch (IOException e) {
+            log.error("Failed to read HTML for component {}", componentName, e);
+            return "";
+        }
+    }
+
+    @Override
+    public String getComponentJava(String projectName, String componentName) {
+        String modelFileName = capitalize(componentName) + "Model.java";
+        Path javaRoot = Paths.get(PROJECTS_DIR, projectName, "core", "src", "main", "java");
+        try (Stream<Path> paths = Files.walk(javaRoot)) {
+            return paths.filter(p -> p.getFileName().toString().equals(modelFileName)).findFirst()
+                    .map(p -> {
+                        try {
+                            return Files.readString(p);
+                        } catch (IOException e) {
+                            log.error("Failed to read model for component {}", componentName, e);
+                            return "";
+                        }
+                    }).orElse("");
+        } catch (IOException e) {
+            log.error("Failed to locate model for component {}", componentName, e);
+            return "";
+        }
+    }
+
+    private static String capitalize(String input) {
+        return (input == null || input.isEmpty()) ? input
+                : input.substring(0, 1).toUpperCase() + input.substring(1);
+    }
+
     private String getFieldTypeFromResource(String resourceType) {
         return FieldType.getTypeResourceMap().entrySet().stream()
                 .filter(e -> e.getValue().equals(resourceType))
