@@ -28,6 +28,6 @@ public class HomeController {
         model.addAttribute("projects", projects);
         return "dashboard";
     }
-
+    
 
 }

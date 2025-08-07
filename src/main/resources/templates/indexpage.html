@@ -215,7 +215,8 @@
   <div class="text-content">
     <h1>Supercharge Your<br/>AEM Development<br/>with One‑Click Project Generation</h1>
     <p class="lead">Skip the terminal. No need to remember Maven commands.<br/>Fill in a few details and instantly generate fully structured AEM projects.</p>
-    <a href="/dashboard" class="btn btn-primary-custom" onclick="handleClick(event)">Create Project</a>
+    <a href="/create" class="btn btn-primary-custom" onclick="handleClick(event)">Get Started -></a>
+    <a href="/dashboard" class="btn btn-primary-custom" onclick="handleNav(event)">Go to Dashboard -></a>
   </div>
 
   <div class="icon-orbit" id="iconOrbit">
@@ -235,8 +236,16 @@
     event.preventDefault();
     mergeIcons();
     setTimeout(() => {
+      window.location.href = "/create";
+    });
+  }
+
+  function handleNav(event) {
+    event.preventDefault();
+    mergeIcons();
+    setTimeout(() => {
       window.location.href = "/dashboard";
-    }, 4000);
+    });
   }
 
   function mergeIcons() {

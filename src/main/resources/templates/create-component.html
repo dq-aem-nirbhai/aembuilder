@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
+  <meta charset="UTF-8">
   <title>Create AEM Component</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
   <link rel="stylesheet" href="/css/create-component.css">
@@ -12,68 +15,93 @@
 <div th:replace="fragments/navbar :: navbar"></div>
 
 <div class="container mt-4 mb-5">
-  <h2 class="mb-4 animate__animated animate__fadeInDown" th:text="${editMode} ? 'Edit AEM Component for ' + ${projectName} : 'Create AEM Component for ' + ${projectName}"></h2>
+  <h2 class="mb-4 animate__animated animate__fadeInDown" 
+      th:text="${editMode} ? 'Edit AEM Component for ' + ${projectName} : 'Create AEM Component for ' + ${projectName}">
+    Create AEM Component
+  </h2>
 
   <a th:href="@{'/' + ${projectName}}" class="btn btn-outline-secondary mb-3">← Back to Deploy Page</a>
 
+  <!-- Success Message -->
   <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert">
     <span th:text="${message}"></span>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
+
+  <!-- Error Message -->
   <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
     <span th:text="${error}"></span>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 
-  <form id="componentForm" th:action="${editMode} ? @{'/component/update/' + ${projectName}} : @{'/component/create/' + ${projectName}}" method="post">
-    <!-- Hidden input to pass projectName into JS -->
-    <input type="hidden" id="projectName" th:value="${projectName}">
+  <!-- Component Form -->
+  <form id="componentForm"
+        th:action="${editMode} ? @{'/component/update/' + ${projectName}} : @{'/component/create/' + ${projectName}}"
+        method="post">
 
+    <input type="hidden" id="projectName" name="projectName" th:value="${projectName}">
+
+    <!-- Component Name -->
     <div class="mb-3">
-       <h2 class="mb-4 text-primary" style="display: flex; justify-content: center;">Create AEM Component for  <span th:text="${projectName}"></span></h2>
-      <label class="form-label">Component Name</label>
-      <input type="text" class="form-control" name="componentName" id="componentName" th:value="${componentData?.componentName}" th:readonly="${editMode}" required>
-      <div id="nameError" class="mt-1" style="font-size: 0.9rem;"></div>
+      <label for="componentName" class="form-label">Component Name</label>
+      <input type="text"
+             class="form-control"
+             name="componentName"
+             id="componentName"
+             th:value="${componentData != null} ? ${componentData.componentName} : ''"
+             th:readonly="${editMode}"
+             required>
+      <div id="nameError" class="mt-1 text-danger" style="font-size: 0.9rem;"></div>
     </div>
 
+    <!-- Component Group -->
     <div class="mb-3">
-      <label class="form-label">Component Group</label>
+      <label for="componentGroup" class="form-label">Component Group</label>
       <select class="form-select" name="componentGroup" id="componentGroup" required>
         <option value="">-- Select Component Group --</option>
         <option th:each="group : ${componentGroups}"
                 th:value="${group}"
                 th:text="${group}"
-                th:selected="${group == componentData?.componentGroup}"></option>
+                th:selected="${componentData?.componentGroup == group}">
+        </option>
       </select>
     </div>
 
+    <!-- Creation Mode -->
     <div class="mb-3">
-      <label class="form-label">Creation Mode</label>
+      <label for="creationMode" class="form-label">Creation Mode</label>
       <select class="form-select" id="creationMode" name="creationMode">
         <option value="new">New Component</option>
         <option value="extend">Extend Existing Component</option>
       </select>
     </div>
 
-    <div class="mb-3" id="extendsComponentDiv" style="display:none">
-      <label class="form-label">Extends Component</label>
-      <select class="form-select" name="superType" id="superType" th:value="${componentData?.superType}">
+    <!-- Extends Component -->
+    <div class="mb-3" id="extendsComponentDiv" style="display: none;">
+      <label for="superType" class="form-label">Extends Component</label>
+      <select class="form-select" name="superType" id="superType"
+              th:value="${componentData?.superType}">
         <option value="">-- Select Component --</option>
-        <option th:each="entry : ${availableComponents.entrySet()}" th:value="${entry.key}" th:text="${entry.value}"></option>
+        <option th:each="entry : ${availableComponents.entrySet()}"
+                th:value="${entry.key}"
+                th:text="${entry.value}">
+        </option>
       </select>
     </div>
 
+    <!-- Dialog Fields -->
     <div id="fieldsContainer" class="mb-3">
       <label class="form-label">Dialog Fields</label>
     </div>
 
-    <div id="fieldRowTemplate" class="field-row border p-2 mb-3 bg-white rounded shadow-sm" style="display:none">
+    <!-- Field Row Template -->
+    <div id="fieldRowTemplate" class="field-row border p-2 mb-3 bg-white rounded shadow-sm" style="display: none;">
       <div class="row g-2 align-items-end">
         <div class="col">
-          <input type="text" class="form-control fieldLabel" placeholder="Field Label" oninput="autoFillFieldName(this)" >
+          <input type="text" class="form-control fieldLabel" placeholder="Field Label" oninput="autoFillFieldName(this)">
         </div>
         <div class="col">
-          <input type="text" class="form-control fieldName" placeholder="Field Name" >
+          <input type="text" class="form-control fieldName" placeholder="Field Name">
         </div>
         <div class="col">
           <select class="form-select fieldType" onchange="handleFieldTypeChange(this)">
@@ -87,65 +115,32 @@
       <div class="nested-container mt-2"></div>
     </div>
 
-    <button type="button" class="btn btn-outline-primary mb-3" onclick="addFieldRow()">+ Add Field</button><br>
+    <!-- Add Field Button -->
+    <button type="button" class="btn btn-outline-primary mb-3" onclick="addFieldRow()">+ Add Field</button>
 
-    <!-- Create Component Button -->
-    <button type="submit" class="btn btn-primary" id="createButton" th:text="${editMode} ? 'Update Component' : 'Create Component'" disabled>Create Component</button>
+    <!-- Submit Button -->
+    <button type="submit" class="btn btn-primary" id="createButton"
+            th:text="${editMode} ? 'Update Component' : 'Create Component'" disabled>
+      Create Component
+    </button>
   </form>
 </div>
 
+<!-- Footer -->
 <footer>
   <div th:replace="fragments/navbar :: footer"></div>
 </footer>
+
+<!-- Inline JS Variables -->
 <script th:inline="javascript">
-  window.editMode = [[${editMode}]];
+  /*<![CDATA[*/
+
+  window.editMode = /*[[${editMode}]]*/ false;
+
+
   window.componentData = /*[[${componentData}]]*/ {};
+  /*]]>*/
 </script>
+<script src="/js/create-component.js"></script>
 </body>
 </html>
-<style>
-  .field-row.animate__animated {
-  animation-duration: 0.5s;
-}
-
-.field-row.removed {
-  animation: fadeOut 0.3s forwards;
-}
-
-@keyframes fadeOut {
-  from { opacity: 1; height: auto; }
-  to { opacity: 0; height: 0; margin: 0; padding: 0; overflow: hidden; }
-}
-
-input.is-invalid {
-  border-color: #dc3545;
-}
-
-footer {
-  position: fixed;
-  bottom: 0;
-  width: 100%;
-  background-color: #f8f9fa;
-  padding: 10px 0;
-  text-align: center;
-  box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-}
-
-.nested-row {
-  border: 1px dashed #ced4da;
-  padding: 10px;
-}
-
-select.form-select option {
-  text-transform: capitalize;
-}
-
-.card {
-  animation: fadeInUp 0.6s;
-}
-
-#nameError {
-  font-size: 0.9rem;
-}
-
-</style>
