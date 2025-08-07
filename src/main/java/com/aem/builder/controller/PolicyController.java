@@ -1,6 +1,7 @@
 package com.aem.builder.controller;
 
-import com.aem.builder.model.policy.PolicyModel;
+import com.aem.builder.model.ComponentInfo;
+import com.aem.builder.model.PolicyModel;
 import com.aem.builder.service.PolicyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,9 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Controller
@@ -27,9 +26,11 @@ public class PolicyController {
                                  @PathVariable String template,
                                  Model model) {
         List<String> components = policyService.getAllowedComponents(project, template);
+        List<ComponentInfo> componentInfos = policyService.checkDesignDialogs(project, components);
         model.addAttribute("projectName", project);
         model.addAttribute("templateName", template);
         model.addAttribute("components", components);
+        model.addAttribute("components", componentInfos); // updated
         return "template-components";
     }
 
@@ -41,10 +42,7 @@ public class PolicyController {
                                    @PathVariable String template,
                                    @RequestParam("resource") String component,
                                    Model model) {
-        Map<String, PolicyModel>    policies = policyService.getPolicies(project, component);
-
-
-        log.info("Policies>>....>>{}");
+        List<PolicyModel>    policies = policyService.getPolicies(project, component);
         model.addAttribute("projectName", project);
         model.addAttribute("templateName", template);
         model.addAttribute("component", component);
@@ -57,6 +55,7 @@ public class PolicyController {
     public PolicyModel loadPolicy(@PathVariable String project,
                                   @RequestParam String resource,
                                   @RequestParam String policyId) {
+        log.info("......{}",policyService.loadPolicy(project, resource, policyId));
         return policyService.loadPolicy(project, resource, policyId);
     }
 
@@ -66,6 +65,7 @@ public class PolicyController {
                                              @PathVariable String template,
                                              @RequestParam String resource,
                                              @RequestBody PolicyModel policy) {
+
         String id = policyService.savePolicy(project, template, resource, policy);
         return ResponseEntity.ok(id);
     }

@@ -1,4 +1,4 @@
-package com.aem.builder.model.policy;
+package com.aem.builder.model;
 
 import lombok.Data;
 
