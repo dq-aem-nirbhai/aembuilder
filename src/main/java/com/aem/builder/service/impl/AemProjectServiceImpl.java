@@ -14,11 +14,16 @@ import org.w3c.dom.NodeList;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @Service
 @AllArgsConstructor
@@ -157,5 +162,31 @@ public class AemProjectServiceImpl implements AemProjectService {
             }
         }
         return projects;
+    }
+
+    @Override
+    public byte[] getProjectZip(String projectName) throws IOException {
+        String projectPath = PROJECTS_DIR + File.separator + projectName;
+        Path sourceDir = Paths.get(projectPath);
+        if (!Files.exists(sourceDir)) {
+            throw new IOException("Project not found: " + projectName);
+        }
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ZipOutputStream zos = new ZipOutputStream(baos)) {
+            Files.walk(sourceDir)
+                    .filter(path -> !Files.isDirectory(path))
+                    .forEach(path -> {
+                        ZipEntry zipEntry = new ZipEntry(sourceDir.relativize(path).toString().replace("\\", "/"));
+                        try {
+                            zos.putNextEntry(zipEntry);
+                            Files.copy(path, zos);
+                            zos.closeEntry();
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+            zos.finish();
+            return baos.toByteArray();
+        }
     }
 }
