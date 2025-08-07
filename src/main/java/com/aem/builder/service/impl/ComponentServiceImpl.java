@@ -155,33 +155,7 @@ public class ComponentServiceImpl implements ComponentService {
                 factory.setNamespaceAware(false);
                 DocumentBuilder builder = factory.newDocumentBuilder();
                 Document doc = builder.parse(dialogXml);
-
-                Element root = doc.getDocumentElement();
-                Element content = (Element) root.getElementsByTagName("content").item(0);
-                if (content != null) {
-                    Element items = (Element) content.getElementsByTagName("items").item(0);
-                    if (items != null) {
-                        Element tabs = (Element) items.getElementsByTagName("tabs").item(0);
-                        if (tabs != null) {
-                            Element tabsItems = (Element) tabs.getElementsByTagName("items").item(0);
-                            if (tabsItems != null) {
-                                Element tab1 = (Element) tabsItems.getElementsByTagName("tab1").item(0);
-                                if (tab1 != null) {
-                                    Element tabItems = (Element) tab1.getElementsByTagName("items").item(0);
-                                    if (tabItems != null) {
-                                        NodeList fieldNodes = tabItems.getChildNodes();
-                                        for (int i = 0; i < fieldNodes.getLength(); i++) {
-                                            Node node = fieldNodes.item(i);
-                                            if (node instanceof Element elem) {
-                                                fields.add(parseField(elem));
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                collectFields(doc.getDocumentElement(), fields);
             }
         } catch (Exception e) {
             log.error("Failed to load component {}", componentName, e);
@@ -206,6 +180,32 @@ public class ComponentServiceImpl implements ComponentService {
             log.warn("Could not clean component folder before update", e);
         }
         FileGenerationUtil.generateAllFiles(projectName, request);
+    }
+
+    @Override
+    public void deleteComponent(String projectName, String componentName) {
+        String compPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName
+                + "/components/" + componentName;
+        try {
+            FileUtils.deleteDirectory(new File(compPath));
+        } catch (IOException e) {
+            log.error("Failed to delete component folder {}", componentName, e);
+        }
+
+        String modelFileName = capitalize(componentName) + "Model.java";
+        Path javaRoot = Paths.get(PROJECTS_DIR, projectName, "core", "src", "main", "java");
+        try (Stream<Path> paths = Files.walk(javaRoot)) {
+            paths.filter(p -> p.getFileName().toString().equals(modelFileName))
+                    .forEach(p -> {
+                        try {
+                            Files.deleteIfExists(p);
+                        } catch (IOException ex) {
+                            log.error("Failed to delete model for component {}", componentName, ex);
+                        }
+                    });
+        } catch (IOException e) {
+            log.error("Failed to locate model for component {}", componentName, e);
+        }
     }
 
     @Override
@@ -253,12 +253,31 @@ public class ComponentServiceImpl implements ComponentService {
                 .orElse("");
     }
 
+    private String determineFieldType(Element elem) {
+        String resourceType = elem.getAttribute("sling:resourceType");
+        String type = getFieldTypeFromResource(resourceType);
+        if ("granite/ui/components/coral/foundation/form/multifield".equals(resourceType)) {
+            type = "multifield";
+        } else if ("granite/ui/components/coral/foundation/form/select".equals(resourceType)
+                && "true".equalsIgnoreCase(elem.getAttribute("multiple"))) {
+            type = "multiselect";
+        }
+        if ("cq/gui/components/authoring/dialog/fileupload".equals(resourceType)) {
+            String node = elem.getNodeName().toLowerCase();
+            if (node.contains("file")) {
+                type = "fileupload";
+            } else if (node.contains("image")) {
+                type = "image";
+            }
+        }
+        return type;
+    }
+
     private ComponentField parseField(Element elem) {
         String fieldLabel = elem.getAttribute("fieldLabel");
         String nameAttr = elem.getAttribute("name");
         String fieldName = nameAttr.startsWith("./") ? nameAttr.substring(2) : nameAttr;
-        String resourceType = elem.getAttribute("sling:resourceType");
-        String fieldType = getFieldTypeFromResource(resourceType);
+        String fieldType = determineFieldType(elem);
 
         List<OptionItem> options = null;
         List<ComponentField> nested = null;
@@ -294,6 +313,21 @@ public class ComponentServiceImpl implements ComponentService {
         }
 
         return new ComponentField(fieldName, fieldLabel, fieldType, nested, options);
+    }
+
+    private void collectFields(Element parent, List<ComponentField> fields) {
+        NodeList children = parent.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node node = children.item(i);
+            if (node instanceof Element elem) {
+                String type = determineFieldType(elem);
+                if (!type.isEmpty()) {
+                    fields.add(parseField(elem));
+                } else {
+                    collectFields(elem, fields);
+                }
+            }
+        }
     }
 
     @Override

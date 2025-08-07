@@ -175,6 +175,20 @@ public class ComponentController {
         }
     }
 
+    @PostMapping("/component/delete/{project}")
+    public String deleteComponent(@PathVariable String project,
+                                  @RequestParam String componentName,
+                                  RedirectAttributes redirectAttributes) {
+        try {
+            componentService.deleteComponent(project, componentName);
+            redirectAttributes.addFlashAttribute("message", "Component deleted successfully!");
+        } catch (Exception e) {
+            log.error("Error deleting component", e);
+            redirectAttributes.addFlashAttribute("error", "Failed to delete component: " + e.getMessage());
+        }
+        return "redirect:/" + project;
+    }
+
 //component checking
     @GetMapping("/check-componentName/{projectName}")
     public ResponseEntity<Boolean> checkComponentNameExists(
