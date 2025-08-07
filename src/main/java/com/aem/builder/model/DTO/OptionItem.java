@@ -8,6 +8,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class OptionItem {
-    private String value;
     private String text;
+    private String value;
 }

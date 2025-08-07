@@ -269,12 +269,28 @@ public class ComponentServiceImpl implements ComponentService {
                 : input.substring(0, 1).toUpperCase() + input.substring(1);
     }
 
-    private String getFieldTypeFromResource(String resourceType) {
+   /* private String getFieldTypeFromResource(String resourceType) {
         return FieldType.getTypeResourceMap().entrySet().stream()
                 .filter(e -> e.getValue().equals(resourceType))
                 .map(Map.Entry::getKey)
                 .findFirst()
                 .orElse("");
+    }*/
+
+    private String getFieldTypeFromResource(String resourceType) {
+        if (resourceType == null || resourceType.isEmpty()) {
+            return "";
+        }
+
+        // Reverse lookup directly from FieldType enum with control over precedence
+        String fieldType = "";
+        for (FieldType ft : FieldType.values()) {
+            if (ft.getResourceType().equals(resourceType)) {
+                // later matches overwrite earlier ones
+                fieldType = ft.getType();
+            }
+        }
+        return fieldType;
     }
 
     private String determineFieldType(Element elem) {
@@ -300,8 +316,27 @@ public class ComponentServiceImpl implements ComponentService {
     private ComponentField parseField(Element elem) {
         String fieldLabel = elem.getAttribute("fieldLabel");
         String nameAttr = elem.getAttribute("name");
-        String fieldName = nameAttr.startsWith("./") ? nameAttr.substring(2) : nameAttr;
-        String fieldType = determineFieldType(elem);
+        String fileRefAttr = elem.getAttribute("fileReferenceParameter");
+        String resourceType = elem.getAttribute("sling:resourceType");
+
+// determine logical field type from resourceType (uses your existing mapping)
+        String fieldType = getFieldTypeFromResource(resourceType);
+
+// Decide fieldName:
+        String fieldName = null;
+
+        if ("fileupload".equals(fieldType)) {
+            if (fileRefAttr != null && !fileRefAttr.isBlank()) {
+                fieldName = fileRefAttr.startsWith("./") ? fileRefAttr.substring(2) : fileRefAttr;
+            } else if (nameAttr != null && !nameAttr.isBlank()) {
+                fieldName = nameAttr.startsWith("./") ? nameAttr.substring(2) : nameAttr;
+            }
+        } else {
+            if (nameAttr != null && !nameAttr.isBlank()) {
+                fieldName = nameAttr.startsWith("./") ? nameAttr.substring(2) : nameAttr;
+            }
+        }
+
 
         List<OptionItem> options = null;
         List<ComponentField> nested = null;
@@ -336,7 +371,7 @@ public class ComponentServiceImpl implements ComponentService {
             }
         }
 
-        return new ComponentField(fieldName, fieldLabel, fieldType, nested, options);
+        return new ComponentField(fieldLabel, fieldName, fieldType, nested, options);
     }
 
     private void collectFields(Element parent, List<ComponentField> fields) {
