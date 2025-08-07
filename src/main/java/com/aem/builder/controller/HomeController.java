@@ -17,11 +17,17 @@ public class HomeController {
     private final AemProjectServiceImpl aemProjectService;
 
     @GetMapping("/")
+    public String index(Model model)  {
+
+        return "indexpage";
+    }
+
+    @GetMapping("/dashboard")
     public String test(Model model) throws IOException {
         List<ProjectDetails> projects = aemProjectService.getAllProjects();
         model.addAttribute("projects", projects);
         return "dashboard";
     }
-
+    
 
 }

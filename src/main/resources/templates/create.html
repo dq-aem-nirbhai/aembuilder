@@ -1,61 +1,153 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-  <link rel="stylesheet" href="/css/create.css">
-  <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.0/css/bootstrap.min.css}" />
-  <script th:src="@{/webjars/bootstrap/5.3.0/js/bootstrap.bundle.min.js}"></script>
-
+  <meta charset="UTF-8" />
   <title>Create AEM Project</title>
+
+  <!-- Bootstrap + Animate.css -->
+    <link rel="stylesheet" href="/css/create.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" />
+  <script th:src="@{/webjars/bootstrap/5.3.0/js/bootstrap.bundle.min.js}"></script>
 </head>
-<body>
-<h2>Enter AEM Project Details</h2>
+<body class="d-flex flex-column min-vh-100">
 
-<form action="/save" method="post" th:object="${aemProjectModel}">
-  <label>Project Name:</label>
-  <input type="text" th:field="*{projectName}" required/>
-  <label>AEM Version:</label>
-  <select th:field="*{version}" required>
-    <option value="">-- Select AEM Version --</option>
-    <option value="6.5.0">6.5.0</option>
-    <option value="6.5.5">6.5.5</option>
-    <option value="6.5.10">6.5.10</option>
-    <option value="6.5.13">6.5.13</option>
-    <option value="6.5.15">6.5.15</option>
-    <option value="6.5.17">6.5.17</option>
-    <option value="6.5.18">6.5.18</option>
-    <option value="2023.2.12300.20230214T112441Z-230100">2023.2.12300.20230214T112441Z-230100</option>
-  </select>
-  <label>Package Name (groupId):</label>
-  <input type="text" th:field="*{packageName}" required/>
-  <h4>Select Components:</h4>
-  <div>
-    <ul>
-      <li th:each="component : ${componentList}">
-        <!-- <input type="checkbox" name="selectedComponents" th:value="${component}" />-->
-        <input type="checkbox" th:field="*{selectedComponents}" th:value="${component}" />
-        <span th:text="${component}"></span>
-      </li>
-    </ul>
-  </div>
+<!-- Navbar -->
+ 
+<div th:replace="fragments/navbar :: navbar"></div>
+<div class="center-button">
+  <a th:href="@{'/dashboard'}" class="btn btn-outline-secondary">← Back to Dashboard</a>
+</div>
 
-  <!-- Spinner overlay -->
-  <div id="loadingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:1000; align-items:center; justify-content:center;">
-    <div class="spinner-border text-primary" role="status" style="width: 4rem; height: 4rem;">
-      <span class="visually-hidden">Creating...</span>
+<main class="container py-4 animate__animated animate__fadeIn">
+  <form action="/save" method="post" th:object="${aemProjectModel}">
+    <h2>Create AEM Project</h2>
+
+    <div class="flex-row">
+      <div class="flex-column">
+        <label>Project Name:</label>
+        <input type="text" th:field="*{projectName}" id="projectName" required placeholder="Demo" />
+      </div>
+      <div class="flex-column">
+        <label>Package Name (groupId):</label>
+        <input type="text" th:field="*{packageName}" id="packageName" required placeholder="com.aem.demo" />
+      </div>
     </div>
-  </div>
 
-  <h1 th:text="${aemProjectModel.projectName}"></h1>
-  <h2 th:text="${aemProjectModel.version}"></h2>
+    <label>AEM Version:</label>
+    <select th:field="*{version}" required>
+      <option value="">-- Select AEM Version --</option>
+      <option value="6.5.0">6.5.0</option>
+      <option value="6.5.5">6.5.5</option>
+      <option value="6.5.10">6.5.10</option>
+      <option value="6.5.13">6.5.13</option>
+      <option value="6.5.15">6.5.15</option>
+      <option value="6.5.17">6.5.17</option>
+      <option value="6.5.18">6.5.18</option>
+      <option value="2023.2.12300.20230214T112441Z-230100">2023.2.12300</option>
+    </select>
 
-  <button type="submit">Create Project</button>
-</form>
+    <div class="component-wrapper">
+      <label>Components</label>
+      <div class="component-box">
+        <ul id="selectedComponents" class="component-list">
+          <li id="noComponentText">No component selected</li>
+        </ul>
+        <button type="button" class="btn-add" onclick="toggleDropdown()">Add Components...</button>
+      </div>
 
+      <div class="dropdown-section" id="dropdownSection" style="display: none;">
+        <select id="componentDropdown" class="form-select mt-2">
+          <option value="">-- Select Component --</option>
+          <option value="accordion">accordion</option>
+          <option value="image">image</option>
+          <option value="button">button</option>
+          <option value="card">card</option>
+        </select>
+        <button type="button" class="btn-add mt-2" onclick="addComponent()">Add</button>
+      </div>
+    </div>
 
+    <input type="hidden" name="selectedComponents" id="selectedComponentsInput" />
+
+    <div id="loadingOverlay">
+      <div class="spinner-border text-primary" role="status" style="width: 4rem; height: 4rem;">
+        <span class="visually-hidden">Creating...</span>
+      </div>
+    </div>
+
+    <button type="submit">Create Project</button>
+  </form>
+</main>
+
+<!-- Footer -->
+<footer th:replace="fragments/navbar :: footer"></footer>
+
+<!-- JS -->
 <script>
   document.querySelector("form").addEventListener("submit", function () {
     document.getElementById("loadingOverlay").style.display = "flex";
   });
+
+  const projectInput = document.getElementById("projectName");
+  const packageInput = document.getElementById("packageName");
+
+  projectInput.addEventListener("input", function () {
+    let rawValue = this.value.trim();
+    if (rawValue.length > 0) {
+      const capitalized = rawValue.charAt(0).toUpperCase() + rawValue.slice(1);
+      this.value = capitalized;
+      packageInput.value = "com.aem." + capitalized.replace(/\s+/g, '').toLowerCase();
+    } else {
+      packageInput.value = "";
+    }
+  });
+
+  const dropdown = document.getElementById("componentDropdown");
+  const selectedList = document.getElementById("selectedComponents");
+  const hiddenInput = document.getElementById("selectedComponentsInput");
+  const selectedValues = new Set();
+
+  function toggleDropdown() {
+    const section = document.getElementById("dropdownSection");
+    section.style.display = section.style.display === "none" || !section.style.display ? "block" : "none";
+  }
+
+  function addComponent() {
+    const value = dropdown.value;
+    if (value && !selectedValues.has(value)) {
+      selectedValues.add(value);
+
+      const placeholder = document.getElementById("noComponentText");
+      if (placeholder) placeholder.remove();
+
+      const li = document.createElement("li");
+      li.className = "component-item animate__animated animate__fadeIn";
+      li.innerHTML = `${value} <span class="remove-btn" onclick="removeComponent('${value}', this)">×</span>`;
+      selectedList.appendChild(li);
+
+      updateHiddenInput();
+    }
+    dropdown.value = "";
+  }
+
+  function removeComponent(value, element) {
+    selectedValues.delete(value);
+    element.parentElement.remove();
+
+    if (selectedValues.size === 0) {
+      const placeholder = document.createElement("li");
+      placeholder.id = "noComponentText";
+      placeholder.textContent = "No component selected";
+      selectedList.appendChild(placeholder);
+    }
+
+    updateHiddenInput();
+  }
+
+  function updateHiddenInput() {
+    hiddenInput.value = Array.from(selectedValues).join(",");
+  }
 </script>
 </body>
 </html>

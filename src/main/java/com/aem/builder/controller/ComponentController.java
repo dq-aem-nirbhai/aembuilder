@@ -60,14 +60,10 @@ public class ComponentController {
             return "create";
         }
     }
-
-
-
     //component creation
     @GetMapping("/create/{project}")
     public String showComponentForm(@PathVariable String project, Model model) {
         model.addAttribute("projectName", project);
-
 
         var typeResourceMap = FieldType.getTypeResourceMap();
 
