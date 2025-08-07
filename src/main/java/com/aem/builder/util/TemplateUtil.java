@@ -276,5 +276,29 @@ public static String getIntialContentXf(String projectname,String templatename){
                 
                 """.formatted(projectname,templatename,projectname,projectname);
 }
-
+public static String policyForParticularTemplate(String policynode){
+    System.out.println("policy   "+policynode);
+        return """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0" xmlns:cq="http://www.day.com/jcr/cq/1.0" xmlns:jcr="http://www.jcp.org/jcr/1.0" xmlns:nt="http://www.jcp.org/jcr/nt/1.0"
+                    jcr:primaryType="cq:Page">
+                    <jcr:content
+                        cq:lastModified="{Date}2025-08-06T11:26:05.255+05:30"
+                        cq:lastModifiedBy="admin"
+                        cq:policy="nvidia/components/page/policy"
+                        jcr:primaryType="nt:unstructured"
+                        sling:resourceType="wcm/core/components/policies/mappings">
+                        <root
+                            cq:policy="nvidia/components/container/policy_1574694950110"
+                            jcr:primaryType="nt:unstructured"
+                            sling:resourceType="wcm/core/components/policies/mapping">
+                            <container
+                                cq:policy="nvidia/components/container/%s"
+                                jcr:primaryType="nt:unstructured"
+                                sling:resourceType="wcm/core/components/policies/mapping"/>
+                        </root>
+                    </jcr:content>
+                </jcr:root>
+                """.formatted(policynode);
+}
 }

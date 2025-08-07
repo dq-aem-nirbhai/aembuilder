@@ -186,4 +186,39 @@ public class ComponentController {
         return ResponseEntity.ok(isAvailable); // true means name is available
     }
 
+
+
+    @GetMapping("/grouped-components/{projectName}")
+    @ResponseBody
+    public Map<String, List<String>> getComponentsGrouped(@PathVariable String projectName) {
+        System.out.println(componentService.getComponentsByGroup(projectName));
+
+        return componentService.getComponentsByGroup(projectName);
+    }
+    @GetMapping("/policies-components/{projectName}")
+    @ResponseBody
+    public Map<String, List<Map<String, String>>> getGroupedComponents(@PathVariable String projectName) throws IOException {
+        // Fetch grouped components from service
+        Map<String, List<String>> groupedComponents = componentService.getComponentsByGroup( projectName);
+
+        Map<String, List<Map<String, String>>> response = new LinkedHashMap<>();
+
+        for (Map.Entry<String, List<String>> entry : groupedComponents.entrySet()) {
+            String groupName = entry.getKey();
+            List<String> components = entry.getValue();
+
+            List<Map<String, String>> componentList = new ArrayList<>();
+
+            for (String comp : components) {
+                Map<String, String> compObj = new LinkedHashMap<>();
+                compObj.put("name", comp);  // component name
+                compObj.put("path", "/apps/"+projectName+"/components/" + comp); // component path
+                componentList.add(compObj);
+            }
+                response.put(groupName, componentList);
+        }
+
+        return response;
+    }
+
 }
