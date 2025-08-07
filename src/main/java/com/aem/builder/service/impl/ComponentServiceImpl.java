@@ -184,6 +184,8 @@ public class ComponentServiceImpl implements ComponentService {
 
     @Override
     public void deleteComponent(String projectName, String componentName) {
+        List<String> modelFiles = collectModelFiles(projectName, componentName);
+
         String compPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName
                 + "/components/" + componentName;
         try {
@@ -192,10 +194,10 @@ public class ComponentServiceImpl implements ComponentService {
             log.error("Failed to delete component folder {}", componentName, e);
         }
 
-        String modelFileName = capitalize(componentName) + "Model.java";
         Path javaRoot = Paths.get(PROJECTS_DIR, projectName, "core", "src", "main", "java");
+        Set<String> targets = new HashSet<>(modelFiles);
         try (Stream<Path> paths = Files.walk(javaRoot)) {
-            paths.filter(p -> p.getFileName().toString().equals(modelFileName))
+            paths.filter(p -> targets.contains(p.getFileName().toString()))
                     .forEach(p -> {
                         try {
                             Files.deleteIfExists(p);
@@ -205,6 +207,28 @@ public class ComponentServiceImpl implements ComponentService {
                     });
         } catch (IOException e) {
             log.error("Failed to locate model for component {}", componentName, e);
+        }
+    }
+
+    private List<String> collectModelFiles(String projectName, String componentName) {
+        List<String> files = new ArrayList<>();
+        files.add(capitalize(componentName) + "Model.java");
+        ComponentRequest req = loadComponent(projectName, componentName);
+        addMultifieldClasses(req.getFields(), files);
+        return files;
+    }
+
+    private void addMultifieldClasses(List<ComponentField> fields, List<String> files) {
+        if (fields == null) {
+            return;
+        }
+        for (ComponentField field : fields) {
+            if ("multifield".equals(field.getFieldType())) {
+                files.add(capitalize(field.getFieldName()) + ".java");
+                addMultifieldClasses(field.getNestedFields(), files);
+            } else if (field.getNestedFields() != null && !field.getNestedFields().isEmpty()) {
+                addMultifieldClasses(field.getNestedFields(), files);
+            }
         }
     }
 
