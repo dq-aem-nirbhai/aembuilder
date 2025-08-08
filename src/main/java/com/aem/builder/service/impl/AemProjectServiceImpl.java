@@ -193,17 +193,24 @@ public class AemProjectServiceImpl implements AemProjectService {
     @Override
     public void importProject(org.springframework.web.multipart.MultipartFile file) throws IOException {
         Path tempDir = Files.createTempDirectory("aem-import");
-        try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(file.getInputStream())) {
-            java.util.zip.ZipEntry entry;
-            while ((entry = zis.getNextEntry()) != null) {
+        Path tempZip = Files.createTempFile("aem-upload", ".zip");
+        Files.copy(file.getInputStream(), tempZip, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        try (java.util.zip.ZipFile zipFile = new java.util.zip.ZipFile(tempZip.toFile())) {
+            java.util.Enumeration<? extends java.util.zip.ZipEntry> entries = zipFile.entries();
+            while (entries.hasMoreElements()) {
+                java.util.zip.ZipEntry entry = entries.nextElement();
                 Path out = tempDir.resolve(entry.getName());
                 if (entry.isDirectory()) {
                     Files.createDirectories(out);
                 } else {
                     Files.createDirectories(out.getParent());
-                    Files.copy(zis, out);
+                    try (java.io.InputStream is = zipFile.getInputStream(entry)) {
+                        Files.copy(is, out);
+                    }
                 }
             }
+        } finally {
+            Files.deleteIfExists(tempZip);
         }
 
         // Locate project root containing pom.xml and ui.apps structure
