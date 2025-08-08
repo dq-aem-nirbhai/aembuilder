@@ -60,14 +60,10 @@ public class ComponentController {
             return "create";
         }
     }
-
-
-
     //component creation
     @GetMapping("/create/{project}")
     public String showComponentForm(@PathVariable String project, Model model) {
         model.addAttribute("projectName", project);
-
 
         var typeResourceMap = FieldType.getTypeResourceMap();
 
@@ -140,6 +136,8 @@ public class ComponentController {
         }
         model.addAttribute("availableComponents", compMap);
         model.addAttribute("componentData", component);
+        model.addAttribute("htmlCode", componentService.getComponentHtml(projectName, componentName));
+        model.addAttribute("javaCode", componentService.getComponentJava(projectName, componentName));
         return "create-component";
     }
 
@@ -171,6 +169,20 @@ public class ComponentController {
             redirectAttributes.addFlashAttribute("error", "Failed to update component: " + e.getMessage());
             return "redirect:/" + project + "/editcomponent?componentName=" + request.getComponentName();
         }
+    }
+
+    @PostMapping("/component/delete/{project}")
+    public String deleteComponent(@PathVariable String project,
+                                  @RequestParam String componentName,
+                                  RedirectAttributes redirectAttributes) {
+        try {
+            componentService.deleteComponent(project, componentName);
+            redirectAttributes.addFlashAttribute("message", "Component deleted successfully!");
+        } catch (Exception e) {
+            log.error("Error deleting component", e);
+            redirectAttributes.addFlashAttribute("error", "Failed to delete component: " + e.getMessage());
+        }
+        return "redirect:/" + project;
     }
 
 //component checking
