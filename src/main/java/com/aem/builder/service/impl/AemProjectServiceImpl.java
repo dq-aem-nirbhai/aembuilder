@@ -189,4 +189,46 @@ public class AemProjectServiceImpl implements AemProjectService {
             return baos.toByteArray();
         }
     }
+
+    @Override
+    public void importProject(org.springframework.web.multipart.MultipartFile file) throws IOException {
+        Path tempDir = Files.createTempDirectory("aem-import");
+        String root = null;
+        boolean hasPom = false;
+        boolean hasUiApps = false;
+        try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(file.getInputStream())) {
+            java.util.zip.ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                String name = entry.getName();
+                if (root == null) {
+                    int idx = name.indexOf('/');
+                    root = idx > 0 ? name.substring(0, idx) : "";
+                }
+                if (name.equals(root + "/pom.xml")) {
+                    hasPom = true;
+                }
+                if (name.startsWith(root + "/ui.apps/")) {
+                    hasUiApps = true;
+                }
+                Path out = tempDir.resolve(name);
+                if (entry.isDirectory()) {
+                    Files.createDirectories(out);
+                } else {
+                    Files.createDirectories(out.getParent());
+                    Files.copy(zis, out);
+                }
+            }
+        }
+        if (root == null || !hasPom || !hasUiApps) {
+            org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
+            throw new IOException("Uploaded file is not a valid AEM project structure");
+        }
+        Path target = Paths.get(PROJECTS_DIR, root);
+        if (Files.exists(target)) {
+            org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
+            throw new IOException("Project already exists: " + root);
+        }
+        Files.move(tempDir.resolve(root), target);
+        org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
+    }
 }

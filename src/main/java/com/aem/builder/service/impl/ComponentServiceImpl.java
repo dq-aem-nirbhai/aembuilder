@@ -41,6 +41,17 @@ public class ComponentServiceImpl implements ComponentService {
 
     private static final String PROJECTS_DIR = "generated-projects";
 
+    /**
+     * Extracts a property value from an xml string, handling AEM typed values like
+     * <code>componentGroup="{String}my-group"</code>.
+     */
+    private String extractProperty(String content, String property) {
+        if (content == null) return "";
+        Pattern p = Pattern.compile(property + "=\"(?:\\{String\\})?([^\"]+)\"");
+        Matcher m = p.matcher(content);
+        return m.find() ? m.group(1) : "";
+    }
+
     @Override
     public List<String> fetchComponentsFromGeneratedProjects(String projectName) {
         File componentsDir = new File(PROJECTS_DIR,
@@ -66,12 +77,7 @@ public class ComponentServiceImpl implements ComponentService {
                     String group = "";
                     if (contentXml.exists()) {
                         String content = FileGenerationUtil.readFile(contentXml);
-                        if (content.contains("componentGroup")) {
-                            int idx = content.indexOf("componentGroup");
-                            int start = content.indexOf("\"", idx) + 1;
-                            int end = content.indexOf("\"", start);
-                            group = content.substring(start, end);
-                        }
+                        group = extractProperty(content, "componentGroup");
                     }
                     result.put(comp.getName(), group);
                 }
@@ -135,18 +141,8 @@ public class ComponentServiceImpl implements ComponentService {
             File contentXml = new File(basePath, ".content.xml");
             if (contentXml.exists()) {
                 String content = FileGenerationUtil.readFile(contentXml);
-                if (content.contains("componentGroup")) {
-                    int idx = content.indexOf("componentGroup");
-                    int start = content.indexOf("\"", idx) + 1;
-                    int end = content.indexOf("\"", start);
-                    group = content.substring(start, end);
-                }
-                if (content.contains("sling:resourceSuperType")) {
-                    int idx = content.indexOf("sling:resourceSuperType");
-                    int start = content.indexOf("\"", idx) + 1;
-                    int end = content.indexOf("\"", start);
-                    superType = content.substring(start, end);
-                }
+                group = extractProperty(content, "componentGroup");
+                superType = extractProperty(content, "sling:resourceSuperType");
             }
 
             File dialogXml = new File(basePath + "/_cq_dialog/.content.xml");
@@ -698,11 +694,9 @@ public class ComponentServiceImpl implements ComponentService {
                     File contentXml = new File(comp, ".content.xml");
                     if (contentXml.exists()) {
                         String content = FileGenerationUtil.readFile(contentXml);
-                        if (content.contains("componentGroup")) {
-                            int idx = content.indexOf("componentGroup");
-                            int start = content.indexOf("\"", idx) + 1;
-                            int end = content.indexOf("\"", start);
-                            groups.add(content.substring(start, end));
+                        String g = extractProperty(content, "componentGroup");
+                        if (!g.isEmpty()) {
+                            groups.add(g);
                         }
                     }
                 }
