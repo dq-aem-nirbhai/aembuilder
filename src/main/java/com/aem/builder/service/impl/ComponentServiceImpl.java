@@ -77,7 +77,7 @@ public class ComponentServiceImpl implements ComponentService {
                     String group = "";
                     if (contentXml.exists()) {
                         String content = FileGenerationUtil.readFile(contentXml);
-                        group = extractProperty(content, "componentGroup");
+                        group = extractProperty(content, "componentGroup").trim();
                     }
                     result.put(comp.getName(), group);
                 }
@@ -141,8 +141,8 @@ public class ComponentServiceImpl implements ComponentService {
             File contentXml = new File(basePath, ".content.xml");
             if (contentXml.exists()) {
                 String content = FileGenerationUtil.readFile(contentXml);
-                group = extractProperty(content, "componentGroup");
-                superType = extractProperty(content, "sling:resourceSuperType");
+                group = extractProperty(content, "componentGroup").trim();
+                superType = extractProperty(content, "sling:resourceSuperType").trim();
             }
 
             File dialogXml = new File(basePath + "/_cq_dialog/.content.xml");
@@ -694,7 +694,7 @@ public class ComponentServiceImpl implements ComponentService {
                     File contentXml = new File(comp, ".content.xml");
                     if (contentXml.exists()) {
                         String content = FileGenerationUtil.readFile(contentXml);
-                        String g = extractProperty(content, "componentGroup");
+                        String g = extractProperty(content, "componentGroup").trim();
                         if (!g.isEmpty()) {
                             groups.add(g);
                         }
@@ -702,9 +702,12 @@ public class ComponentServiceImpl implements ComponentService {
                 }
             }
         }
-        groups.removeIf(g -> g.equals(projectName + " - Content")
-                || g.equals(projectName + " - Structure")
-                || g.equals(".hidden"));
+        groups.removeIf(g -> {
+            String t = g.trim();
+            return t.equalsIgnoreCase(projectName + " - Content")
+                    || t.equalsIgnoreCase(projectName + " - Structure")
+                    || t.equals(".hidden");
+        });
         return groups.isEmpty() ? List.of(projectName) : new ArrayList<>(groups);
     }
 

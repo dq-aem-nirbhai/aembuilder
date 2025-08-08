@@ -34,8 +34,11 @@ public class DeployController {
         List<String> editable = compMap.entrySet().stream()
                 .filter(e -> {
                     String g = e.getValue();
-                    return g == null || (!g.equals(projectName + " - Content")
-                            && !g.equals(projectName + " - Structure")
+                    if (g != null) {
+                        g = g.trim();
+                    }
+                    return g == null || (!g.equalsIgnoreCase(projectName + " - Content")
+                            && !g.equalsIgnoreCase(projectName + " - Structure")
                             && !g.equals(".hidden"));
                 })
                 .map(java.util.Map.Entry::getKey)
