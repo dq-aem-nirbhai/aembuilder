@@ -1,14 +1,11 @@
 package com.aem.builder.model;
 
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.Map;
 @Setter
 @Getter
-
+@ToString
 @NoArgsConstructor
 public class PolicyRequest {
 

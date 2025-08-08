@@ -9,7 +9,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.*;
+
 
 @Controller
 public class PolicyController {
@@ -20,31 +21,7 @@ public class PolicyController {
         this.policyXmlUpdater = policyXmlUpdater;
     }
 
-    @PostMapping("/policies/add/{projectname}")
-    public ResponseEntity<String> addPolicy(@PathVariable("projectname") String projectName,
-                                            @RequestBody PolicyRequest request,
-                                            @RequestParam(required = false) String templateName) {
-        try {
-            String policyNodeName=  policyXmlUpdater.addPolicy(projectName,
-                    request.getName(),
-                    request.getComponentPath(),
-                    request.getStyleDefaultClasses(),
-                    request.getStyleDefaultElement(),
-                    request.getStyles()
-            );
-            System.out.println(templateName+"      hsgdfsdhghsa    "+"policy node    "+policyNodeName);
-            if (templateName != null && !templateName.isEmpty()) {
 
-                policyXmlUpdater.assignPolicyToTemplate(projectName, templateName, policyNodeName);
-                System.out.println("hello.....");
-            }
-
-            return ResponseEntity.ok("Policy added successfully!");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error: " + e.getMessage());
-        }
-    }
 
 
     @GetMapping("/{projectName}/addpolicy")
@@ -54,15 +31,51 @@ public class PolicyController {
         // Pass templateName to form
         model.addAttribute("projectName", projectName);
         model.addAttribute("templateName", templateName);
-
+        model.addAttribute("policyRequest", new PolicyRequest());
         // Show the same policy form you already have
         return "policies";  // Thymeleaf page for creating policy
     }
-    public String addPolicyToParticularTemplate(){
-        return "";
+
+
+
+    @GetMapping("/get-existing-policies")
+    public ResponseEntity<List<String>> getExistingPolicies(@RequestParam String projectName) {
+        try {
+            List<String> policies = policyXmlUpdater.getExistingPolicies(projectName);
+            return ResponseEntity.ok(policies);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Collections.emptyList());
+        }
     }
 
+    @GetMapping("/get-policy-details")
+    public ResponseEntity<PolicyRequest> getPolicyDetails(@RequestParam String projectName,
+                                                          @RequestParam String policyTitle) {
+        try {
+            PolicyRequest policy = policyXmlUpdater.getPolicyDetails(projectName, policyTitle);
+            if (policy == null) return ResponseEntity.notFound().build();
+            return ResponseEntity.ok(policy);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 
+    @PostMapping("/policies/add/{projectName}")
+    public ResponseEntity<String> addOrUpdatePolicy(@PathVariable String projectName,
+                                                    @RequestParam String templateName,
+                                                    @RequestBody PolicyRequest request) {
+        try {
+            System.out.println(request);
+            // This should create OR update the policy:
+            policyXmlUpdater.saveOrUpdatePolicy(projectName, templateName, request);
+            return ResponseEntity.ok("Policy saved");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error saving policy");
+        }
+    }
 
 
 }

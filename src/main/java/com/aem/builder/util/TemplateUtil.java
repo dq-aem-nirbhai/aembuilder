@@ -276,7 +276,7 @@ public static String getIntialContentXf(String projectname,String templatename){
                 
                 """.formatted(projectname,templatename,projectname,projectname);
 }
-public static String policyForParticularTemplate(String policynode){
+public static String policyForParticularTemplate(String policynode,String projectname){
     System.out.println("policy   "+policynode);
         return """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -285,20 +285,20 @@ public static String policyForParticularTemplate(String policynode){
                     <jcr:content
                         cq:lastModified="{Date}2025-08-06T11:26:05.255+05:30"
                         cq:lastModifiedBy="admin"
-                        cq:policy="nvidia/components/page/policy"
+                        cq:policy="%s/components/page/policy"
                         jcr:primaryType="nt:unstructured"
                         sling:resourceType="wcm/core/components/policies/mappings">
                         <root
-                            cq:policy="nvidia/components/container/policy_1574694950110"
+                            cq:policy="%s/components/container/policy_1574694950110"
                             jcr:primaryType="nt:unstructured"
                             sling:resourceType="wcm/core/components/policies/mapping">
                             <container
-                                cq:policy="nvidia/components/container/%s"
+                                cq:policy="%s/components/container/%s"
                                 jcr:primaryType="nt:unstructured"
                                 sling:resourceType="wcm/core/components/policies/mapping"/>
                         </root>
                     </jcr:content>
                 </jcr:root>
-                """.formatted(policynode);
+                """.formatted(projectname,projectname,projectname,policynode);
 }
 }

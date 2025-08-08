@@ -10,14 +10,29 @@
 </head>
 <body>
 <div th:replace="fragments/navbar :: navbar"></div>
+<br><br>
 <h2>Create Policy for Template (container policies)</h2>
 
 <form id="policyForm">
     <input type="hidden" id="projectname" th:value="${projectName}"/>
     <input type="hidden" id="templateName" th:value="${templateName}"/>
 
-    <input type="text" name="name" placeholder="Policy Name" required><br>
-    <input type="text" name="styleDefaultClasses" placeholder="Default Class (e.g., abcd)" required><br>
+    <label for="existingPolicy">Select Existing Policy:</strong></label><br><br>
+    <select id="existingPolicy" onchange="fetchAndFillPolicyDetails('${projectName}', this.value)">
+        <option value="">-- Select Existing Policy --</option>
+        <!-- Thymeleaf will fill this with options -->
+        <th:block th:each="policy : ${existingPolicies}">
+            <option th:value="${policy}" th:text="${policy}"></option>
+        </th:block>
+    </select>
+    <br>
+<br>
+    <label for="newPolicyTitle" >New Policy Title:</strong></label><br>
+    <input type="text" id="newPolicyTitle" name="newPolicyTitle" placeholder="Enter new policy title" th:value="${policyRequest.name}"><br>
+
+
+    <label for="styleDefaultClasses"><strong>Default Class:</strong></label><br>
+    <input type="text" id="styleDefaultClasses" name="styleDefaultClasses"  placeholder="Default Class " required><br>
 
     <!-- Dropdown for default element -->
     <label for="styleDefaultElement"><strong>Default Element:</strong></label><br>
