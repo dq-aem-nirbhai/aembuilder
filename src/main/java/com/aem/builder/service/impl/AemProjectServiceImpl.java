@@ -221,8 +221,53 @@ public class AemProjectServiceImpl implements AemProjectService {
             org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
             throw new IOException("Uploaded file is not a valid AEM project structure");
         }
+        // Validate expected AEM project modules and files
+        String[] requiredDirs = {"all", "core", "dispatcher", "it.tests", "ui.apps",
+                "ui.apps.structure", "ui.content", "ui.config", "ui.frontend", "ui.tests"};
+        String[] requiredFiles = {"pom.xml", "README.md", "archetype.properties"};
 
-        String projectName = rootDir.getFileName().toString();
+        boolean structureValid = true;
+        for (String dir : requiredDirs) {
+            Path p;
+            if ("dispatcher".equals(dir)) {
+                p = Files.isDirectory(rootDir.resolve("dispatcher")) ? rootDir.resolve("dispatcher")
+                        : rootDir.resolve("dispratcher");
+            } else if ("ui.frontend".equals(dir)) {
+                p = Files.isDirectory(rootDir.resolve("ui.frontend")) ? rootDir.resolve("ui.frontend")
+                        : rootDir.resolve("u.frontend");
+            } else {
+                p = rootDir.resolve(dir);
+            }
+            if (!Files.isDirectory(p)) {
+                structureValid = false;
+                break;
+            }
+        }
+        if (structureValid) {
+            for (String f : requiredFiles) {
+                Path p;
+                if ("README.md".equals(f)) {
+                    p = Files.exists(rootDir.resolve("README.md")) ? rootDir.resolve("README.md")
+                            : rootDir.resolve("readme.md");
+                } else {
+                    p = rootDir.resolve(f);
+                }
+                if (!Files.exists(p)) {
+                    structureValid = false;
+                    break;
+                }
+            }
+        }
+
+        if (!structureValid) {
+            org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
+            throw new IOException("Uploaded file is not in AEM structure format");
+        }
+
+        String originalName = file.getOriginalFilename();
+        String projectName = originalName == null ? rootDir.getFileName().toString()
+                : originalName.replaceFirst("\\.zip$", "");
+
         Path projectsDir = Paths.get(PROJECTS_DIR);
         Files.createDirectories(projectsDir);
         Path target = projectsDir.resolve(projectName);
@@ -231,6 +276,8 @@ public class AemProjectServiceImpl implements AemProjectService {
             throw new IOException("Project already exists: " + projectName);
         }
         Files.move(rootDir, target);
-        org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
+        if (Files.exists(tempDir)) {
+            org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
+        }
     }
 }
