@@ -206,26 +206,26 @@ public class AemProjectServiceImpl implements AemProjectService {
             }
         }
 
-        // Determine project root - allow zips with or without a top-level folder
-        Path rootDir = tempDir;
-        if (!Files.exists(rootDir.resolve("pom.xml"))) {
-            File[] dirs = tempDir.toFile().listFiles(File::isDirectory);
-            if (dirs != null && dirs.length == 1 && new File(dirs[0], "pom.xml").exists()) {
-                rootDir = dirs[0].toPath();
-            } else {
-                org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
-                throw new IOException("Uploaded file is not a valid AEM project structure");
-            }
+        // Locate project root containing pom.xml and ui.apps structure
+        Path rootDir;
+        try (var stream = Files.walk(tempDir)) {
+            rootDir = stream
+                    .filter(p -> p.getFileName().toString().equals("pom.xml"))
+                    .map(Path::getParent)
+                    .filter(p -> p != null && Files.exists(p.resolve("ui.apps/src/main/content/jcr_root")))
+                    .findFirst()
+                    .orElse(null);
         }
 
-        // Validate ui.apps structure exists
-        if (!Files.exists(rootDir.resolve("ui.apps/src/main/content/jcr_root"))) {
+        if (rootDir == null) {
             org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
             throw new IOException("Uploaded file is not a valid AEM project structure");
         }
 
         String projectName = rootDir.getFileName().toString();
-        Path target = Paths.get(PROJECTS_DIR, projectName);
+        Path projectsDir = Paths.get(PROJECTS_DIR);
+        Files.createDirectories(projectsDir);
+        Path target = projectsDir.resolve(projectName);
         if (Files.exists(target)) {
             org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
             throw new IOException("Project already exists: " + projectName);
