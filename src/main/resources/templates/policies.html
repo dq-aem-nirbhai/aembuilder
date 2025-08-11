@@ -1,12 +1,11 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.w3.org/1999/xhtml">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Policy</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" th:href="@{/css/policies.css}">
-
 </head>
 <body>
 <div th:replace="fragments/navbar :: navbar"></div>
@@ -14,27 +13,27 @@
 <h2>Create Policy for Template (container policies)</h2>
 
 <form id="policyForm">
-    <input type="hidden" id="projectname" th:value="${projectName}"/>
-    <input type="hidden" id="templateName" th:value="${templateName}"/>
+    <input type="hidden" id="projectname" th:value="${projectName != null ? projectName : ''}"/>
+    <input type="hidden" id="templateName" th:value="${templateName != null ? templateName : ''}"/>
 
-    <label for="existingPolicy">Select Existing Policy:</strong></label><br><br>
-    <select id="existingPolicy" onchange="fetchAndFillPolicyDetails('${projectName}', this.value)">
+    <label for="existingPolicy"><strong>Select Existing Policy:</strong></label><br><br>
+    <select id="existingPolicy"
+            th:attr="onchange='fetchAndFillPolicyDetails(\'' + (${projectName} != null ? ${projectName} : '') + '\', this.value)'">
         <option value="">-- Select Existing Policy --</option>
-        <!-- Thymeleaf will fill this with options -->
         <th:block th:each="policy : ${existingPolicies}">
             <option th:value="${policy}" th:text="${policy}"></option>
         </th:block>
     </select>
-    <br>
-<br>
-    <label for="newPolicyTitle" >New Policy Title:</strong></label><br>
-    <input type="text" id="newPolicyTitle" name="newPolicyTitle" placeholder="Enter new policy title" th:value="${policyRequest.name}"><br>
+    <br><br>
 
+    <label for="newPolicyTitle"><strong>New Policy Title:</strong></label><br>
+    <input type="text" id="newPolicyTitle" name="newPolicyTitle"
+           placeholder="Enter new policy title"
+           th:value="${policyRequest != null ? policyRequest.name : ''}"><br>
 
     <label for="styleDefaultClasses"><strong>Default Class:</strong></label><br>
-    <input type="text" id="styleDefaultClasses" name="styleDefaultClasses"  placeholder="Default Class " required><br>
+    <input type="text" id="styleDefaultClasses" name="styleDefaultClasses" placeholder="Default Class" required><br>
 
-    <!-- Dropdown for default element -->
     <label for="styleDefaultElement"><strong>Default Element:</strong></label><br>
     <select name="styleDefaultElement" id="styleDefaultElement" required>
         <option value="">-- Select Element --</option>
@@ -60,7 +59,8 @@
 </form>
 
 <div th:replace="fragments/navbar :: footer"></div>
-<script th:src="@{/js/policies.js}"></script>
 
+<!-- External JS -->
+<script th:src="@{/js/policies.js}"></script>
 </body>
 </html>
