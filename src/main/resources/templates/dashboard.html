@@ -1,74 +1,111 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <script th:src="@{/js/dashboard.js}"></script>
+  <script th:src="@{/js/dashboard.js}"></script>
 
-    <title>AEM Builder - Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" rel="stylesheet">
+  <title>AEM Builder - Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(to right, #f8fafc, #e2e8f0);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(90deg, #2563eb, #7c3aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .card {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      border-radius: 1rem;
+    }
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+    }
+    .btn-success {
+      background: linear-gradient(90deg, #22c55e, #16a34a);
+      border: none;
+      color: white;
+    }
+    .btn-outline-secondary {
+      border-radius: 30px;
+    }
+    .modal-content {
+      border-radius: 1rem;
+    }
+    .alert {
+      border-radius: 0.75rem;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.05);
+    }
+  </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
 
 <div th:replace="fragments/navbar :: navbar"></div>
 
 <main class="container py-4 animate__animated animate__fadeIn flex-grow-1">
-    <h1 class="mb-4 text-primary fw-bold">AEM Builder Dashboard</h1>
+  <h1 class="mb-4 fw-bold text-center">AEM Builder Dashboard</h1>
 
-    <!-- Success Alert -->
-    <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert" id="successAlert">
-        <span th:text="${message}"></span>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
+  <!-- Success Alert -->
+  <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert" id="successAlert">
+    <span th:text="${message}"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
 
-    <!-- Error Alert -->
-    <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert" id="errorAlert">
-        <span th:text="${error}"></span>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
+  <!-- Error Alert -->
+  <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert" id="errorAlert">
+    <span th:text="${error}"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
 
-    <div class="d-flex justify-content-end mb-3">
-        <a href="/create" class="btn btn-success me-2">Create Project</a>
-        <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importModal">Import Project</button>
-    </div>
+  <div class="d-flex justify-content-end mb-4">
+    <a href="/create" class="btn btn-success me-2 shadow-sm">➕ Create Project</a>
+    <button class="btn btn-outline-secondary shadow-sm" data-bs-toggle="modal" data-bs-target="#importModal">📥 Import Project</button>
+  </div>
 
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-        <div class="col" th:each="project : ${projects}">
-            <div class="card shadow-sm h-100 border-0 animate__animated animate__fadeInUp">
-                <div class="card-body">
-                    <h5 class="card-title" th:text="${project.name}"></h5>
-                    <p><strong>Version:</strong> <span class="badge bg-info text-dark" th:text="${project.version}"></span></p>
-                    <p><strong>Package:</strong> <span th:text="${project.groupId}"></span></p>
-                    <p><strong>Created:</strong> <span th:text="${project.createdDate}"></span></p>
-                    <p><strong>Path:</strong> <span th:text="${project.path}"></span></p>
-                    <a th:href="@{'/' + ${project.name}}" class="btn btn-outline-primary btn-sm">View Details</a>
-                    <a th:href="@{'/show-folder?path=' + ${project.path}}" class="btn btn-outline-secondary btn-sm mt-2">📂 Show in Folder</a>
-                </div>
-            </div>
+  <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    <div class="col" th:each="project : ${projects}">
+      <div class="card shadow-sm h-100 border-0 animate__animated animate__fadeInUp">
+        <div class="card-body">
+          <h5 class="card-title text-primary" th:text="${project.name}"></h5>
+          <p><strong>Version:</strong> <span class="badge bg-info text-dark" th:text="${project.version}"></span></p>
+          <p><strong>Package:</strong> <span th:text="${project.groupId}"></span></p>
+          <p><strong>Created:</strong> <span th:text="${project.createdDate}"></span></p>
+          <p><strong>Path:</strong> <span th:text="${project.path}"></span></p>
+          <div class="d-grid gap-2">
+            <a th:href="@{'/' + ${project.name}}" class="btn btn-outline-primary btn-sm">🔍 View Details</a>
+            <a th:href="@{'/show-folder?path=' + ${project.path}}" class="btn btn-outline-secondary btn-sm">📂 Show in Folder</a>
+            <a th:href="@{'/download/' + ${project.name}}" class="btn btn-outline-success btn-sm">⬇️ Download Zip</a>
+          </div>
         </div>
+      </div>
     </div>
+  </div>
 </main>
 
 <!-- Import Modal -->
 <div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <form th:action="@{/import}" method="post" enctype="multipart/form-data" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Import AEM Project</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="file" name="file" class="form-control" required>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-primary" type="submit">Upload</button>
-            </div>
-        </form>
-    </div>
+  <div class="modal-dialog">
+    <form th:action="@{/import}" method="post" enctype="multipart/form-data" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Import AEM Project</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="file" name="file" class="form-control" required>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" type="submit">Upload</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <footer class="mt-auto" th:replace="fragments/navbar :: footer"></footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 </body>
 </html>

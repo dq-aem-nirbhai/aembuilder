@@ -17,8 +17,8 @@ import com.aem.builder.model.DTO.OptionItem;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ComponentField {
-    private String fieldName;                  // e.g., title
     private String fieldLabel;                 // e.g., Title
+    private String fieldName;                  // e.g., title
     private String fieldType;                  // from FieldType enum
     private List<ComponentField> nestedFields; // only for multifields
     private List<OptionItem> options;          // for select/checkboxgroup values

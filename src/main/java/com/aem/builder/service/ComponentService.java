@@ -33,6 +33,12 @@ public interface ComponentService {
 
     void updateComponent(String projectName, ComponentRequest request);
 
+    void deleteComponent(String projectName, String componentName);
+
+    String getComponentHtml(String projectName, String componentName);
+
+    String getComponentJava(String projectName, String componentName);
+
     //component checking
     boolean isComponentNameAvailable(String projectName, String componentName);
 

@@ -15,7 +15,6 @@ public enum FieldType {
     PATHFIELD("pathfield", "granite/ui/components/coral/foundation/form/pathfield"),
     AUTOCOMPLETE("autocomplete", "granite/ui/components/coral/foundation/form/autocomplete"),
     DATEPICKER("datepicker", "granite/ui/components/coral/foundation/form/datepicker"),
-    IMAGE("image", "cq/gui/components/authoring/dialog/fileupload"),
     FILEUPLOAD("fileupload", "cq/gui/components/authoring/dialog/fileupload"),
     RICHTEXT("richtext", "cq/gui/components/authoring/dialog/richtext"),
     MULTIFIELD("multifield", "granite/ui/components/coral/foundation/form/multifield"),
@@ -46,7 +45,7 @@ public enum FieldType {
                 TEXTFIELD.toEntry(), TEXTAREA.toEntry(), NUMBERFIELD.toEntry(), HIDDEN.toEntry(),
                 CHECKBOX.toEntry(), CHECKBOXGROUP.toEntry(), RADIOGROUP.toEntry(), SELECT.toEntry(),
                 MULTISELECT.toEntry(), PATHFIELD.toEntry(), AUTOCOMPLETE.toEntry(), DATEPICKER.toEntry(),
-                IMAGE.toEntry(), FILEUPLOAD.toEntry(), RICHTEXT.toEntry(), MULTIFIELD.toEntry(),
+                 FILEUPLOAD.toEntry(), RICHTEXT.toEntry(), MULTIFIELD.toEntry(),
                 BUTTON.toEntry(), PASSWORD.toEntry(), SWITCH.toEntry(), ANCHORBROWSER.toEntry(),
                 TAGFIELD.toEntry()
         );
