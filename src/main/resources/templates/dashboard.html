@@ -79,6 +79,9 @@
             <a th:href="@{'/' + ${project.name}}" class="btn btn-outline-primary btn-sm">🔍 View Details</a>
             <a th:href="@{'/show-folder?path=' + ${project.path}}" class="btn btn-outline-secondary btn-sm">📂 Show in Folder</a>
             <a th:href="@{'/download/' + ${project.name}}" class="btn btn-outline-success btn-sm">⬇️ Download Zip</a>
+            <form th:action="@{'/delete/' + ${project.name}}" method="post">
+              <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this project?');">🗑️ Delete Project</button>
+            </form>
           </div>
         </div>
       </div>
