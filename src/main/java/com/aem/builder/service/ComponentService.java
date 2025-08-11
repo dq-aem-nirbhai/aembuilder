@@ -9,6 +9,11 @@ public interface ComponentService {
 
     List<String> fetchComponentsFromGeneratedProjects(String projectName);
 
+    /**
+     * Returns the actual application folder name under ui.apps for the given project.
+     */
+    String getAppName(String projectName);
+
     List<String> getAllComponents() throws IOException;
 
     void copySelectedComponents(List<String> selectedComponents, String targetPath, String projectName);
@@ -41,5 +46,9 @@ public interface ComponentService {
 
     //component checking
     boolean isComponentNameAvailable(String projectName, String componentName);
+
+
+    public Map<String, List<String>> getComponentsByGroup(String projectName);
+
 
 }

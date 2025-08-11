@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Policy</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" th:href="@{/css/policies.css}">
+</head>
+<body>
+<div th:replace="fragments/navbar :: navbar"></div>
+<br><br>
+<h2>Create Policy for Template (container policies)</h2>
+
+<form id="policyForm">
+    <input type="hidden" id="projectname" th:value="${projectName != null ? projectName : ''}"/>
+    <input type="hidden" id="templateName" th:value="${templateName != null ? templateName : ''}"/>
+
+    <label for="existingPolicy"><strong>Select Existing Policy:</strong></label><br><br>
+    <select id="existingPolicy"
+            th:attr="onchange='fetchAndFillPolicyDetails(\'' + (${projectName} != null ? ${projectName} : '') + '\', this.value)'">
+        <option value="">-- Select Existing Policy --</option>
+        <th:block th:each="policy : ${existingPolicies}">
+            <option th:value="${policy}" th:text="${policy}"></option>
+        </th:block>
+    </select>
+    <br><br>
+
+    <label for="newPolicyTitle"><strong>New Policy Title:</strong></label><br>
+    <input type="text" id="newPolicyTitle" name="newPolicyTitle"
+           placeholder="Enter new policy title"
+           th:value="${policyRequest != null ? policyRequest.name : ''}"><br>
+
+    <label for="styleDefaultClasses"><strong>Default Class:</strong></label><br>
+    <input type="text" id="styleDefaultClasses" name="styleDefaultClasses" placeholder="Default Class" required><br>
+
+    <label for="styleDefaultElement"><strong>Default Element:</strong></label><br>
+    <select name="styleDefaultElement" id="styleDefaultElement" required>
+        <option value="">-- Select Element --</option>
+        <option value="div" selected>div</option>
+        <option value="section">section</option>
+        <option value="article">article</option>
+        <option value="main">main</option>
+        <option value="aside">aside</option>
+        <option value="header">header</option>
+        <option value="footer">footer</option>
+    </select><br>
+
+    <h3>Allowed Components</h3>
+    <div id="accordionContainer"></div>
+    <p><strong>Selected Component Path:</strong></p>
+    <pre id="componentPathOutput">[]</pre>
+
+    <h3>Style Groups</h3>
+    <div id="styleGroups"></div>
+    <button type="button" class="add-btn" onclick="addStyleGroup()">+ Add Style Group</button><br>
+
+    <button type="button" class="submit-btn" onclick="submitPolicy()">Add Policy</button>
+</form>
+
+<div th:replace="fragments/navbar :: footer"></div>
+
+<!-- External JS -->
+<script th:src="@{/js/policies.js}"></script>
+</body>
+</html>

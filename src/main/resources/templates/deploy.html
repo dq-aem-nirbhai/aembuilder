@@ -71,13 +71,21 @@
                         <div class="border rounded p-2 bg-light text-center shadow-sm d-flex justify-content-between align-items-center">
                             <a th:href="@{/{projectName}/templates/{template}/components(projectName=${projectName},template=${template})}" class="text-decoration-none" th:text="${template}"></a>
 
-                            <!-- Show Edit button only if template is NOT page-content or xf-web-variation -->
-                            <a th:if="${template != 'page-content' and template != 'xf-web-variation'}"
-                               th:href="@{/{projectName}/edittemplate(templateName=${template}, projectName=${projectName})}"
-                               class="btn btn-sm btn-outline-secondary ms-2">Edit</a>
+                            <div class="d-flex">
+                                <!-- Edit Button -->
+                                <a th:if="${template != 'page-content' and template != 'xf-web-variation'}"
+                                   th:href="@{/{projectName}/edittemplate(templateName=${template}, projectName=${projectName})}"
+                                   class="btn btn-sm btn-outline-secondary ms-2">Edit</a>
+
+                                <!-- Add Policy Button -->
+                                <a th:if="${template != 'page-content' and template != 'xf-web-variation'}"
+                                   th:href="@{/{projectName}/addpolicy(templateName=${template}, projectName=${projectName})}"
+                                   class="btn btn-sm btn-outline-primary ms-2">Add Policy</a>
+                            </div>
                         </div>
                     </div>
                 </div>
+
 
             </div>
         </div>
