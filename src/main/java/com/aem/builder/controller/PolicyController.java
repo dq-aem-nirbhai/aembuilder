@@ -17,10 +17,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
-
+@Slf4j
 @Controller
 public class PolicyController {
-
+    private final PolicyService policyService;
     private final TemplatePolicy policyXmlUpdater;
 
     public PolicyController(PolicyService policyService, TemplatePolicy policyXmlUpdater) {
@@ -59,21 +59,7 @@ public class PolicyController {
         return "";
     }
 
-    /**
-     * Shows allowed components for a template.
-     */
-    @GetMapping("/{project}/templates/{template}/components")
-    public String showComponents(@PathVariable String project,
-            @PathVariable String template,
-            Model model) {
-        List<String> components = policyService.getAllowedComponents(project, template);
-        List<ComponentInfo> componentInfos = policyService.checkDesignDialogs(project, components);
-        model.addAttribute("projectName", project);
-        model.addAttribute("templateName", template);
-        model.addAttribute("components", components);
-        model.addAttribute("components", componentInfos); // updated
-        return "template-components";
-    }
+
 
     @GetMapping("/get-existing-policies")
     public ResponseEntity<List<String>> getExistingPolicies(@RequestParam String projectName) {
@@ -100,41 +86,18 @@ public class PolicyController {
         }
     }
 
-    /**
-     * Shows policy editor for component.
-     */
-    @GetMapping("/{project}/templates/{template}/component")
-    public String showPolicyEditor(@PathVariable String project,
-            @PathVariable String template,
-            @RequestParam("resource") String component,
-            Model model) {
-        List<PolicyModel> policies = policyService.getPolicies(project, component);
-        model.addAttribute("projectName", project);
-        model.addAttribute("templateName", template);
-        model.addAttribute("component", component);
-        model.addAttribute("policies", policies);
-        return "policy-editor";
-    }
 
     @GetMapping("/api/{project}/component/policy")
     @ResponseBody
     public PolicyModel loadPolicy(@PathVariable String project,
             @RequestParam String resource,
             @RequestParam String policyId) {
+
         log.info("......{}", policyService.loadPolicy(project, resource, policyId));
         return policyService.loadPolicy(project, resource, policyId);
     }
 
-    @PostMapping("/api/{project}/templates/{template}/component/policy")
-    @ResponseBody
-    public ResponseEntity<String> savePolicy(@PathVariable String project,
-            @PathVariable String template,
-            @RequestParam String resource,
-            @RequestBody PolicyModel policy) {
 
-        String id = policyService.savePolicy(project, template, resource, policy);
-        return ResponseEntity.ok(id);
-    }
 
     /**
      * Shows allowed components for a template.
