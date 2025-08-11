@@ -20,6 +20,7 @@
 </div>
 
 <main class="container py-4 animate__animated animate__fadeIn">
+  <div th:if="${error}" class="alert alert-danger" role="alert" th:text="${error}"></div>
   <form action="/save" method="post" th:object="${aemProjectModel}">
     <h2>Create AEM Project</h2>
 
@@ -56,16 +57,15 @@
         <button type="button" class="btn-add" onclick="toggleDropdown()">Add Components...</button>
       </div>
 
-      <div class="dropdown-section" id="dropdownSection" style="display: none;">
-        <select id="componentDropdown" class="form-select mt-2">
-          <option value="">-- Select Component --</option>
-          <option value="accordion">accordion</option>
-          <option value="image">image</option>
-          <option value="button">button</option>
-          <option value="card">card</option>
-        </select>
-        <button type="button" class="btn-add mt-2" onclick="addComponent()">Add</button>
-      </div>
+        <div class="dropdown-section" id="dropdownSection" style="display: none;">
+          <select id="componentDropdown" class="form-select mt-2">
+            <option value="">-- Select Component --</option>
+            <option th:each="comp : ${componentList}"
+                    th:value="${comp}"
+                    th:text="${comp}"></option>
+          </select>
+          <button type="button" class="btn-add mt-2" onclick="addComponent()">Add</button>
+        </div>
     </div>
 
     <input type="hidden" name="selectedComponents" id="selectedComponentsInput" />
