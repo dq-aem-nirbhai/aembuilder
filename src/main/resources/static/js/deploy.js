@@ -1,4 +1,3 @@
-
     let selectedComponents = [];
     let selectedTemplates = [];
 
@@ -157,3 +156,8 @@
         document.getElementById('deployBtn').disabled = true;
         return true;
     }
+div.innerHTML = `
+    <div class="border rounded p-2 text-center shadow-sm removable-item new-item">
+        ${item}
+        <span class="remove-btn" onclick="removeItem('${item}', '${type}')">&times;</span>
+    </div>`;

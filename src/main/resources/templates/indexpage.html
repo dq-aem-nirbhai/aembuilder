@@ -35,10 +35,13 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
+    /* Updated Navbar Style */
     .navbar {
-      background-color: #0D6EFd;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      background: linear-gradient(90deg, #2563eb, #1d4ed8);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       z-index: 20;
+      padding-top: 0.7rem;
+      padding-bottom: 0.7rem;
     }
 
     .navbar-brand {
@@ -46,11 +49,12 @@
       font-size: 1.75rem;
       color: #fff !important;
       padding-left: 20px;
+      letter-spacing: 0.5px;
     }
 
     .navbar-brand:hover,
     .navbar-brand:focus {
-      color: #fff !important;
+      color: #f1f5f9 !important;
       text-decoration: none;
     }
 
@@ -121,18 +125,22 @@
       width: 110px;
       height: 110px;
       background: linear-gradient(135deg, #f8fafc, #e2e8f0);
-      border-radius: 50%;
+      border-radius: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
       box-shadow: 0 0 15px rgba(0,0,0,0.05);
       animation: pulse 3.5s infinite;
       z-index: 10;
+      overflow: hidden;
     }
 
-    .center-icon i {
-      font-size: 42px;
-      color: var(--text-dark);
+    /* Center image styling */
+    .center-icon img {
+      width: 80%;
+      border-radius: 50%;
+      height: auto;
+      object-fit: contain;
     }
 
     .orbit-icon {
@@ -213,14 +221,17 @@
 
 <div class="container-wrapper">
   <div class="text-content">
-    <h1>Supercharge Your<br/>AEM Development<br/>with One‑Click Project Generation</h1>
+    <h1>Supercharge Your<br/>AEM Development<br/>with One-Click Project Generation</h1>
     <p class="lead">Skip the terminal. No need to remember Maven commands.<br/>Fill in a few details and instantly generate fully structured AEM projects.</p>
     <a href="/create" class="btn btn-primary-custom" onclick="handleClick(event)">Get Started -></a>
     <a href="/dashboard" class="btn btn-primary-custom" onclick="handleNav(event)">Go to Dashboard -></a>
   </div>
 
   <div class="icon-orbit" id="iconOrbit">
-    <div class="center-icon"><i class="bi bi-cpu-fill"></i></div>
+    <!-- Center icon replaced with image -->
+    <div class="center-icon">
+      <img src="https://imgs.search.brave.com/tnDfvyymIP05n-5BLzYD55Tk1XmtWX4YE1nBTfKRGKA/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly91eHdp/bmcuY29tL3dwLWNv/bnRlbnQvdGhlbWVz/L3V4d2luZy9kb3du/bG9hZC9icmFuZHMt/YW5kLXNvY2lhbC1t/ZWRpYS9hZG9iZS1l/eHBlcmllbmNlLW1h/bmFnZXItYWVtLWlj/b24ucG5n" alt="Center Image">
+    </div>
     <i class="bi bi-list orbit-icon"></i>
     <i class="bi bi-terminal orbit-icon"></i>
     <i class="bi bi-lightning-charge-fill orbit-icon"></i>
@@ -260,10 +271,4 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-<footer class="text-center mt-auto py-4 bg-white shadow-sm border-top">
-  <div class="container">
-    <small class="text-muted">© 2025 AEM Tool Builder. All rights reserved.</small>
-  </div>
-</footer>
-
 </html>

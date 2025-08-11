@@ -29,6 +29,6 @@ public class FolderController {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return "redirect:/";
+        return "redirect:/dashboard";
     }
 }
