@@ -53,10 +53,10 @@ public class AemProjectServiceImpl implements AemProjectService {
                         "-DarchetypeGroupId=com.adobe.aem " +
                         "-DarchetypeArtifactId=aem-project-archetype " +
                         "-DarchetypeVersion=41 " +
-                        "-DappTitle=\\"%s\\" " +
-                        "-DappId=\\"%s\\" " +
-                        "-DgroupId=\\"%s\\" " +
-                        "-DaemVersion=\\"%s\\" " +
+                        "-DappTitle=\"%s\" " +
+                        "-DappId=\"%s\" " +
+                        "-DgroupId=\"%s\" " +
+                        "-DaemVersion=\"%s\" " +
                         "-Darchetype.interactive=false " +
                         "-DincludeDispatcherConfig=y " +
                         "-DincludeDispatcherCloud=n " +
