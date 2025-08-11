@@ -33,8 +33,13 @@ public class FileGenerationUtil {
     public static void generateAllFiles(String projectName, ComponentRequest request) {
         logger.info("FILEGEN: Starting file generation for project: {}", projectName);
         try {
-            String basePath = "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
-                    + projectName + "/components/";
+            String appsRoot = "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps";
+            String appName = projectName;
+            File[] dirs = new File(appsRoot).listFiles(File::isDirectory);
+            if (dirs != null && dirs.length > 0) {
+                appName = dirs[0].getName();
+            }
+            String basePath = appsRoot + "/" + appName + "/components/";
 
 
             Path javaSourceRoot = Paths.get("generated-projects/" + projectName + "/core/src/main/java/");
