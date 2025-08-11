@@ -65,6 +65,6 @@ public class DeployController {
             redirectAttributes.addFlashAttribute("error",
                     " Deployment failed for " + projectName + ": \n" + e.getMessage());
         }
-        return "redirect:/";
+        return "redirect:/dashboard";
     }
 }

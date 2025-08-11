@@ -31,6 +31,7 @@ public class AemProjectController {
     }
 
     @PostMapping("/save")
+
     public String saveConfig(@ModelAttribute AemProjectModel aemProjectModel, Model model) {
         try {
             aemProjectService.generateAemProject(aemProjectModel);
@@ -46,5 +47,11 @@ public class AemProjectController {
             }
             return "create";
         }
+
+    public String saveConfig(@ModelAttribute AemProjectModel aemProjectModel, Model model) throws IOException {
+        aemProjectService.generateAemProject(aemProjectModel);
+        model.addAttribute("message", "AEM Project created successfully under generated-projects directory.");
+        return "redirect:/dashboard";
+
     }
 }

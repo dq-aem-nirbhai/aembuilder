@@ -1,0 +1,139 @@
+/* Background Gradient Animation */
+body {
+  background: linear-gradient(120deg, #f8fafc, #eef2ff, #f0fdfa);
+  background-size: 400% 400%;
+  animation: gradientMove 15s ease infinite;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Page Title */
+.dashboard-header {
+  text-align: center;
+  padding: 2rem 0 1rem;
+}
+
+.dashboard-header h1 {
+  font-size: 2.8rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(90deg, #2563eb, #7c3aed, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+.dashboard-header p {
+  color: #475569;
+  font-size: 1rem;
+}
+
+/* Stats Cards */
+.stats-card {
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease;
+}
+
+.stats-card:hover {
+  transform: translateY(-4px);
+}
+
+.stats-card h4 {
+  margin: 0.5rem 0 0;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.stats-card i {
+  font-size: 2rem;
+  color: #2563eb;
+}
+
+/* Project Cards */
+.card {
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 1rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+}
+
+.card-footer {
+  background: transparent;
+  border-top: none;
+  padding-top: 0;
+}
+
+/* Buttons */
+.btn-gradient {
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  color: white;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.btn-gradient:hover {
+  background: linear-gradient(90deg, #16a34a, #15803d);
+  transform: scale(1.05);
+}
+
+.btn-outline-secondary {
+  border-radius: 50px;
+  transition: all 0.3s ease;
+}
+
+.btn-outline-secondary:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  transform: scale(1.05);
+}
+
+/* Alerts */
+.alert {
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  animation: fadeInAlert 0.6s ease forwards;
+}
+
+@keyframes fadeInAlert {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Modal Glass Effect */
+.modal-content {
+  border-radius: 1rem;
+  backdrop-filter: blur(15px);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* Small Buttons */
+.btn-sm {
+  border-radius: 30px;
+  font-size: 0.85rem;
+}
+
+/* Empty State */
+.empty-state {
+  border-radius: 12px;
+  background: rgba(255,255,255,0.7);
+  min-height: 300px;
+}
+
+.empty-state i {
+  font-size: 3rem;
+}
