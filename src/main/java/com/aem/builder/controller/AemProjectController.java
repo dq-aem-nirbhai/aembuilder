@@ -31,9 +31,20 @@ public class AemProjectController {
     }
 
     @PostMapping("/save")
-    public String saveConfig(@ModelAttribute AemProjectModel aemProjectModel, Model model) throws IOException {
-        aemProjectService.generateAemProject(aemProjectModel);
-        model.addAttribute("message", "AEM Project created successfully under generated-projects directory.");
-        return "redirect:/dashboard";
-    }
-}
+
+    public String saveConfig(@ModelAttribute AemProjectModel aemProjectModel, Model model) {
+        try {
+            aemProjectService.generateAemProject(aemProjectModel);
+            model.addAttribute("message", "AEM Project created successfully under generated-projects directory.");
+            return "redirect:/";
+        } catch (IOException e) {
+            model.addAttribute("error", e.getMessage());
+            try {
+                List<String> templates = templateService.getTemplateFileNames();
+                model.addAttribute("templates", templates);
+                model.addAttribute("componentList", componentService.getAllComponents());
+            } catch (IOException ignored) {
+            }
+            return "create";
+        }
+    }}

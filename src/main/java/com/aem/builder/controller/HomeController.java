@@ -61,5 +61,16 @@ public class HomeController {
         return "redirect:/dashboard";
     }
 
+    @PostMapping("/delete/{projectName}")
+    public String deleteProject(@PathVariable String projectName, RedirectAttributes redirectAttributes) {
+        try {
+            aemProjectService.deleteProject(projectName);
+            redirectAttributes.addFlashAttribute("message", "Project deleted successfully!");
+        } catch (IOException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/dashboard";
+    }
+
 
 }

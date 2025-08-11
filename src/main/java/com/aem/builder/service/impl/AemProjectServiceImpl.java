@@ -35,84 +35,74 @@ public class AemProjectServiceImpl implements AemProjectService {
     private static final String PROJECTS_DIR = "generated-projects";
 
     @Override
-    public void generateAemProject(AemProjectModel aemProjectModel) {
+    public void generateAemProject(AemProjectModel aemProjectModel) throws IOException {
+        String baseDir = System.getProperty("user.dir") + "/generated-projects/";
+        File directory = new File(baseDir);
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
+
+        String appId = aemProjectModel.getProjectName().toLowerCase().replace(" ", "-");
+        Path projectPath = Paths.get(baseDir, appId);
+        if (Files.exists(projectPath)) {
+            throw new IOException("Project already exists: " + aemProjectModel.getProjectName());
+        }
+
+        String command = String.format(
+                "mvn -B org.apache.maven.plugins:maven-archetype-plugin:3.2.1:generate " +
+                        "-DarchetypeGroupId=com.adobe.aem " +
+                        "-DarchetypeArtifactId=aem-project-archetype " +
+                        "-DarchetypeVersion=41 " +
+                        "-DappTitle=\"%s\" " +
+                        "-DappId=\"%s\" " +
+                        "-DgroupId=\"%s\" " +
+                        "-DaemVersion=\"%s\" " +
+                        "-Darchetype.interactive=false " +
+                        "-DincludeDispatcherConfig=y " +
+                        "-DincludeDispatcherCloud=n " +
+                        "-DincludeDispatcherAMS=n " +
+                        "-DincludeFrontendModuleGeneral=n " +
+                        "-DincludeFrontendModuleReact=n " +
+                        "-DincludeFrontendModuleAngular=n " +
+                        "-DincludeFrontendModuleReactFormsAF=n " +
+                        "-DincludeCommerce=n " +
+                        "-DincludeCommerceFrontend=n " +
+                        "-Dlanguage=en " +
+                        "-Dcountry=us " +
+                        "-DsingleCountry=n",
+                aemProjectModel.getProjectName(),
+                appId,
+                aemProjectModel.getPackageName(),
+                aemProjectModel.getVersion());
+
+        ProcessBuilder processBuilder;
+        if (System.getProperty("os.name").toLowerCase().contains("win")) {
+            processBuilder = new ProcessBuilder("cmd.exe", "/c", command);
+        } else {
+            processBuilder = new ProcessBuilder("bash", "-c", command);
+        }
+
+        processBuilder.directory(directory);
+        processBuilder.redirectErrorStream(true);
         try {
-            // Create directory structure
-            String baseDir = System.getProperty("user.dir") + "/generated-projects/";
-            File directory = new File(baseDir);
-            if (!directory.exists()) {
-                directory.mkdirs();
-            }
-
-            // Prepare project-specific details
-            String appId = aemProjectModel.getProjectName().toLowerCase().replace(" ", "-");
-
-            // Prepare Maven command for clean 6.5.13 structure
-            String command = String.format(
-                    "mvn -B org.apache.maven.plugins:maven-archetype-plugin:3.2.1:generate " +
-                            "-DarchetypeGroupId=com.adobe.aem " +
-                            "-DarchetypeArtifactId=aem-project-archetype " +
-                            "-DarchetypeVersion=41 " +
-                            "-DappTitle=\"%s\" " +
-                            "-DappId=\"%s\" " +
-                            "-DgroupId=\"%s\" " +
-                            "-DaemVersion=\"%s\" " +
-                            "-Darchetype.interactive=false " +
-                            "-DincludeDispatcherConfig=y " +
-                            "-DincludeDispatcherCloud=n " +
-                            "-DincludeDispatcherAMS=n " + // You can change to "n" if you don't want AMS either
-                            "-DincludeFrontendModuleGeneral=n " +
-                            "-DincludeFrontendModuleReact=n " +
-                            "-DincludeFrontendModuleAngular=n " +
-                            "-DincludeFrontendModuleReactFormsAF=n " +
-                            "-DincludeCommerce=n " +
-                            "-DincludeCommerceFrontend=n " +
-                            "-Dlanguage=en " +
-                            "-Dcountry=us " +
-                            "-DsingleCountry=n",
-                    aemProjectModel.getProjectName(),
-                    appId,
-                    aemProjectModel.getPackageName(),
-                    aemProjectModel.getVersion());
-
-            // OS-specific ProcessBuilder (cross-platform)
-            ProcessBuilder processBuilder;
-            if (System.getProperty("os.name").toLowerCase().contains("win")) {
-                processBuilder = new ProcessBuilder("cmd.exe", "/c", command);
-            } else {
-                processBuilder = new ProcessBuilder("bash", "-c", command);
-            }
-
-            // Set working directory
-            processBuilder.directory(directory);
-
-            // Stream logs to console for debugging
-            processBuilder.redirectErrorStream(true);
             Process process = processBuilder.start();
             process.getInputStream().transferTo(System.out);
-
             int exitCode = process.waitFor();
-
-            // Output Results
-            if (exitCode == 0) {
-                System.out.println("AEM project generated successfully.");
-            } else {
-                System.out.println(" AEM project generation failed with exit code: " + exitCode);
+            if (exitCode != 0) {
+                throw new IOException("AEM project generation failed with exit code: " + exitCode);
             }
-
-            // Step 1: Copy selected components to ui.apps
-            String componentsTargetPath = baseDir + appId + "/ui.apps/src/main/content/jcr_root/apps/" + appId
-                    + "/components/";
+            String componentsTargetPath = baseDir + appId + "/ui.apps/src/main/content/jcr_root/apps/" + appId + "/components/";
             File contentFolder = new File(componentsTargetPath);
             if (!contentFolder.exists()) {
                 contentFolder.mkdirs();
             }
             componentService.copySelectedComponents(aemProjectModel.getSelectedComponents(), componentsTargetPath, appId);
-
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Project generation interrupted", e);
         }
     }
+
 
 
     @Override
@@ -286,5 +276,14 @@ public class AemProjectServiceImpl implements AemProjectService {
         if (Files.exists(tempDir)) {
             org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
         }
+    }
+
+    @Override
+    public void deleteProject(String projectName) throws IOException {
+        Path projectPath = Paths.get(PROJECTS_DIR, projectName);
+        if (!Files.exists(projectPath)) {
+            throw new IOException("Project not found: " + projectName);
+        }
+        org.apache.commons.io.FileUtils.deleteDirectory(projectPath.toFile());
     }
 }

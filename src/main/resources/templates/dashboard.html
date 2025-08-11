@@ -67,11 +67,22 @@
           <p><strong>Package:</strong> <span th:text="${project.groupId}"></span></p>
           <p><strong>Created:</strong> <span th:text="${project.createdDate}"></span></p>
           <p><strong>Path:</strong> <span th:text="${project.path}"></span></p>
+
+          <div class="d-grid gap-2">
+            <a th:href="@{'/' + ${project.name}}" class="btn btn-outline-primary btn-sm">🔍 View Details</a>
+            <a th:href="@{'/show-folder?path=' + ${project.path}}" class="btn btn-outline-secondary btn-sm">📂 Show in Folder</a>
+            <a th:href="@{'/download/' + ${project.name}}" class="btn btn-outline-success btn-sm">⬇️ Download Zip</a>
+            <form th:action="@{'/delete/' + ${project.name}}" method="post">
+              <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this project?');">🗑️ Delete Project</button>
+            </form>
+          </div>
+
         </div>
         <div class="card-footer d-flex justify-content-between">
           <a th:href="@{'/' + ${project.name}}" class="btn btn-outline-primary btn-sm"><i class="bi bi-eye"></i> View</a>
           <a th:href="@{'/show-folder?path=' + ${project.path}}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-folder2-open"></i> Show in Folder</a>
           <a th:href="@{'/download/' + ${project.name}}" class="btn btn-outline-success btn-sm">⬇️ Download Zip</a>
+
         </div>
       </div>
     </div>

@@ -20,6 +20,7 @@
 </div>
 
 <main class="container py-4 animate__animated animate__fadeIn">
+  <div th:if="${error}" class="alert alert-danger" role="alert" th:text="${error}"></div>
   <form action="/save" method="post" th:object="${aemProjectModel}">
     <h2>Create AEM Project</h2>
 
