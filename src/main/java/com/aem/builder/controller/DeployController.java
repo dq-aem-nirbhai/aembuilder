@@ -31,14 +31,15 @@ public class DeployController {
         List<String> templates = templateService.fetchTemplatesFromGeneratedProjects(projectName);
         var compMap = componentService.fetchComponentsWithGroups(projectName);
         List<String> components = new ArrayList<>(compMap.keySet());
+        String appName = componentService.getAppName(projectName);
         List<String> editable = compMap.entrySet().stream()
                 .filter(e -> {
                     String g = e.getValue();
                     if (g != null) {
                         g = g.trim();
                     }
-                    return g == null || (!g.equalsIgnoreCase(projectName + " - Content")
-                            && !g.equalsIgnoreCase(projectName + " - Structure")
+                    return g == null || (!g.equalsIgnoreCase(appName + " - Content")
+                            && !g.equalsIgnoreCase(appName + " - Structure")
                             && !g.equals(".hidden"));
                 })
                 .map(java.util.Map.Entry::getKey)

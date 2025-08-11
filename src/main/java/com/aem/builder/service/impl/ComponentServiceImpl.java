@@ -67,6 +67,11 @@ public class ComponentServiceImpl implements ComponentService {
     }
 
     @Override
+    public String getAppName(String projectName) {
+        return resolveAppName(projectName);
+    }
+
+    @Override
     public List<String> fetchComponentsFromGeneratedProjects(String projectName) {
         String appName = resolveAppName(projectName);
         File componentsDir = new File(PROJECTS_DIR,
