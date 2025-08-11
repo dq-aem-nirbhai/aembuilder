@@ -1,6 +1,7 @@
 spring:
   application:
     name: aembuilder
-
-server:
-  port: 8081
+  servlet:
+    multipart:
+      max-file-size: 200MB
+      max-request-size: 200MB
