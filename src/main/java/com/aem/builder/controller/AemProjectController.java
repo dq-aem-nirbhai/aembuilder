@@ -36,7 +36,7 @@ public class AemProjectController {
         try {
             aemProjectService.generateAemProject(aemProjectModel);
             model.addAttribute("message", "AEM Project created successfully under generated-projects directory.");
-            return "redirect:/";
+            return "redirect:/dashboard";
         } catch (IOException e) {
             model.addAttribute("error", e.getMessage());
             try {
