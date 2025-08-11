@@ -111,10 +111,15 @@ public class ComponentServiceImpl implements ComponentService {
     public List<String> getAllComponents() throws IOException {
         List<String> components = new ArrayList<>();
         PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-        Resource[] resources = resolver.getResources("classpath:/aem-components/*");
+        Resource[] resources = resolver.getResources("classpath*:/aem-components/*/.content.xml");
 
         for (Resource resource : resources) {
-            components.add(resource.getFilename());
+            String url = resource.getURL().toString();
+            int start = url.lastIndexOf("aem-components/") + "aem-components/".length();
+            int end = url.lastIndexOf("/.content.xml");
+            if (start >= 0 && end > start) {
+                components.add(url.substring(start, end));
+            }
         }
         return components;
     }
