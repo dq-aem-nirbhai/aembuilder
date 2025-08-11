@@ -745,4 +745,75 @@ public class ComponentServiceImpl implements ComponentService {
 
         return true; // Available if no exact case-sensitive match found
     }
+
+    // Change this to the path of your local AEM components
+
+
+    /**
+     * Fetch all components from local project structure.
+     */
+    public Map<String, List<String>> getComponentsByGroup(String projectname) {
+        String COMPONENTS_PATH =
+                "generated-projects/"+projectname+"/ui.apps/src/main/content/jcr_root/apps/"+projectname+"/components";
+        Map<String, List<String>> groupedComponents = new HashMap<>();
+        scanComponents(new File(COMPONENTS_PATH), groupedComponents);
+        return groupedComponents;
+    }
+
+    private void scanComponents(File folder, Map<String, List<String>> groupedComponents) {
+        if (!folder.exists() || !folder.isDirectory()) return;
+
+        for (File file : folder.listFiles()) {
+            if (!file.isDirectory()) continue;
+
+            String name = file.getName();
+
+            // Skip internal folders
+            if (name.startsWith("_cq") || name.equals("new")) continue;
+
+            File contentXml = new File(file, ".content.xml");
+
+            if (contentXml.exists() && isComponent(contentXml)) {
+                String group = getComponentGroup(contentXml);
+                groupedComponents.computeIfAbsent(group, k -> new ArrayList<>());
+
+                List<String> list = groupedComponents.get(group);
+                if (!list.contains(name)) { // Avoid duplicates
+                    list.add(name);
+                }
+            }
+
+            // Recurse into subfolders
+            scanComponents(file, groupedComponents);
+        }
+    }
+
+    private boolean isComponent(File contentXml) {
+        try {
+            Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(contentXml);
+            Element root = doc.getDocumentElement();
+
+            // Only consider actual components
+            return "cq:Component".equals(root.getAttribute("jcr:primaryType"));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    private String getComponentGroup(File contentXml) {
+        try {
+            Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(contentXml);
+            Element root = doc.getDocumentElement();
+
+            if (root.hasAttribute("componentGroup")) {
+                return root.getAttribute("componentGroup");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "Others";
+    }
+
+
 }

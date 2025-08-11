@@ -42,4 +42,8 @@ public interface ComponentService {
     //component checking
     boolean isComponentNameAvailable(String projectName, String componentName);
 
+
+    public Map<String, List<String>> getComponentsByGroup(String projectName);
+
+
 }
