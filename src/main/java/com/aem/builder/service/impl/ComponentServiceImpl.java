@@ -52,10 +52,25 @@ public class ComponentServiceImpl implements ComponentService {
         return m.find() ? m.group(1) : "";
     }
 
+    /**
+     * Resolves the actual application folder name under ui.apps for a project.
+     * Imported projects may use an artifactId that differs from the project
+     * directory name, so inspect the apps folder to find the real name.
+     */
+    private String resolveAppName(String projectName) {
+        File appsDir = new File(PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps");
+        File[] dirs = appsDir.listFiles(File::isDirectory);
+        if (dirs != null && dirs.length > 0) {
+            return dirs[0].getName();
+        }
+        return projectName;
+    }
+
     @Override
     public List<String> fetchComponentsFromGeneratedProjects(String projectName) {
+        String appName = resolveAppName(projectName);
         File componentsDir = new File(PROJECTS_DIR,
-                projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components");
+                projectName + "/ui.apps/src/main/content/jcr_root/apps/" + appName + "/components");
         if (componentsDir.exists()) {
             return Arrays.stream(componentsDir.listFiles(File::isDirectory))
                     .map(File::getName)
@@ -67,8 +82,9 @@ public class ComponentServiceImpl implements ComponentService {
     @Override
     public Map<String, String> fetchComponentsWithGroups(String projectName) {
         Map<String, String> result = new LinkedHashMap<>();
+        String appName = resolveAppName(projectName);
         File componentsDir = new File(PROJECTS_DIR,
-                projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components");
+                projectName + "/ui.apps/src/main/content/jcr_root/apps/" + appName + "/components");
         if (componentsDir.exists()) {
             File[] dirs = componentsDir.listFiles(File::isDirectory);
             if (dirs != null) {
@@ -131,7 +147,8 @@ public class ComponentServiceImpl implements ComponentService {
 
     @Override
     public ComponentRequest loadComponent(String projectName, String componentName) {
-        String basePath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName
+        String appName = resolveAppName(projectName);
+        String basePath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + appName
                 + "/components/" + componentName;
         String group = "";
         String superType = null;
@@ -168,7 +185,8 @@ public class ComponentServiceImpl implements ComponentService {
 
     @Override
     public void updateComponent(String projectName, ComponentRequest request) {
-        String compPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName
+        String appName = resolveAppName(projectName);
+        String compPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + appName
                 + "/components/" + request.getComponentName();
         try {
             FileUtils.deleteDirectory(new File(compPath));
@@ -182,7 +200,8 @@ public class ComponentServiceImpl implements ComponentService {
     public void deleteComponent(String projectName, String componentName) {
         List<String> modelFiles = collectModelFiles(projectName, componentName);
 
-        String compPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName
+        String appName = resolveAppName(projectName);
+        String compPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + appName
                 + "/components/" + componentName;
         try {
             FileUtils.deleteDirectory(new File(compPath));
@@ -230,8 +249,9 @@ public class ComponentServiceImpl implements ComponentService {
 
     @Override
     public String getComponentHtml(String projectName, String componentName) {
+        String appName = resolveAppName(projectName);
         Path htmlPath = Paths.get(PROJECTS_DIR, projectName, "ui.apps", "src", "main", "content", "jcr_root",
-                "apps", projectName, "components", componentName, componentName + ".html");
+                "apps", appName, "components", componentName, componentName + ".html");
         try {
             return Files.readString(htmlPath);
         } catch (IOException e) {
@@ -390,9 +410,10 @@ public class ComponentServiceImpl implements ComponentService {
         Map<String, List<String>> projectComponentsMap = new HashMap<>();
 
         for (String project : projects) {
+            String appName = resolveAppName(project);
             String componentDirPath = System.getProperty("user.dir") +
                     "/generated-projects/" + project +
-                    "/ui.apps/src/main/content/jcr_root/apps/" + project + "/components";
+                    "/ui.apps/src/main/content/jcr_root/apps/" + appName + "/components";
 
             File componentDir = new File(componentDirPath);
 
@@ -419,8 +440,9 @@ public class ComponentServiceImpl implements ComponentService {
     public void addComponentsToExistingProject(String projectName, List<String> selectedComponents) {
         try {
             String baseDir = System.getProperty("user.dir") + "/generated-projects/";
+            String appName = resolveAppName(projectName);
             String contentFolderPath = baseDir + projectName +
-                    "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
+                    "/ui.apps/src/main/content/jcr_root/apps/" + appName + "/components";
 
             copySelectedComponents(selectedComponents, contentFolderPath, projectName);
             System.out.println(" Selected components copied to content folder in project: " + projectName);
@@ -683,10 +705,11 @@ public class ComponentServiceImpl implements ComponentService {
     //component creation
     @Override
     public List<String> getComponentGroups(String projectName) {
-        String path = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
+        String appName = resolveAppName(projectName);
+        String path = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + appName + "/components";
         File folder = new File(path);
         Set<String> groups = new HashSet<>();
-        groups.add(projectName);
+        groups.add(appName);
         if (folder.exists()) {
             File[] subDirs = folder.listFiles(File::isDirectory);
             if (subDirs != null) {
@@ -704,11 +727,11 @@ public class ComponentServiceImpl implements ComponentService {
         }
         groups.removeIf(g -> {
             String t = g.trim();
-            return t.equalsIgnoreCase(projectName + " - Content")
-                    || t.equalsIgnoreCase(projectName + " - Structure")
+            return t.equalsIgnoreCase(appName + " - Content")
+                    || t.equalsIgnoreCase(appName + " - Structure")
                     || t.equals(".hidden");
         });
-        return groups.isEmpty() ? List.of(projectName) : new ArrayList<>(groups);
+        return groups.isEmpty() ? List.of(appName) : new ArrayList<>(groups);
     }
 
     @Override
@@ -721,7 +744,8 @@ public class ComponentServiceImpl implements ComponentService {
     @Override
     public boolean isComponentNameAvailable(String projectName, String componentName) {
         // Folder where all components are stored
-        String basePath = "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
+        String appName = resolveAppName(projectName);
+        String basePath = "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + appName + "/components";
         File componentsDir = new File(basePath);
 
         if (!componentsDir.exists() || !componentsDir.isDirectory()) {
