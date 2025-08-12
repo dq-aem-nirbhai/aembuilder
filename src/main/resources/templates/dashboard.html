@@ -76,7 +76,7 @@
 
         </div>
         <div class="card-footer d-flex justify-content-between">
-          <a th:href="@{'/' + ${project.name}}" class="btn btn-outline-primary btn-sm"><i class="bi bi-eye"></i> View</a>
+          <a th:href="@{'/view/' + ${project.name}}" class="btn btn-outline-primary btn-sm"><i class="bi bi-eye"></i> View</a>
           <a th:href="@{'/show-folder?path=' + ${project.path}}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-folder2-open"></i> Show in Folder</a>
           <a th:href="@{'/download/' + ${project.name}}" class="btn btn-outline-success btn-sm">⬇️ Download Zip</a>
 

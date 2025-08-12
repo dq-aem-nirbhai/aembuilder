@@ -60,11 +60,19 @@ public class ComponentServiceImpl implements ComponentService {
     private String resolveAppName(String projectName) {
         File appsDir = new File(PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps");
         File[] dirs = appsDir.listFiles(File::isDirectory);
-        if (dirs != null && dirs.length > 0) {
-            return dirs[0].getName();
+
+        if (dirs != null) {
+            for (File dir : dirs) {
+                if (!"msm".equals(dir.getName())) {
+                    return dir.getName(); // Found a valid app folder, return its name
+                }
+            }
         }
+
+        // Only 'msm' was found or no folders exist, return original project name
         return projectName;
     }
+
 
     @Override
     public String getAppName(String projectName) {
@@ -87,9 +95,10 @@ public class ComponentServiceImpl implements ComponentService {
     @Override
     public Map<String, String> fetchComponentsWithGroups(String projectName) {
         Map<String, String> result = new LinkedHashMap<>();
-        String appName = resolveAppName(projectName);
+      String appName = resolveAppName(projectName);
         File componentsDir = new File(PROJECTS_DIR,
                 projectName + "/ui.apps/src/main/content/jcr_root/apps/" + appName + "/components");
+        log.info("componentsDir {}",componentsDir);
         if (componentsDir.exists()) {
             File[] dirs = componentsDir.listFiles(File::isDirectory);
             if (dirs != null) {
@@ -340,60 +349,132 @@ public class ComponentServiceImpl implements ComponentService {
         String fileRefAttr = elem.getAttribute("fileReferenceParameter");
         String resourceType = elem.getAttribute("sling:resourceType");
 
-// determine logical field type from resourceType (uses your existing mapping)
+        // Determine fieldType from resourceType
         String fieldType = getFieldTypeFromResource(resourceType);
-
-// Decide fieldName:
         String fieldName = null;
 
-        if ("fileupload".equals(fieldType)) {
-            if (fileRefAttr != null && !fileRefAttr.isBlank()) {
-                fieldName = fileRefAttr.startsWith("./") ? fileRefAttr.substring(2) : fileRefAttr;
-            } else if (nameAttr != null && !nameAttr.isBlank()) {
-                fieldName = nameAttr.startsWith("./") ? nameAttr.substring(2) : nameAttr;
+        // Special case: if multifield has no name, try to get it from nested <field> element's name
+        if ("multifield".equals(fieldType) && (nameAttr == null || nameAttr.isBlank())) {
+            Element fieldElem = null;
+            NodeList fieldNodes = elem.getElementsByTagName("field");
+            if (fieldNodes.getLength() > 0) {
+                fieldElem = (Element) fieldNodes.item(0);
             }
-        } else {
-            if (nameAttr != null && !nameAttr.isBlank()) {
-                fieldName = nameAttr.startsWith("./") ? nameAttr.substring(2) : nameAttr;
+            if (fieldElem != null) {
+                String nestedFieldName = fieldElem.getAttribute("name");
+                if (nestedFieldName != null && !nestedFieldName.isBlank()) {
+                    fieldName = nestedFieldName.startsWith("./") ? nestedFieldName.substring(2) : nestedFieldName;
+                }
             }
         }
 
+        // If still null, fallback to normal logic
+        if (fieldName == null) {
+            if (nameAttr != null && !nameAttr.isBlank()) {
+                if ("fileupload".equals(fieldType)) {
+                    if (fileRefAttr != null && !fileRefAttr.isBlank()) {
+                        fieldName = fileRefAttr.startsWith("./") ? fileRefAttr.substring(2) : fileRefAttr;
+                    } else {
+                        fieldName = nameAttr.startsWith("./") ? nameAttr.substring(2) : nameAttr;
+                    }
+                } else {
+                    fieldName = nameAttr.startsWith("./") ? nameAttr.substring(2) : nameAttr;
+                }
+            }
+        }
+
+        log.info("Parsing field: label='{}', name='{}', type='{}', resourceType='{}'",
+                fieldLabel, fieldName, fieldType, resourceType);
 
         List<OptionItem> options = null;
         List<ComponentField> nested = null;
 
         if ("multifield".equals(fieldType)) {
-            Element fieldElem = (Element) elem.getElementsByTagName("field").item(0);
+            // Multifield stores nested fields inside a <field> element
+            Element fieldElem = null;
+            NodeList fieldNodes = elem.getElementsByTagName("field");
+            if (fieldNodes.getLength() > 0) {
+                fieldElem = (Element) fieldNodes.item(0);
+            }
+
             if (fieldElem != null) {
-                Element items = (Element) fieldElem.getElementsByTagName("items").item(0);
-                if (items != null) {
+                // Extract nested fields from <items> inside <field>
+                Element itemsElem = null;
+                NodeList itemsNodes = fieldElem.getElementsByTagName("items");
+                if (itemsNodes.getLength() > 0) {
+                    itemsElem = (Element) itemsNodes.item(0);
+                }
+
+                if (itemsElem != null) {
                     nested = new ArrayList<>();
-                    NodeList nodes = items.getChildNodes();
+                    NodeList nodes = itemsElem.getChildNodes();
+                    int nestedCount = 0;
                     for (int i = 0; i < nodes.getLength(); i++) {
                         Node n = nodes.item(i);
                         if (n instanceof Element child) {
-                            nested.add(parseField(child));
+                            ComponentField childField = parseField(child);
+                            if (childField != null) {
+                                nested.add(childField);
+                                nestedCount++;
+                            } else {
+                                log.warn("Nested field [{}] returned null inside multifield '{}'", i, fieldName);
+                            }
+                        }
+                    }
+                    log.info("Parsed {} nested fields inside multifield '{}'", nestedCount, fieldName);
+                } else {
+                    log.warn("No <items> found inside multifield's <field> '{}'", fieldName);
+                }
+            } else {
+                log.warn("No <field> element found inside multifield '{}'", fieldName);
+            }
+
+        }
+        else if ("select".equals(fieldType) || "multiselect".equals(fieldType)
+                ||  "radiogroup".equals(fieldType)) {
+
+            // Detect real type for select vs multiselect
+            if ("select".equals(fieldType)) {
+                String multipleAttr = elem.getAttribute("multiple");
+                if ("true".equalsIgnoreCase(multipleAttr)) {
+                    fieldType = "multiselect"; // Preserve as multiselect if attribute is set
+                    log.info("Detected 'multiple' attribute, changing type to multiselect for '{}'", fieldName);
+                }
+            }
+
+            NodeList itemsNodes = elem.getElementsByTagName("items");
+            if (itemsNodes.getLength() > 0) {
+                Element itemsElem = (Element) itemsNodes.item(0);
+
+                options = new ArrayList<>();
+                NodeList optionNodes = itemsElem.getChildNodes();
+                int optionCount = 0;
+
+                for (int i = 0; i < optionNodes.getLength(); i++) {
+                    Node n = optionNodes.item(i);
+                    if (n instanceof Element optionElem) {
+                        String text = optionElem.getAttribute("text");
+                        String value = optionElem.getAttribute("value");
+
+                        if ((text != null && !text.isBlank()) || (value != null && !value.isBlank())) {
+                            options.add(new OptionItem(text, value));
+                            optionCount++;
+                            log.info("Added option: text='{}', value='{}'", text, value);
                         }
                     }
                 }
-            }
-        } else if (fieldType.equals("select") || fieldType.equals("multiselect")
-                || fieldType.equals("checkboxgroup") || fieldType.equals("radiogroup")) {
-            Element items = (Element) elem.getElementsByTagName("items").item(0);
-            if (items != null) {
-                options = new ArrayList<>();
-                NodeList nodes = items.getChildNodes();
-                for (int i = 0; i < nodes.getLength(); i++) {
-                    Node n = nodes.item(i);
-                    if (n instanceof Element opt) {
-                        options.add(new OptionItem(opt.getAttribute("text"), opt.getAttribute("value")));
-                    }
-                }
+                log.info("Parsed {} option items for '{}'", optionCount, fieldName);
+
+            } else {
+                log.warn("No <items> found for options in '{}'", fieldName);
             }
         }
 
+
         return new ComponentField(fieldLabel, fieldName, fieldType, nested, options);
     }
+
+
 
     private void collectFields(Element parent, List<ComponentField> fields) {
         NodeList children = parent.getChildNodes();
@@ -711,10 +792,17 @@ public class ComponentServiceImpl implements ComponentService {
     @Override
     public List<String> getComponentGroups(String projectName) {
         String appName = resolveAppName(projectName);
+        // Step 1: Read title from pom.xml
+        String appTitle = readAppTitleFromPom(projectName);
+        if (appTitle == null || appTitle.isBlank()) {
+            appTitle = appName;
+        }
+
         String path = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + appName + "/components";
         File folder = new File(path);
         Set<String> groups = new HashSet<>();
-        groups.add(appName);
+      groups.add(appTitle);
+
         if (folder.exists()) {
             File[] subDirs = folder.listFiles(File::isDirectory);
             if (subDirs != null) {
@@ -722,22 +810,43 @@ public class ComponentServiceImpl implements ComponentService {
                     File contentXml = new File(comp, ".content.xml");
                     if (contentXml.exists()) {
                         String content = FileGenerationUtil.readFile(contentXml);
-                        String g = extractProperty(content, "componentGroup").trim();
-                        if (!g.isEmpty()) {
-                            groups.add(g);
+                        String group = extractProperty(content, "componentGroup").trim();
+                        if (!group.isEmpty()) {
+                            groups.add(group);
                         }
                     }
                 }
             }
         }
+
+        final String finalAppTitle = appTitle;
         groups.removeIf(g -> {
-            String t = g.trim();
-            return t.equalsIgnoreCase(appName + " - Content")
-                    || t.equalsIgnoreCase(appName + " - Structure")
-                    || t.equals(".hidden");
+            String trimmed = g.trim();
+            return trimmed.equals(finalAppTitle + " - Structure")
+                    || trimmed.equals(".hidden");
         });
-        return groups.isEmpty() ? List.of(appName) : new ArrayList<>(groups);
+
+        return groups.isEmpty() ? List.of(appTitle) : new ArrayList<>(groups);
     }
+
+
+
+    public String readAppTitleFromPom(String projectName) {
+        File pom = new File(PROJECTS_DIR + "/" + projectName + "/pom.xml");
+
+        if (!pom.exists()) {
+            return null;
+        }
+        try {
+            Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(pom);
+            doc.getDocumentElement().normalize();
+            return doc.getElementsByTagName("componentGroupName").item(0).getTextContent();
+        } catch (Exception e) {
+            System.err.println("Failed to read app title from pom.xml: " + e.getMessage());
+            return null;
+        }
+    }
+
 
     @Override
     public void generateComponent(String projectName, ComponentRequest request) {

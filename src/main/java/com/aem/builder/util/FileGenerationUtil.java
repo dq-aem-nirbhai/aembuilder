@@ -101,6 +101,7 @@ public class FileGenerationUtil {
         boolean hasFields = fields != null && !fields.isEmpty();
 
         generateComponentContentXml(componentFolder, componentName, componentGroup, superType);
+
         generateHTL(componentFolder, fields, packageName, componentName, superType);
 
         if (hasFields) {
@@ -183,7 +184,7 @@ public class FileGenerationUtil {
                             .append(": <input type=\"checkbox\" disabled checked=\"checked\"/></p>\n")
                             .append("  </sly>\n");
                 }
-                case "checkboxgroup", "multiselect" -> {
+                case  "multiselect" ,"tagfield" -> {
                     sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append(" && model.")
                             .append(fieldName).append(".size > 0}\">\n")
                             .append("    <ul data-sly-list.item=\"${model.").append(fieldName).append("}\">\n")
@@ -274,7 +275,7 @@ public class FileGenerationUtil {
                         .append(modelVar).append(".").append(fieldName).append("}</a></p>\n");
                 case "checkbox" -> sb.append(indent).append("  <p>").append(fieldLabel)
                         .append(": <input type=\"checkbox\" disabled checked=\"checked\"/></p>\n");
-                case "checkboxgroup", "multiselect" -> sb.append(indent).append("  <ul data-sly-list.item=\"${")
+                case "multiselect","tagfield"  -> sb.append(indent).append("  <ul data-sly-list.item=\"${")
                         .append(modelVar).append(".").append(fieldName).append("}\">\n")
                         .append(indent).append("    <li>${item}</li>\n")
                         .append(indent).append("  </ul>\n");
@@ -369,14 +370,17 @@ public class FileGenerationUtil {
 
         return switch (type) {
             case "textfield", "textarea", "numberfield", "hidden", "password",
-                    "pathfield", "datepicker", "tagfield", "richtext", "switch", "anchorbrowser" -> {
+                 "pathfield", "datepicker", "tagfield", "richtext", "switch", "colorfield" -> {
                 String resource = getResourceType(type);
                 String extra = switch (type) {
                     case "textarea" -> "    rows=\"5\"\n";
                     case "numberfield" -> "    min=\"0\" max=\"1000\"\n";
                     case "tagfield" ->
-                        "    autocompleter=\"true\"\n    multiple=\"true\"\n    rootPath=\"/content/cq:tags\"\n";
-                    case "richtext" -> "    useFixedInlineToolbar=\"true\"\n    enableSourceEdit=\"true\"\n";
+                            "    autocompleter=\"true\"\n    multiple=\"true\"\n    rootPath=\"/content/cq:tags\"\n";
+                    case "richtext" ->
+                            "    useFixedInlineToolbar=\"true\"\n    enableSourceEdit=\"true\"\n";
+                    case "colorfield" ->
+                            "    emptyText=\"Choose a color\"\n    value=\"#ffffff\"\n    required=\"{Boolean}false\"\n";
                     default -> "";
                 };
                 yield String.format(
@@ -389,6 +393,7 @@ public class FileGenerationUtil {
                                 "  />\n",
                         nodeName, resource, label, name);
             }
+
 
             case "checkbox" -> {
                 String resource = getResourceType("checkbox");
@@ -405,10 +410,8 @@ public class FileGenerationUtil {
                         nodeName, resource, label, name, label);
             }
 
-            case "checkboxgroup", "radiogroup" -> {
-                String resource = type.equals("checkboxgroup")
-                        ? getResourceType("checkboxgroup")
-                        : getResourceType("radiogroup");
+            case  "radiogroup" -> {
+                String resource = getResourceType("radiogroup");
                 StringBuilder sb = new StringBuilder();
                 sb.append("  <").append(nodeName).append("\n")
                         .append("    jcr:primaryType=\"nt:unstructured\"\n")
@@ -457,16 +460,6 @@ public class FileGenerationUtil {
                 yield sb.toString();
             }
 
-            case "button" -> {
-                yield String.format(
-                        "  <%s\n" +
-                                "    jcr:primaryType=\"nt:unstructured\"\n" +
-                                "    sling:resourceType=\"%s\"\n" +
-                                "    text=\"%s\"\n" +
-                                "    icon=\"add\"\n" +
-                                "    type=\"button\"/>\n",
-                        nodeName, getResourceType(type), label);
-            }
             case "image", "fileupload" -> {
                 StringBuilder sb = new StringBuilder();
                 sb.append("  <").append(nodeName).append("\n")
@@ -564,7 +557,7 @@ public class FileGenerationUtil {
                             .append(";\n\n");
                 }
                 case "checkbox" -> sb.append("    @ValueMapValue\nprivate boolean ").append(name).append(";\n\n");
-                case "checkboxgroup", "multiselect" ->
+                case  "multiselect","tagfield" ->
                     sb.append("    @ValueMapValue\nprivate List<String> ").append(name).append(";\n\n");
                 case "numberfield" -> sb.append("    @ValueMapValue\nprivate double ").append(name).append(";\n\n");
                 default -> sb.append("    @ValueMapValue\nprivate String ").append(name).append(";\n\n");
@@ -583,7 +576,7 @@ public class FileGenerationUtil {
                             .append("        return ").append(name).append(";\n    }\n\n");
                 case "checkbox" -> sb.append("    public boolean is").append(getter).append("() {\n")
                         .append("        return ").append(name).append(";\n    }\n\n");
-                case "checkboxgroup", "multiselect" ->
+                case  "multiselect","tagfield" ->
                     sb.append("    public List<String> get").append(getter).append("() {\n")
                             .append("        return ").append(name).append(";\n    }\n\n");
                 case "numberfield" -> sb.append("    public double get").append(getter).append("() {\n")
@@ -602,7 +595,7 @@ public class FileGenerationUtil {
             String type = field.getFieldType().toLowerCase();
 
             switch (type) {
-                case "multifield", "checkboxgroup", "multiselect" ->
+                case "multifield",  "multiselect","tagfield" ->
                     emptyChecks.add("(" + name + " == null || " + name + ".isEmpty())");
                 case "checkbox" -> emptyChecks.add("!" + name);
                 case "numberfield" -> emptyChecks.add(name + " == 0");
@@ -657,7 +650,7 @@ public class FileGenerationUtil {
                         .append("    private boolean ").append(subName).append(";\n\n");
                 case "numberfield" -> sb.append("    @ValueMapValue\n")
                         .append("    private double ").append(subName).append(";\n\n");
-                case "checkboxgroup", "multiselect" -> sb.append("    @ValueMapValue\n")
+                case  "multiselect","tagfield"  -> sb.append("    @ValueMapValue\n")
                         .append("    private List<String> ").append(subName).append(";\n\n");
                 default -> sb.append("    @ValueMapValue\n")
                         .append("    private String ").append(subName).append(";\n\n");
@@ -679,7 +672,7 @@ public class FileGenerationUtil {
                         .append("        return ").append(subName).append(";\n    }\n\n");
                 case "numberfield" -> sb.append("    public double get").append(getter).append("() {\n")
                         .append("        return ").append(subName).append(";\n    }\n\n");
-                case "checkboxgroup", "multiselect" ->
+                case  "multiselect","tagfield" ->
                     sb.append("    public List<String> get").append(getter).append("() {\n")
                             .append("        return ").append(subName).append(";\n    }\n\n");
 

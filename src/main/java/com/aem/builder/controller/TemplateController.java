@@ -106,7 +106,7 @@ public class TemplateController {
         System.out.println(templateModel+"*********************");
         if (templateModel == null) {
             model.addAttribute("error", "Template not found or unreadable.");
-            return "redirect:/" + projectName ;
+            return "redirect:/view/" + projectName ;
         }
 
         model.addAttribute("template", templateModel);
@@ -127,7 +127,7 @@ public class TemplateController {
         try {
            // TemplateModel updatedatetemplate = templateService.updatedTemplateModel(template, projectname);
             templateService.updateTemplate(template,projectname,templateName);
-            return "redirect:/" + projectname ;
+            return "redirect:/view/" + projectname ;
         } catch (Exception e) {
             model.addAttribute("error", "Template update failed: " + e.getMessage());
             return "createtemplate";

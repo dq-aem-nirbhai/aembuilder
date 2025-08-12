@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Create AEM Component</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  
+
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
   <link rel="stylesheet" href="/css/create-component.css">
@@ -15,12 +15,12 @@
 <div th:replace="fragments/navbar :: navbar"></div>
 
 <div class="container mt-4 mb-5">
-  <h2 class="mb-4 animate__animated animate__fadeInDown" 
+  <h2 class="mb-4 animate__animated animate__fadeInDown"
       th:text="${editMode} ? 'Edit AEM Component for ' + ${projectName} : 'Create AEM Component for ' + ${projectName}">
     Create AEM Component
   </h2>
 
-  <a th:href="@{'/' + ${projectName}}" class="btn btn-outline-secondary mb-3">← Back to Deploy Page</a>
+  <a th:href="@{'/view/' + ${projectName}}" class="btn btn-outline-secondary mb-3">← Back to Deploy Page</a>
 
   <!-- Success Message -->
   <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert">
