@@ -1,6 +1,7 @@
 package com.aem.builder.service;
 
+import reactor.core.publisher.Flux;
+
 public interface DeployService {
-    String deployProject(String projectName) throws Exception;
-    String extractErrorMessage(String fullOutput);
+    Flux<String> deployProjectLive(String projectName);
 }
