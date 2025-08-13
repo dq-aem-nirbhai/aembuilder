@@ -5,11 +5,9 @@ import com.aem.builder.model.DTO.ComponentRequest;
 import com.aem.builder.model.DTO.OptionItem;
 import com.aem.builder.model.Enum.FieldType;
 import com.aem.builder.service.ComponentService;
-
 import com.aem.builder.util.FileGenerationUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,10 +15,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
-
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FileUtils;
 import org.springframework.core.io.Resource;
@@ -150,7 +146,6 @@ public class ComponentServiceImpl implements ComponentService {
         if (projectsDir.exists() && projectsDir.isDirectory()) {
 
             String[] names = projectsDir.list();
-
 
             if (names != null) {
                 existingProjects = List.of(names);
@@ -299,13 +294,6 @@ public class ComponentServiceImpl implements ComponentService {
                 : input.substring(0, 1).toUpperCase() + input.substring(1);
     }
 
-   /* private String getFieldTypeFromResource(String resourceType) {
-        return FieldType.getTypeResourceMap().entrySet().stream()
-                .filter(e -> e.getValue().equals(resourceType))
-                .map(Map.Entry::getKey)
-                .findFirst()
-                .orElse("");
-    }*/
 
     private String getFieldTypeFromResource(String resourceType) {
         if (resourceType == null || resourceType.isEmpty()) {
@@ -668,47 +656,11 @@ public class ComponentServiceImpl implements ComponentService {
 
         String originalContent = FileUtils.readFileToString(modelFile, "UTF-8");
 
-        // Update package declaration
-       // String content = originalContent.replace("package com.aem.builder.slingModels;", "package com." + projectName + ".core.models;");
-
-        /*String content = originalContent.replaceAll(
-                "package\\s+com\\.aem\\.builder\\.[\\w.]+;",
-                "package com." + projectName + ".core.models;"
-        );*/
-
         String content = originalContent.replaceFirst(
                 "package\\s+com\\.aem\\.builder\\.[\\w.]+;",
                 "package " + targetPackageName + ";"
         );
 
-
-        /*// Update import statements for internal model classes
-        Pattern importPattern = Pattern.compile("import\\s+com\\.aem\\.builder\\.slingModels\\.(\\w+);");
-        Matcher importMatcher = importPattern.matcher(content);
-        StringBuffer updatedContent = new StringBuffer();
-        while (importMatcher.find()) {
-            String className = importMatcher.group(1);
-            String newImport = "import com." + projectName + ".core.models." + className + ";";
-            importMatcher.appendReplacement(updatedContent, Matcher.quoteReplacement(newImport));
-        }
-        importMatcher.appendTail(updatedContent);
-        content = updatedContent.toString();
-
-        // Write to destination file
-        File destFile = new File(targetBase, modelFile.getName());
-        destFile.getParentFile().mkdirs();
-        FileUtils.writeStringToFile(destFile, content, "UTF-8");
-        copiedModels.add(modelName);
-        System.out.println("Sling Model copied: " + destFile.getAbsolutePath());
-
-        // Recursively copy dependencies
-        Set<String> dependentTypes = extractReferencedModelTypes(originalContent);
-        for (String type : dependentTypes) {
-            File depFile = new File(sourceBase, type + ".java");
-            if (depFile.exists()) {
-                copyModelAndDependencies(depFile, sourceBase, targetBase, projectName, copiedModels);
-            }
-        }*/
 
         // Update import statements for internal model classes
         Pattern importPattern = Pattern.compile("import\\s+com\\.aem\\.builder\\.slingModels\\.(\\w+);");
@@ -880,8 +832,6 @@ public class ComponentServiceImpl implements ComponentService {
 
         return true; // Available if no exact case-sensitive match found
     }
-
-    // Change this to the path of your local AEM components
 
 
     /**

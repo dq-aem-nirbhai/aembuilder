@@ -34,11 +34,21 @@ public class FileGenerationUtil {
         logger.info("FILEGEN: Starting file generation for project: {}", projectName);
         try {
             String appsRoot = "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps";
+            File appsDir = new File( "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps");
+
             String appName = projectName;
-            File[] dirs = new File(appsRoot).listFiles(File::isDirectory);
-            if (dirs != null && dirs.length > 0) {
-                appName = dirs[0].getName();
+
+            File[] dirs = appsDir.listFiles(File::isDirectory);
+
+            if (dirs != null) {
+                for (File dir : dirs) {
+                    if (!"msm".equals(dir.getName())) {
+                        appName = dir.getName(); // Found a valid app folder, store its name
+                        break;
+                    }
+                }
             }
+
             String basePath = appsRoot + "/" + appName + "/components/";
 
 
