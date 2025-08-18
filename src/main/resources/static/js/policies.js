@@ -220,7 +220,7 @@ console.log(data);
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(data)
             });
-            window.location.href = `/${projectName}`;
+            window.location.href = `/view/${projectName}`;
         } catch (err) {
             alert("Error submitting policy: " + err);
         }

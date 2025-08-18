@@ -286,4 +286,19 @@ public class AemProjectServiceImpl implements AemProjectService {
         }
         org.apache.commons.io.FileUtils.deleteDirectory(projectPath.toFile());
     }
+
+
+    @Override
+    public boolean projectExists(String projectName) {
+        if (projectName == null || projectName.isBlank()) {
+            return false;
+        }
+
+        // Normalize name to appId (like in generateAemProject)
+        String appId = projectName.toLowerCase().replace(" ", "-");
+        Path projectPath = Paths.get(System.getProperty("user.dir"), PROJECTS_DIR, appId);
+
+        File folder = projectPath.toFile();
+        return folder.exists() && folder.isDirectory();
+    }
 }

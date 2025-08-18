@@ -13,5 +13,6 @@ public interface AemProjectService {
     byte[] getProjectZip(String projectName) throws IOException;
     void importProject(org.springframework.web.multipart.MultipartFile file) throws IOException;
     void deleteProject(String projectName) throws IOException;
+    boolean projectExists(String projectName);
 
 }

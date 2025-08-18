@@ -65,3 +65,49 @@ document.addEventListener("DOMContentLoaded", () => {
 function toggleDropdown() {
   document.getElementById("dropdownSection").classList.toggle("show");
 }
+
+// --- Project name availability check ---
+const nameStatus = document.getElementById("nameStatus");
+const createBtn = document.querySelector("button[type='submit']");
+
+async function checkProjectAvailability(projectName) {
+  try {
+    const response = await fetch(`/checkProjectName?name=${encodeURIComponent(projectName)}`);
+    const result = await response.json();
+
+   if (result.exists) {
+     nameStatus.textContent = result.message;
+     nameStatus.style.color = "red";
+     createBtn.disabled = true;
+     createBtn.classList.add("disabled-btn");  // 🔹 add style
+   } else {
+     nameStatus.textContent = result.message;
+     nameStatus.style.color = "green";
+     createBtn.disabled = false;
+     createBtn.classList.remove("disabled-btn"); // 🔹 remove style
+   }
+
+  } catch (err) {
+    nameStatus.textContent = "⚠️ Error checking availability";
+    nameStatus.style.color = "orange";
+    createBtn.disabled = true;
+  }
+}
+
+// hook into project name input
+projectInput.addEventListener("input", function () {
+  let rawValue = this.value.trim().replace(/^[0-9]+/, "");
+
+  if (rawValue.length > 0) {
+    const capitalized = rawValue.charAt(0).toUpperCase() + rawValue.slice(1);
+    this.value = capitalized;
+    packageInput.value = "com.aem." + capitalized.replace(/\s+/g, '').toLowerCase();
+
+    // 🔹 check backend every time name changes
+    checkProjectAvailability(this.value);
+  } else {
+    packageInput.value = "";
+    nameStatus.textContent = "";
+    createBtn.disabled = true;
+  }
+});
