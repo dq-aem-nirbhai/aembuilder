@@ -87,18 +87,23 @@
 </main>
 
 <!-- Import Modal -->
+<!-- Import Modal -->
 <div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
-    <form th:action="@{/import}" method="post" enctype="multipart/form-data" class="modal-content">
+    <form id="importForm" class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><i class="bi bi-upload me-2"></i>Import AEM Project</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <input type="file" name="file" class="form-control" required>
+        <input type="file" id="zipFile" name="file" class="form-control" required>
+        <div id="importFeedback" class="mt-2"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-gradient" type="submit"><i class="bi bi-cloud-arrow-up me-1"></i> Upload</button>
+        <button id="uploadBtn" class="btn btn-gradient" type="submit" disabled>
+          <span id="uploadSpinner" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" style="display:none;"></span>
+          <i class="bi bi-cloud-arrow-up me-1"></i> Upload
+        </button>
       </div>
     </form>
   </div>
