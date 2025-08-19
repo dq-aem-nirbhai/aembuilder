@@ -24,12 +24,11 @@
         <!-- Action buttons -->
         <div class="d-flex justify-content-end mb-3">
             <button id="saveBtn" class="btn btn-outline-success me-2" style="display:none" onclick="saveAll()">Save</button>
-            <form th:action="@{'/' + ${projectName} + '/deploy'}" method="post" class="d-inline" onsubmit="return showDeploySpinner()">
-                <button id="deployBtn" class="btn btn-warning" type="submit" th:attr="disabled=${!canDeploy}">
-                    <span id="deploySpinner" class="spinner-border spinner-border-sm me-2" style="display: none;"></span>
-                    Deploy to AEM
-                </button>
-            </form>
+            <a th:href="@{'/' + ${projectName} + '/deploy'}"
+               class="btn btn-warning"
+               th:attr="disabled=${!canDeploy}">
+                Deploy to AEM
+            </a>
         </div>
         <!-- Component & Template Lists -->
         <div class="row g-4">

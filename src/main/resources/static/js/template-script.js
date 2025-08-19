@@ -98,7 +98,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 nameError.innerText = "";
                 existingTemplates.push(name.toLowerCase());
 setTimeout(() => {
-        window.location.href = `/${projectName}`;
+        window.location.href = `/view/${projectName}`;
         // replace deploypage with your actual deploy page mapping
     }, 1000);
                 // Reset field disable state

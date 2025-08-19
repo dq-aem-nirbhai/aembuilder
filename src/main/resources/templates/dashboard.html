@@ -75,12 +75,20 @@
           <p><strong>Package:</strong> <span th:text="${project.groupId}"></span></p>
           <p><strong>Created:</strong> <span th:text="${project.createdDate}"></span></p>
           <p><strong>Path:</strong> <span th:text="${project.path}"></span></p>
+
+          <div class="d-grid gap-2">
+            <form th:action="@{'/delete/' + ${project.name}}" method="post">
+              <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this project?');">🗑️ Delete Project</button>
+            </form>
+          </div>
+
         </div>
 
         <div class="card-footer d-flex justify-content-between">
-          <a th:href="@{'/' + ${project.name}}" class="btn btn-outline-primary btn-sm"><i class="bi bi-eye"></i> View</a>
+          <a th:href="@{'/view/' + ${project.name}}" class="btn btn-outline-primary btn-sm"><i class="bi bi-eye"></i> View</a>
           <a th:href="@{'/show-folder?path=' + ${project.path}}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-folder2-open"></i> Show in Folder</a>
           <a th:href="@{'/download/' + ${project.name}}" class="btn btn-outline-success btn-sm">⬇️ Download Zip</a>
+
         </div>
 
       </div>
@@ -89,18 +97,23 @@
 </main>
 
 <!-- Import Modal -->
+<!-- Import Modal -->
 <div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
-    <form th:action="@{/import}" method="post" enctype="multipart/form-data" class="modal-content">
+    <form id="importForm" class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><i class="bi bi-upload me-2"></i>Import AEM Project</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <input type="file" name="file" class="form-control" required>
+        <input type="file" id="zipFile" name="file" class="form-control" required>
+        <div id="importFeedback" class="mt-2"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-gradient" type="submit"><i class="bi bi-cloud-arrow-up me-1"></i> Upload</button>
+        <button id="uploadBtn" class="btn btn-gradient" type="submit" disabled>
+          <span id="uploadSpinner" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" style="display:none;"></span>
+          <i class="bi bi-cloud-arrow-up me-1"></i> Upload
+        </button>
       </div>
     </form>
   </div>

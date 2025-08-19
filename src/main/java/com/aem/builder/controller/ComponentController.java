@@ -106,6 +106,7 @@ public class ComponentController {
                                         @PathVariable String projectName,
                                         Model model) {
         ComponentRequest component = componentService.loadComponent(projectName, componentName);
+
         model.addAttribute("projectName", projectName);
 
         var typeResourceMap = FieldType.getTypeResourceMap();
@@ -148,7 +149,7 @@ public class ComponentController {
         try {
             componentService.generateComponent(project, request);
             redirectAttributes.addFlashAttribute("message", "Component created successfully!");
-            return "redirect:/" + project;
+            return "redirect:/view/" + project;
         } catch (Exception e) {
             log.error("Error creating component", e);
             redirectAttributes.addFlashAttribute("error", "Failed to create component: " + e.getMessage());
@@ -163,7 +164,7 @@ public class ComponentController {
         try {
             componentService.updateComponent(project, request);
             redirectAttributes.addFlashAttribute("message", "Component updated successfully!");
-            return "redirect:/" + project;
+            return "redirect:/view/" + project;
         } catch (Exception e) {
             log.error("Error updating component", e);
             redirectAttributes.addFlashAttribute("error", "Failed to update component: " + e.getMessage());
@@ -182,7 +183,7 @@ public class ComponentController {
             log.error("Error deleting component", e);
             redirectAttributes.addFlashAttribute("error", "Failed to delete component: " + e.getMessage());
         }
-        return "redirect:/" + project;
+        return "redirect:/view/" + project;
     }
 
 //component checking

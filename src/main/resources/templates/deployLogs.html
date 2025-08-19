@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>Deployment Logs - [[${projectName}]]</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Fira Mono', Consolas, Monaco, monospace;
+      background-color: #121212;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    header {
+      background: #1f2937;
+      color: #60a5fa;
+      font-weight: 600;
+      padding: 1rem 2rem;
+      font-size: 1.5rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+      user-select: none;
+    }
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 1rem 2rem;
+      overflow: hidden;
+    }
+    #logOutput {
+      background: #0f172a;
+      flex: 1;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      font-size: 0.9rem;
+      line-height: 1.3;
+      box-shadow: inset 0 0 15px rgba(96, 165, 250, 0.25);
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      margin-bottom: 1.5rem;
+    }
+    .info { color: #22c55e; }
+    .warn { color: #eab308; font-weight: 600; }
+    .error { color: #ef4444; font-weight: 700; }
+    #closeBtn {
+      align-self: flex-end;
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      padding: 0.6rem 1.4rem;
+      font-size: 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(37, 99, 235, 0.6);
+      transition: background-color 0.3s ease, box-shadow 0.3s ease;
+      display: none;
+      user-select: none;
+    }
+    #closeBtn:hover {
+      background-color: #1d4ed8;
+      box-shadow: 0 5px 15px rgba(29, 78, 216, 0.8);
+    }
+  </style>
+</head>
+<body>
+<header>Deployment Logs for [[${projectName}]]</header>
+<main>
+  <div id="logOutput" aria-live="polite" aria-atomic="true" role="log"></div>
+  <button id="closeBtn" aria-label="Close deployment logs and go back">Close</button>
+</main>
+
+<script>
+  const projectName = '[[${projectName}]]';
+  const eventSource = new EventSource(`/${encodeURIComponent(projectName)}/deploy/logs`);
+  const logOutput = document.getElementById('logOutput');
+  const closeBtn = document.getElementById('closeBtn');
+
+  function escapeHtml(text) {
+    return text.replace(/&/g, "&amp;")
+               .replace(/</g, "&lt;")
+               .replace(/>/g, "&gt;")
+               .replace(/"/g, "&quot;")
+               .replace(/'/g, "&#039;");
+  }
+
+  function colorizeLogLine(line) {
+    const escapedLine = escapeHtml(line);
+    if (/error/i.test(line)) {
+      return `<span class="error">${escapedLine}</span>`;
+    } else if (/warn/i.test(line)) {
+      return `<span class="warn">${escapedLine}</span>`;
+    } else if (/info/i.test(line) || /success|✅/i.test(line)) {
+      return `<span class="info">${escapedLine}</span>`;
+    }
+    return escapedLine;
+  }
+
+  function appendLog(line) {
+    const div = document.createElement('div');
+    div.innerHTML = colorizeLogLine(line);
+    logOutput.appendChild(div);
+    // Auto-scroll to bottom
+    logOutput.scrollTop = logOutput.scrollHeight;
+  }
+
+  eventSource.onmessage = function(event) {
+    appendLog(event.data);
+  };
+
+  eventSource.onerror = function() {
+    appendLog("[Connection closed]");
+    eventSource.close();
+    closeBtn.style.display = 'inline-block';
+  };
+
+  closeBtn.addEventListener('click', () => {
+    window.location.href = `/view/${encodeURIComponent(projectName)}`;
+  });
+</script>
+</body>
+</html>

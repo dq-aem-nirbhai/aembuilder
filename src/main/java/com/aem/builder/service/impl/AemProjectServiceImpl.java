@@ -7,22 +7,27 @@ import com.aem.builder.service.ComponentService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
+import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 @Service
@@ -35,84 +40,74 @@ public class AemProjectServiceImpl implements AemProjectService {
     private static final String PROJECTS_DIR = "generated-projects";
 
     @Override
-    public void generateAemProject(AemProjectModel aemProjectModel) {
+    public void generateAemProject(AemProjectModel aemProjectModel) throws IOException {
+        String baseDir = System.getProperty("user.dir") + "/generated-projects/";
+        File directory = new File(baseDir);
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
+
+        String appId = aemProjectModel.getProjectName().toLowerCase().replace(" ", "-");
+        Path projectPath = Paths.get(baseDir, appId);
+        if (Files.exists(projectPath)) {
+            throw new IOException("Project already exists: " + aemProjectModel.getProjectName());
+        }
+
+        String command = String.format(
+                "mvn -B org.apache.maven.plugins:maven-archetype-plugin:3.2.1:generate " +
+                        "-DarchetypeGroupId=com.adobe.aem " +
+                        "-DarchetypeArtifactId=aem-project-archetype " +
+                        "-DarchetypeVersion=41 " +
+                        "-DappTitle=\"%s\" " +
+                        "-DappId=\"%s\" " +
+                        "-DgroupId=\"%s\" " +
+                        "-DaemVersion=\"%s\" " +
+                        "-Darchetype.interactive=false " +
+                        "-DincludeDispatcherConfig=y " +
+                        "-DincludeDispatcherCloud=n " +
+                        "-DincludeDispatcherAMS=n " +
+                        "-DincludeFrontendModuleGeneral=n " +
+                        "-DincludeFrontendModuleReact=n " +
+                        "-DincludeFrontendModuleAngular=n " +
+                        "-DincludeFrontendModuleReactFormsAF=n " +
+                        "-DincludeCommerce=n " +
+                        "-DincludeCommerceFrontend=n " +
+                        "-Dlanguage=en " +
+                        "-Dcountry=us " +
+                        "-DsingleCountry=n",
+                aemProjectModel.getProjectName(),
+                appId,
+                aemProjectModel.getPackageName(),
+                aemProjectModel.getVersion());
+
+        ProcessBuilder processBuilder;
+        if (System.getProperty("os.name").toLowerCase().contains("win")) {
+            processBuilder = new ProcessBuilder("cmd.exe", "/c", command);
+        } else {
+            processBuilder = new ProcessBuilder("bash", "-c", command);
+        }
+
+        processBuilder.directory(directory);
+        processBuilder.redirectErrorStream(true);
         try {
-            // Create directory structure
-            String baseDir = System.getProperty("user.dir") + "/generated-projects/";
-            File directory = new File(baseDir);
-            if (!directory.exists()) {
-                directory.mkdirs();
-            }
-
-            // Prepare project-specific details
-            String appId = aemProjectModel.getProjectName().toLowerCase().replace(" ", "-");
-
-            // Prepare Maven command for clean 6.5.13 structure
-            String command = String.format(
-                    "mvn -B org.apache.maven.plugins:maven-archetype-plugin:3.2.1:generate " +
-                            "-DarchetypeGroupId=com.adobe.aem " +
-                            "-DarchetypeArtifactId=aem-project-archetype " +
-                            "-DarchetypeVersion=41 " +
-                            "-DappTitle=\"%s\" " +
-                            "-DappId=\"%s\" " +
-                            "-DgroupId=\"%s\" " +
-                            "-DaemVersion=\"%s\" " +
-                            "-Darchetype.interactive=false " +
-                            "-DincludeDispatcherConfig=y " +
-                            "-DincludeDispatcherCloud=n " +
-                            "-DincludeDispatcherAMS=n " + // You can change to "n" if you don't want AMS either
-                            "-DincludeFrontendModuleGeneral=n " +
-                            "-DincludeFrontendModuleReact=n " +
-                            "-DincludeFrontendModuleAngular=n " +
-                            "-DincludeFrontendModuleReactFormsAF=n " +
-                            "-DincludeCommerce=n " +
-                            "-DincludeCommerceFrontend=n " +
-                            "-Dlanguage=en " +
-                            "-Dcountry=us " +
-                            "-DsingleCountry=n",
-                    aemProjectModel.getProjectName(),
-                    appId,
-                    aemProjectModel.getPackageName(),
-                    aemProjectModel.getVersion());
-
-            // OS-specific ProcessBuilder (cross-platform)
-            ProcessBuilder processBuilder;
-            if (System.getProperty("os.name").toLowerCase().contains("win")) {
-                processBuilder = new ProcessBuilder("cmd.exe", "/c", command);
-            } else {
-                processBuilder = new ProcessBuilder("bash", "-c", command);
-            }
-
-            // Set working directory
-            processBuilder.directory(directory);
-
-            // Stream logs to console for debugging
-            processBuilder.redirectErrorStream(true);
             Process process = processBuilder.start();
             process.getInputStream().transferTo(System.out);
-
             int exitCode = process.waitFor();
-
-            // Output Results
-            if (exitCode == 0) {
-                System.out.println("AEM project generated successfully.");
-            } else {
-                System.out.println(" AEM project generation failed with exit code: " + exitCode);
+            if (exitCode != 0) {
+                throw new IOException("AEM project generation failed with exit code: " + exitCode);
             }
-
-            // Step 1: Copy selected components to ui.apps
-            String componentsTargetPath = baseDir + appId + "/ui.apps/src/main/content/jcr_root/apps/" + appId
-                    + "/components/";
+            String componentsTargetPath = baseDir + appId + "/ui.apps/src/main/content/jcr_root/apps/" + appId + "/components/";
             File contentFolder = new File(componentsTargetPath);
             if (!contentFolder.exists()) {
                 contentFolder.mkdirs();
             }
             componentService.copySelectedComponents(aemProjectModel.getSelectedComponents(), componentsTargetPath, appId);
-
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Project generation interrupted", e);
         }
     }
+
 
 
     @Override
@@ -192,9 +187,49 @@ public class AemProjectServiceImpl implements AemProjectService {
 
     @Override
     public void importProject(org.springframework.web.multipart.MultipartFile file) throws IOException {
-        Path tempDir = Files.createTempDirectory("aem-import");
+        // Save temp zip
         Path tempZip = Files.createTempFile("aem-upload", ".zip");
         Files.copy(file.getInputStream(), tempZip, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
+        String artifactId = null;
+
+        //  Step 1: Quickly extract only pom.xml from zip
+        try (java.util.zip.ZipFile zipFile = new java.util.zip.ZipFile(tempZip.toFile())) {
+            java.util.Enumeration<? extends java.util.zip.ZipEntry> entries = zipFile.entries();
+            while (entries.hasMoreElements()) {
+                java.util.zip.ZipEntry entry = entries.nextElement();
+                if (entry.getName().endsWith("pom.xml")) {
+                    try (InputStream in = zipFile.getInputStream(entry)) {
+                        DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+                        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+                        org.w3c.dom.Document doc = dBuilder.parse(in);
+                        doc.getDocumentElement().normalize();
+                        artifactId = doc.getElementsByTagName("artifactId").item(0).getTextContent();
+                    } catch (Exception e) {
+                        throw new IOException("Failed to read pom.xml. Ensure the ZIP contains a valid Maven project.", e);
+                    }
+                    break;
+                }
+            }
+        }
+
+        if (artifactId == null || artifactId.isBlank()) {
+            Files.deleteIfExists(tempZip);
+            throw new IOException("Invalid project: Missing or empty <artifactId> in pom.xml.");
+        }
+
+        //  Step 2: Fail fast if project already exists
+        Path projectsDir = Paths.get(PROJECTS_DIR);
+        Files.createDirectories(projectsDir);
+        Path target = projectsDir.resolve(artifactId);
+
+        if (Files.exists(target)) {
+            Files.deleteIfExists(tempZip);
+            throw new IOException("Import failed: A project with artifactId '" + artifactId + "' already exists.");
+        }
+
+        //  Step 3: If safe, then do full extraction
+        Path tempDir = Files.createTempDirectory("aem-import");
         try (java.util.zip.ZipFile zipFile = new java.util.zip.ZipFile(tempZip.toFile())) {
             java.util.Enumeration<? extends java.util.zip.ZipEntry> entries = zipFile.entries();
             while (entries.hasMoreElements()) {
@@ -204,8 +239,8 @@ public class AemProjectServiceImpl implements AemProjectService {
                     Files.createDirectories(out);
                 } else {
                     Files.createDirectories(out.getParent());
-                    try (java.io.InputStream is = zipFile.getInputStream(entry)) {
-                        Files.copy(is, out);
+                    try (InputStream is = zipFile.getInputStream(entry)) {
+                        Files.copy(is, out, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                     }
                 }
             }
@@ -213,7 +248,7 @@ public class AemProjectServiceImpl implements AemProjectService {
             Files.deleteIfExists(tempZip);
         }
 
-        // Locate project root containing pom.xml and ui.apps structure
+        //  Step 4: Validate structure (ui.apps, pom.xml, etc.)
         Path rootDir;
         try (var stream = Files.walk(tempDir)) {
             rootDir = stream
@@ -226,65 +261,94 @@ public class AemProjectServiceImpl implements AemProjectService {
 
         if (rootDir == null) {
             org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
-            throw new IOException("Uploaded file is not a valid AEM project structure");
-        }
-        // Validate expected AEM project modules and files
-        String[] requiredDirs = {"all", "core", "dispatcher", "it.tests", "ui.apps",
-                "ui.apps.structure", "ui.content", "ui.config", "ui.frontend", "ui.tests"};
-        String[] requiredFiles = {"pom.xml", "README.md", "archetype.properties"};
-
-        boolean structureValid = true;
-        for (String dir : requiredDirs) {
-            Path p;
-            if ("dispatcher".equals(dir)) {
-                p = Files.isDirectory(rootDir.resolve("dispatcher")) ? rootDir.resolve("dispatcher")
-                        : rootDir.resolve("dispratcher");
-            } else if ("ui.frontend".equals(dir)) {
-                p = Files.isDirectory(rootDir.resolve("ui.frontend")) ? rootDir.resolve("ui.frontend")
-                        : rootDir.resolve("u.frontend");
-            } else {
-                p = rootDir.resolve(dir);
-            }
-            if (!Files.isDirectory(p)) {
-                structureValid = false;
-                break;
-            }
-        }
-        if (structureValid) {
-            for (String f : requiredFiles) {
-                Path p;
-                if ("README.md".equals(f)) {
-                    p = Files.exists(rootDir.resolve("README.md")) ? rootDir.resolve("README.md")
-                            : rootDir.resolve("readme.md");
-                } else {
-                    p = rootDir.resolve(f);
-                }
-                if (!Files.exists(p)) {
-                    structureValid = false;
-                    break;
-                }
-            }
+            throw new IOException("Invalid AEM project: Missing pom.xml or ui.apps module.");
         }
 
-        if (!structureValid) {
+        try {
+            Files.move(rootDir, target);
+        } catch (IOException e) {
             org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
-            throw new IOException("Uploaded file is not in AEM structure format");
+            throw new IOException("Failed to import project '" + artifactId + "'. Could not move files.", e);
         }
 
-        String originalName = file.getOriginalFilename();
-        String projectName = originalName == null ? rootDir.getFileName().toString()
-                : originalName.replaceFirst("\\.zip$", "");
-
-        Path projectsDir = Paths.get(PROJECTS_DIR);
-        Files.createDirectories(projectsDir);
-        Path target = projectsDir.resolve(projectName);
-        if (Files.exists(target)) {
-            org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
-            throw new IOException("Project already exists: " + projectName);
-        }
-        Files.move(rootDir, target);
+        // Cleanup temp extraction dir
         if (Files.exists(tempDir)) {
             org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
         }
     }
+
+
+    @Override
+    public void deleteProject(String projectName) throws IOException {
+        Path projectPath = Paths.get(PROJECTS_DIR, projectName);
+        if (!Files.exists(projectPath)) {
+            throw new IOException("Project not found: " + projectName);
+        }
+        org.apache.commons.io.FileUtils.deleteDirectory(projectPath.toFile());
+    }
+
+
+    @Override
+    public boolean projectExists(String projectName) {
+        if (projectName == null || projectName.isBlank()) {
+            return false;
+        }
+        Path projectPath = Paths.get(System.getProperty("user.dir"), PROJECTS_DIR, projectName);
+        File folder = projectPath.toFile();
+        return folder.exists() && folder.isDirectory();
+    }
+
+    @Override
+    public String extractArtifactId(MultipartFile file) throws IOException {
+        // Save uploaded zip to a temp file
+        File tempZip = File.createTempFile("aem-upload", ".zip");
+        file.transferTo(tempZip);
+
+        String artifactId = null;
+
+        try (ZipFile zipFile = new ZipFile(tempZip)) {
+            Enumeration<? extends ZipEntry> entries = zipFile.entries();
+
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+
+                // look for pom.xml
+                if (entry.getName().endsWith("pom.xml") && !entry.isDirectory()) {
+                    try (InputStream input = zipFile.getInputStream(entry)) {
+                        artifactId = parseArtifactIdFromPom(input);
+                        if (artifactId != null) {
+                            break;
+                        }
+                    }
+                }
+            }
+        } finally {
+            Files.deleteIfExists(tempZip.toPath());
+        }
+
+        if (artifactId == null || artifactId.isBlank()) {
+            throw new IllegalArgumentException("Could not find artifactId in pom.xml");
+        }
+
+        return artifactId;
+    }
+
+
+
+    private String parseArtifactIdFromPom(InputStream pomStream) {
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document doc = builder.parse(pomStream);
+            doc.getDocumentElement().normalize();
+
+            return doc.getElementsByTagName("artifactId").item(0).getTextContent();
+        } catch (Exception e) {
+            log.error("Failed to parse pom.xml for artifactId: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+
+
 }

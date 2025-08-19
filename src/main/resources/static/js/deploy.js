@@ -151,11 +151,7 @@
         });
     }
 
-    function showDeploySpinner() {
-        document.getElementById('deploySpinner').style.display = 'inline-block';
-        document.getElementById('deployBtn').disabled = true;
-        return true;
-    }
+
 div.innerHTML = `
     <div class="border rounded p-2 text-center shadow-sm removable-item new-item">
         ${item}
