@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", function () {
     let existingTemplates = [];
 
     const projectnameInput = document.getElementById("projectname");
-    const nameInput = document.getElementById("name");
+   // const nameInput = document.getElementById("name");
     const titleInput = document.getElementById("title");
     const descriptionInput = document.getElementById("description");
     const statusInput = document.getElementById("status");
@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const responseEl = document.getElementById("response");
     const templateForm = document.getElementById("templateForm");
 
-    if (!projectnameInput || !nameInput || !templateForm || !templatetypeSelect) {
+    if (!projectnameInput || !titleInput || !templateForm || !templatetypeSelect) {
         console.error("One or more required elements are missing in the HTML.");
         return;
     }
@@ -51,7 +51,7 @@ document.addEventListener("DOMContentLoaded", function () {
         .catch(error => console.error("Error loading template types:", error));
 
     // Load existing template names when name field is focused
-    nameInput.addEventListener("focus", function () {
+    titleInput.addEventListener("focus", function () {
         if (existingTemplates.length === 0) {
             fetch(`/templates/list/${projectName}`)
                 .then(response => response.json())
@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // Check for duplicate name while typing
-    nameInput.addEventListener("input", function () {
+    titleInput.addEventListener("input", function () {
         const inputName = this.value.trim().toLowerCase();
         nameError.innerText = existingTemplates.includes(inputName) ? "Template already exists." : "";
     });
@@ -72,18 +72,18 @@ document.addEventListener("DOMContentLoaded", function () {
     templateForm.addEventListener("submit", function (event) {
         event.preventDefault();
 
-        const name = nameInput.value.trim();
+       // const name = nameInput.value.trim();
         const title = titleInput.value.trim();
         const description = descriptionInput.value.trim();
         const status = statusInput.value;
         const templateType = templatetypeSelect.value;
 
-        if (existingTemplates.includes(name.toLowerCase())) {
+        if (existingTemplates.includes(title.toLowerCase())) {
             nameError.innerText = "Template already exists.";
             return;
         }
 
-        const data = { name, title, description, status, templateType };
+        const data = { title, description, status, templateType };
 
         fetch(`/create-template/${projectName}`, {
             method: "POST",
@@ -96,7 +96,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 responseEl.innerText = result;
                 templateForm.reset();
                 nameError.innerText = "";
-                existingTemplates.push(name.toLowerCase());
+                existingTemplates.push(title.toLowerCase());
 setTimeout(() => {
         window.location.href = `/view/${projectName}`;
         // replace deploypage with your actual deploy page mapping

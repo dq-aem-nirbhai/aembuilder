@@ -92,7 +92,7 @@ public class TemplateServiceImpl implements TemplateService {
                 .filter(projectTemplates::contains)
                 .collect(Collectors.toList());
 
-        System.out.println("commom "+commonTemplates);
+
         return commonTemplates;
 
     }
@@ -158,16 +158,16 @@ public class TemplateServiceImpl implements TemplateService {
     @Override
     public TemplateModel createTemplate(TemplateModel model, String projectname) throws IOException {
 
-        System.out.println(model.getTitle());
-        System.out.println(model.getName());
-        System.out.println(model.getStatus());
+
+
+
         String url = "generated-projects/" + projectname + "/ui.content/src/main/content/jcr_root/conf/"
-                + projectname + "/settings/wcm/templates/" + model.getName();
+                + projectname + "/settings/wcm/templates/" + model.getTitle();
         String targetpath = url;
 
         // Create parent directory
         new File(url).mkdirs();
-        System.out.println("Created directory: " + url);
+
 
         // Create subfolders
         //   new File(targetpath + "/jcr:content").mkdirs();
@@ -176,12 +176,12 @@ public class TemplateServiceImpl implements TemplateService {
         new File(targetpath+"/policies").mkdirs();
 
         // Write XML files
-        writeFile(targetpath + "/.content.xml", TemplateUtil.getTemplateRootXmlPage(model.getName(),projectname,model.getTemplateType(),model.getStatus(),model.getDescription()));
+        writeFile(targetpath + "/.content.xml", TemplateUtil.getTemplateRootXmlPage(model.getTitle(),projectname,model.getTemplateType(),model.getStatus(),model.getDescription()));
 
         if(model.getTemplateType().equals("page")) {
             writeFile(targetpath + "/initial/.content.xml", TemplateUtil.getInitialXmlPage(projectname,
-                    model.getName()));
-            writeFile(targetpath + "/structure/.content.xml", TemplateUtil.getStructureXmlPage(model.getName(),
+                    model.getTitle()));
+            writeFile(targetpath + "/structure/.content.xml", TemplateUtil.getStructureXmlPage(model.getTitle(),
                     projectname)); // Pass projectname here
             writeFile(targetpath + "/policies/.content.xml", TemplateUtil.getPoliciesPage(projectname));
 
@@ -189,11 +189,11 @@ public class TemplateServiceImpl implements TemplateService {
         else {
 
             writeFile(targetpath + "/initial/.content.xml", TemplateUtil.getIntialContentXf(projectname,
-                    model.getName()));
+                    model.getTitle()));
             //getIntialContentXf
 
             writeFile(targetpath + "/structure/.content.xml", TemplateUtil.generateStructureContentXmlXf(projectname,
-                    model.getName())); // Pass projectname here
+                    model.getTitle())); // Pass projectname here
             writeFile(targetpath+"/policies/.content.xml",TemplateUtil.generatePoliciesXmlXf(projectname));
 
         }
@@ -217,7 +217,7 @@ public class TemplateServiceImpl implements TemplateService {
         Element root = doc.getDocumentElement();
 
 // Check if node already exists
-        String newTemplateName = model.getName(); // from user
+        String newTemplateName = model.getTitle(); // from user
         if (doc.getElementsByTagName(newTemplateName).getLength() == 0) {
             Element newElement = doc.createElement(newTemplateName);
             root.appendChild(newElement);
@@ -248,7 +248,7 @@ public class TemplateServiceImpl implements TemplateService {
         Path filePath = Paths.get(path);
         Files.createDirectories(filePath.getParent());
         Files.write(filePath, content.getBytes(StandardCharsets.UTF_8));
-        System.out.println("Written file: " + path);
+
     }
 
 
@@ -271,7 +271,6 @@ public class TemplateServiceImpl implements TemplateService {
             Element root = doc.getDocumentElement();
 
             TemplateModel model = new TemplateModel();
-            model.setName(templateName);
             model.setTitle(root.getAttribute("jcr:title"));
 
             Element content = (Element) root.getElementsByTagName("jcr:content").item(0);
@@ -279,13 +278,13 @@ public class TemplateServiceImpl implements TemplateService {
             model.setStatus(content.getAttribute("status"));
             model.setDescription(content.getAttribute("jcr:description"));
             String templateType=content.getAttribute("cq:templateType");
-            System.out.println(templateType+"   temp type........");
+
 
             if (templateType != null && templateType.contains("/")) {
                 model.setTemplateType(templateType.substring(templateType.lastIndexOf("/") + 1));
-                System.out.println(templateType.substring(templateType.lastIndexOf("/") + 1));
+
             }
-            System.out.println("old model "+model.toString());
+
             return model;
 
         } catch (Exception e) {
@@ -299,9 +298,9 @@ public class TemplateServiceImpl implements TemplateService {
 
         String basePath = "generated-projects/" + projectName + "/ui.content/src/main/content/jcr_root/conf/" +
                 projectName + "/settings/wcm/templates/";
-        String targetpath=basePath+updatedModel.getName();
+        String targetpath=basePath+updatedModel.getTitle();
         File oldFolder = new File(basePath + oldTemplateName);
-        File newFolder = new File(basePath + updatedModel.getName());
+        File newFolder = new File(basePath + updatedModel.getTitle());
 
         if (!oldFolder.exists()) {
             throw new FileNotFoundException("Old template folder not found: " + oldFolder.getAbsolutePath());
@@ -310,9 +309,9 @@ public class TemplateServiceImpl implements TemplateService {
         // Safely rename folder
         try {
             Files.move(oldFolder.toPath(), newFolder.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            System.out.println("Folder renamed successfully.");
+
         } catch (IOException e) {
-            System.err.println("Rename failed, attempting manual copy...");
+
             newFolder.mkdirs();
             for (File file : oldFolder.listFiles()) {
                 Files.move(file.toPath(), new File(newFolder, file.getName()).toPath(), StandardCopyOption.REPLACE_EXISTING);
@@ -321,7 +320,7 @@ public class TemplateServiceImpl implements TemplateService {
         }
 
         if(updatedModel.getTemplateType().equals("page")) {
-            writeFile(targetpath + "/structure/.content.xml", TemplateUtil.getStructureXmlPage(updatedModel.getName(),
+            writeFile(targetpath + "/structure/.content.xml", TemplateUtil.getStructureXmlPage(updatedModel.getTitle(),
                     projectName)); // Pass projectname here
             writeFile(targetpath + "/policies/.content.xml", TemplateUtil.getPoliciesPage(projectName));
 
@@ -329,7 +328,7 @@ public class TemplateServiceImpl implements TemplateService {
         else {
 
             writeFile(targetpath + "/structure/.content.xml", TemplateUtil.generateStructureContentXmlXf(projectName,
-                    updatedModel.getName())); // Pass projectname here
+                    updatedModel.getTitle())); // Pass projectname here
             writeFile(targetpath+"/policies/.content.xml",TemplateUtil.generatePoliciesXmlXf(projectName));
 
         }
@@ -343,7 +342,7 @@ public class TemplateServiceImpl implements TemplateService {
             Element root = doc.getDocumentElement();
             Element content = (Element) root.getElementsByTagName("jcr:content").item(0);
 
-            root.setAttribute("jcr:title", updatedModel.getName()); // updates root title
+            root.setAttribute("jcr:title", updatedModel.getTitle()); // updates root title
             if (updatedModel.getTitle() != null) content.setAttribute("jcr:title", updatedModel.getTitle());
             if (updatedModel.getDescription() != null) content.setAttribute("jcr:description", updatedModel.getDescription());
             if (updatedModel.getStatus() != null) content.setAttribute("status", updatedModel.getStatus());
@@ -361,7 +360,7 @@ public class TemplateServiceImpl implements TemplateService {
             transformer.transform(new DOMSource(doc), new StreamResult(templateContentFile));
 
 
-            System.out.println("Updated template .content.xml");
+
         }
 
 
@@ -369,17 +368,16 @@ public class TemplateServiceImpl implements TemplateService {
         String intial=newFolder+"/initial";
 
         File intialContentFile=new File(intial,".content.xml");
-        System.out.println(intialContentFile.getName()+"        intial location");
+
         if(intialContentFile.exists()){
             DocumentBuilder builder1 = DocumentBuilderFactory.newInstance().newDocumentBuilder();
             Document doc1 = builder1.parse(intialContentFile);
             Element root1 = doc1.getDocumentElement();
             Element content1 = (Element) root1.getElementsByTagName("jcr:content").item(0);
-            String cqTemplate="/conf/"+projectName+"/settings/wcm/templates/"+updatedModel.getName();
+            String cqTemplate="/conf/"+projectName+"/settings/wcm/templates/"+updatedModel.getTitle();
             content1.setAttribute("cq:template",cqTemplate);
             content1.setAttribute("sling:resourceType",projectName+"/components/xfpage");
-            //"project_1/components/xfpage"
-            System.out.println(cqTemplate+" updated cq template field");
+
             Transformer transformer = TransformerFactory.newInstance().newTransformer();
             transformer.transform(new DOMSource(doc1), new StreamResult(intialContentFile));
         }
@@ -406,21 +404,20 @@ public class TemplateServiceImpl implements TemplateService {
             }
             if (oldNode != null) {
                 root.removeChild(oldNode);
-                System.out.println("Removed old template node: " + oldTemplateName);
+
             }
 
             // Add new template node if missing
-            if (doc.getElementsByTagName(updatedModel.getName()).getLength() == 0) {
-                Element newElement = doc.createElement(updatedModel.getName());
+            if (doc.getElementsByTagName(updatedModel.getTitle()).getLength() == 0) {
+                Element newElement = doc.createElement(updatedModel.getTitle());
                 root.appendChild(newElement);
-                System.out.println("Added new template node: " + updatedModel.getName());
+
             }
 
             // Save updated XML
             Transformer transformer = TransformerFactory.newInstance().newTransformer();
 
             transformer.transform(new DOMSource(doc), new StreamResult(parentContentFile));
-            System.out.println("Updated parent .content.xml successfully");
         }
 
     }

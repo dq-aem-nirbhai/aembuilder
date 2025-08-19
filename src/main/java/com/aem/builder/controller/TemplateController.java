@@ -56,7 +56,7 @@ public class TemplateController {
     public ResponseEntity<String> createTemplate(@PathVariable String projectname, @RequestBody TemplateModel model) {
         List<String> projectTemplates = templateService.getTemplateNamesFromDestination(projectname);
 
-        if (projectTemplates.contains(model.getName())) {
+        if (projectTemplates.contains(model.getTitle())) {
             return ResponseEntity.ok("Template already exists");
         }
         else {
@@ -64,7 +64,7 @@ public class TemplateController {
                     TemplateModel resutlmodel   = templateService.createTemplate(model, projectname);
                     System.out.println(resutlmodel.toString());
 
-                return ResponseEntity.ok("Template generated successfully: " + model.getName());
+                return ResponseEntity.ok("Template generated successfully: " + model.getTitle());
             } catch (Exception e) {
                 e.printStackTrace();
                 return ResponseEntity.status(500).body("Error generating template: " + e.getMessage());
@@ -84,6 +84,7 @@ public class TemplateController {
     @GetMapping("/templates/list/{projectname}")
     public ResponseEntity<List<String>> listTemplates(@PathVariable String projectname) {
         List<String> templates = templateService.getTemplateNamesFromDestination(projectname);
+        System.out.println(templates);
         return ResponseEntity.ok(templates);
     }
     @GetMapping("/template-types/{projectName}")
@@ -103,7 +104,6 @@ public class TemplateController {
                                        Model model) {
         TemplateModel templateModel = templateService.loadTemplateByName(projectName, templateName);
 
-        System.out.println(templateModel+"*********************");
         if (templateModel == null) {
             model.addAttribute("error", "Template not found or unreadable.");
             return "redirect:/view/" + projectName ;
@@ -111,6 +111,7 @@ public class TemplateController {
 
         model.addAttribute("template", templateModel);
         model.addAttribute("tempname",templateName);
+        System.out.println(templateName+"  template name");
         System.out.println(templateModel);
         model.addAttribute("editMode", true);
         model.addAttribute("projectName", projectName);
@@ -123,9 +124,8 @@ public class TemplateController {
     public String updateTemplate(@ModelAttribute("template") TemplateModel template,
                                  @PathVariable String projectname,@PathVariable String templateName,
                                  Model model) {
-        System.out.println(template.toString()+"uuuuuuuuuuuu");
+
         try {
-           // TemplateModel updatedatetemplate = templateService.updatedTemplateModel(template, projectname);
             templateService.updateTemplate(template,projectname,templateName);
             return "redirect:/view/" + projectname ;
         } catch (Exception e) {

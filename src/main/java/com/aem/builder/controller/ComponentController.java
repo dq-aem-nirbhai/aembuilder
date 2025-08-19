@@ -145,9 +145,11 @@ public class ComponentController {
     @PostMapping("/component/create/{project}")
     public String createComponent(@PathVariable String project,
                                   @ModelAttribute ComponentRequest request,
-                                  RedirectAttributes redirectAttributes) {
+                                  RedirectAttributes redirectAttributes,Model model) {
         try {
             componentService.generateComponent(project, request);
+            model.addAttribute("model",request);
+            System.out.println(request);
             redirectAttributes.addFlashAttribute("message", "Component created successfully!");
             return "redirect:/view/" + project;
         } catch (Exception e) {

@@ -18,7 +18,7 @@ import java.util.List;
 @NoArgsConstructor
 public class TemplateModel {
 
-    private String name;
+
     private String title;
     private String description;
     private String status;

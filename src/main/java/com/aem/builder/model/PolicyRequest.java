@@ -15,5 +15,4 @@ public class PolicyRequest {
     private String styleDefaultElement;
     private Map<String, Map<String, String>> styles;
 
-
 }
