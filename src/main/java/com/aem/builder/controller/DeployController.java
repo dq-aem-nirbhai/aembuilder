@@ -36,12 +36,11 @@ public class DeployController {
 
         List<String> components = new ArrayList<>(compMap.keySet());
 
-        String appName = componentService.getAppName(projectName);
         String appTitle = componentService.readAppTitleFromPom(projectName);
 
 // Fallback to appName if title not found
         if (appTitle == null || appTitle.isBlank()) {
-            appTitle = appName;
+            appTitle = projectName;
         }
 
         final String finalAppTitle = appTitle;

@@ -232,3 +232,11 @@ button[type="submit"]:hover {
     transform: translateY(0);
   }
 }
+.disabled-btn {
+  background-color: #ccc !important;
+  color: #666 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  border: 1px solid #aaa !important;
+  opacity: 0.7;
+}
