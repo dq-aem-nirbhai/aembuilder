@@ -15,11 +15,14 @@
 
 <!-- Navbar -->
 <div th:replace="fragments/navbar :: navbar"></div>
-<div class="center-button">
+<div class="container py-4 animate__animated animate__fadeIn">
   <a th:href="@{'/dashboard'}" class="btn btn-outline-secondary">← Back to Dashboard</a>
+
 </div>
 
 <main class="container py-4 animate__animated animate__fadeIn">
+
+  <div th:if="${error}" class="alert alert-danger" role="alert" th:text="${error}"></div>
   <form action="/save" method="post" th:object="${aemProjectModel}">
     <h2>Create AEM Project</h2>
 
@@ -80,9 +83,9 @@
     <input type="hidden" name="selectedComponents" id="selectedComponentsInput" />
 
     <!-- Loading Overlay -->
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="spinner-border" role="status"></div>
-</div>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner-border" role="status"></div>
+    </div>
 
 
     <button type="submit">Create Project</button>
@@ -91,60 +94,5 @@
 
 <!-- Footer -->
 <footer th:replace="fragments/navbar :: footer"></footer>
-
-<!-- JS -->
-<script>
-  document.querySelector("form").addEventListener("submit", function () {
-    document.getElementById("loadingOverlay").style.display = "flex";
-  });
-
-  const projectInput = document.getElementById("projectName");
-  const packageInput = document.getElementById("packageName");
-
-  projectInput.addEventListener("input", function () {
-    let rawValue = this.value.trim();
-    if (rawValue.length > 0) {
-      const capitalized = rawValue.charAt(0).toUpperCase() + rawValue.slice(1);
-      this.value = capitalized;
-      packageInput.value = "com.aem." + capitalized.replace(/\s+/g, '').toLowerCase();
-    } else {
-      packageInput.value = "";
-    }
-  });
-
-  function toggleDropdown() {
-    document.getElementById("dropdownSection").classList.toggle("show");
-  }
-
-  const selectedList = document.getElementById("selectedComponents");
-  const hiddenInput = document.getElementById("selectedComponentsInput");
-  const checkboxes = document.querySelectorAll(".dropdown-section .form-check-input");
-
-  function updateComponentList() {
-    selectedList.innerHTML = "";
-    const selected = [];
-
-    checkboxes.forEach(cb => {
-      if (cb.checked) {
-        selected.push(cb.value);
-        const li = document.createElement("li");
-        li.className = "component-item animate__animated animate__fadeIn";
-        li.textContent = cb.value;
-        selectedList.appendChild(li);
-      }
-    });
-
-    if (selected.length === 0) {
-      const placeholder = document.createElement("li");
-      placeholder.id = "noComponentText";
-      placeholder.textContent = "No component selected";
-      selectedList.appendChild(placeholder);
-    }
-
-    hiddenInput.value = selected.join(",");
-  }
-
-  checkboxes.forEach(cb => cb.addEventListener("change", updateComponentList));
-</script>
 </body>
 </html>

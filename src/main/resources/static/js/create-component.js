@@ -40,8 +40,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
   window.autoFillFieldName = function (labelInput) {
     const row = labelInput.closest('.field-row, .nested-row');
+
+    // 🔹 New: Capitalize first letter, lowercase the rest
+    let labelValue = labelInput.value.trim();
+    if (labelValue.length > 0) {
+      labelValue = labelValue.charAt(0).toUpperCase() + labelValue.slice(1).toLowerCase();
+      labelInput.value = labelValue;
+    }
+
     const nameInput = row.querySelector('.fieldName');
-    const labelValue = labelInput.value.trim();
     const camelCase = labelValue
       .replace(/[^a-zA-Z0-9 ]/g, '')
       .split(/\s+/)

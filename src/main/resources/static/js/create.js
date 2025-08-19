@@ -16,19 +16,30 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Auto-generate package name from project name (prevent starting number)
+  // Auto-generate package name from project name (prevent starting number/symbols except underscore)
   projectInput.addEventListener("input", function () {
     let rawValue = this.value;
 
-    // Remove starting numbers
-    rawValue = rawValue.replace(/^[0-9]+/, "");
+    // Remove invalid starting characters (anything not letter/underscore)
+    rawValue = rawValue.replace(/^[^a-zA-Z_]+/, "");
 
+    // Remove invalid characters inside (only letters, numbers, underscore allowed)
+    rawValue = rawValue.replace(/[^a-zA-Z0-9_]/g, "");
+
+    // Capitalize first letter
     if (rawValue.length > 0) {
-      const capitalized = rawValue.charAt(0).toUpperCase() + rawValue.slice(1);
-      this.value = capitalized;
-      packageInput.value = "com.aem." + capitalized.replace(/\s+/g, '').toLowerCase();
+      rawValue = rawValue.charAt(0).toUpperCase() + rawValue.slice(1);
+    }
+
+    // Capitalize letter after each underscore
+    rawValue = rawValue.replace(/_([a-zA-Z])/g, (_, letter) => "_" + letter.toUpperCase());
+
+    this.value = rawValue;
+
+    // Auto-generate package name (lowercase, underscores removed)
+    if (rawValue.length > 0) {
+      packageInput.value = "com.aem." + rawValue.replace(/_/g, '').toLowerCase();
     } else {
-      this.value = "";
       packageInput.value = "";
     }
   });

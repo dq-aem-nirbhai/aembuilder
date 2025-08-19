@@ -60,7 +60,15 @@
 
     <!-- Project Cards -->
     <div class="col" th:each="project : ${projects}">
-      <div class="card shadow-sm h-100 border-0 animate__animated animate__fadeInUp">
+      <div class="card project-card shadow-sm h-100 border-0 animate__animated animate__fadeInUp">
+
+        <!-- Delete Button (Top Right Corner) -->
+        <form th:action="@{'/delete/' + ${project.name}}" method="post" class="delete-btn">
+          <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this project?');">
+            🗑️
+          </button>
+        </form>
+
         <div class="card-body">
           <h5 class="card-title" th:text="${project.name}"></h5>
           <p><strong>Version:</strong> <span class="badge bg-info text-dark" th:text="${project.version}"></span></p>
@@ -68,11 +76,13 @@
           <p><strong>Created:</strong> <span th:text="${project.createdDate}"></span></p>
           <p><strong>Path:</strong> <span th:text="${project.path}"></span></p>
         </div>
+
         <div class="card-footer d-flex justify-content-between">
           <a th:href="@{'/' + ${project.name}}" class="btn btn-outline-primary btn-sm"><i class="bi bi-eye"></i> View</a>
           <a th:href="@{'/show-folder?path=' + ${project.path}}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-folder2-open"></i> Show in Folder</a>
           <a th:href="@{'/download/' + ${project.name}}" class="btn btn-outline-success btn-sm">⬇️ Download Zip</a>
         </div>
+
       </div>
     </div>
   </div>
