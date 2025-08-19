@@ -131,6 +131,16 @@ document.addEventListener("DOMContentLoaded", function () {
         row.innerHTML = `
             <input type="text" placeholder="Style Label" class="style-label" required>
             <input type="text" placeholder="CSS Class" class="style-class" required>
+            <select class="style-element" required>
+            <option value="">Element</option>
+            <option value="div" selected>div</option>
+            <option value="section">section</option>
+            <option value="article">article</option>
+            <option value="main">main</option>
+            <option value="aside">aside</option>
+            <option value="header">header</option>
+            <option value="footer">footer</option>
+        </select>
             <button type="button" class="remove-btn" onclick="this.parentElement.remove()">❌</button>
         `;
         stylesDiv.appendChild(row);

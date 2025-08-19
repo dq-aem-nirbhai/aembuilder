@@ -46,11 +46,14 @@ public class PolicyController {
     @GetMapping("/{projectName}/addpolicy")
     public String redirectToPolicyForm(@PathVariable("projectName") String projectName,
             @RequestParam String templateName,
-            Model model) {
+            Model model) throws Exception {
         // Pass templateName to form
         model.addAttribute("projectName", projectName);
         model.addAttribute("templateName", templateName);
         model.addAttribute("policyRequest", new PolicyRequest());
+        // ⚠️ missing existingPolicies, but template expects it
+        List<String> existingPolicies = policyXmlUpdater.getExistingPolicies(projectName);
+        model.addAttribute("existingPolicies", existingPolicies);
         // Show the same policy form you already have
         return "policies"; // Thymeleaf page for creating policy
     }
@@ -77,6 +80,7 @@ public class PolicyController {
             @RequestParam String policyTitle) {
         try {
             PolicyRequest policy = policyXmlUpdater.getPolicyDetails(projectName, policyTitle);
+            System.out.println(policy.toString());
             if (policy == null)
                 return ResponseEntity.notFound().build();
             return ResponseEntity.ok(policy);
