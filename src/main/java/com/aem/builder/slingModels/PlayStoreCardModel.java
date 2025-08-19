@@ -109,4 +109,23 @@ public class PlayStoreCardModel {
         log.info("getSecondImageLinkURL() called");
         return secondImageLinkURL;
     }
+
+    /**
+     * Checks whether the PlayStoreCard component has no authored content.
+     * This method verifies that all key fields of the component
+     * (title, description, image references, and link URLs)
+     * are either {@code null} or empty strings.
+     * It is commonly used to decide whether the component should be rendered
+     * or suppressed on a page when no meaningful data is provided by the author.
+     *
+     * @return {@code true} if all fields are null or empty,
+     * {@code false} if at least one field contains a value
+     */
+    public boolean isEmpty() {
+        boolean isEmpty = (titlefield == null || titlefield.isEmpty()) && (description == null || description.isEmpty())
+                && (firstImageReference == null || firstImageReference.isEmpty()) && (firstImageLinkURL == null || firstImageLinkURL.isEmpty()) &&
+                (secondImageReference == null || secondImageReference.isEmpty()) && (secondImageLinkURL == null || secondImageLinkURL.isEmpty());
+        log.info("Checking if the components is empty: {}", isEmpty);
+        return isEmpty;
+    }
 }

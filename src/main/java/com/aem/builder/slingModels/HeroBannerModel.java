@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
         adaptables = Resource.class,
         defaultInjectionStrategy = DefaultInjectionStrategy.OPTIONAL
 )
-public class HeroBannerModel{
+public class HeroBannerModel {
     private static final Logger log = LoggerFactory.getLogger(HeroBannerModel.class);
 
     /**
@@ -76,5 +76,23 @@ public class HeroBannerModel{
     public String getImage() {
         log.info("Getting Image of HeroBanner component");
         return image;
+    }
+
+    /**
+     * Checks whether the Hero Banner component has no content.
+     * <p>
+     * This method evaluates if all key fields (title, details, and image)
+     * are either {@code null} or empty strings. It is useful in determining
+     * whether the component should be rendered on a page or skipped.
+     * </p>
+     *
+     * @return {@code true} if all fields are null or empty,
+     * {@code false} if at least one field has a value.
+     */
+    public boolean isEmpty() {
+        boolean isEmpty = (title == null || title.isEmpty()) && (details == null || details.isEmpty())
+                && (image == null || image.isEmpty());
+        log.info("Checking if the components is empty: {}", isEmpty);
+        return isEmpty;
     }
 }

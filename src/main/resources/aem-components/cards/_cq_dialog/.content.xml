@@ -170,6 +170,7 @@
                                 name="./showButton"
                                 text="Show Button"
                                 value="true"
+                                fieldLabel="Show Button"
                                 uncheckedValue="false"
                                 defaultChecked="true"/>
                     </items>
