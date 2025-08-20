@@ -14,6 +14,4 @@ public class PolicyRequest {
     private String styleDefaultClasses;
     private String styleDefaultElement;
     private Map<String, Map<String, String>> styles;
-
-
 }
