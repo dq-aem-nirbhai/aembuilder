@@ -67,7 +67,7 @@ document.addEventListener("DOMContentLoaded", function () {
       addBtn.onclick = () => addOptionRow(addBtn);
       opt.appendChild(addBtn);
       addOptionRow(addBtn);
-    } else if (type === 'multifield') {
+    } else if (type === 'multifield'||type==='tabs') {
       const addBtn = document.createElement('button');
       addBtn.type = 'button';
       addBtn.className = 'btn btn-sm btn-secondary mb-2';
@@ -331,31 +331,31 @@ function populateFieldRow(row, field, level = 0) {
   }
 
   // === Handle Nested Fields ===
-  if (field.fieldType === 'multifield' && field.nestedFields && Array.isArray(field.nestedFields)) {
-    const container = row.querySelector('.nested-container');
+if ((field.fieldType === 'multifield' || field.fieldType === 'tabs')
+    && field.nestedFields && Array.isArray(field.nestedFields)) {
+  const container = row.querySelector('.nested-container');
 
-    // Save the Add Field button before clearing
-    const addBtn = container.querySelector('button');
-    container.innerHTML = '';
+  // Save Add Field button before clearing
+  const addBtn = container.querySelector('button');
+  container.innerHTML = '';
 
-    field.nestedFields.forEach(nestedField => {
-      const nestedRow = createBaseRow(true, level + 1);
-      container.appendChild(nestedRow);
-      populateFieldRow(nestedRow, nestedField, level + 1);
-    });
+  field.nestedFields.forEach(nestedField => {
+    const nestedRow = createBaseRow(true, level + 1);   // 🔹 stays same, reuses nested-row logic
+    container.appendChild(nestedRow);
+    populateFieldRow(nestedRow, nestedField, level + 1);
+  });
 
-    if (addBtn) {
-      container.appendChild(addBtn);
-    } else {
-      // Recreate add nested field button if it was missing
-      const newAddBtn = document.createElement('button');
-      newAddBtn.type = 'button';
-      newAddBtn.className = 'btn btn-sm btn-secondary mb-2';
-      newAddBtn.textContent = 'Add Field';
-      newAddBtn.onclick = () => addNestedFieldRow(newAddBtn);
-      container.appendChild(newAddBtn);
-    }
+  if (addBtn) {
+    container.appendChild(addBtn);
+  } else {
+    const newAddBtn = document.createElement('button');
+    newAddBtn.type = 'button';
+    newAddBtn.className = 'btn btn-sm btn-secondary mb-2';
+    newAddBtn.textContent = 'Add Field';
+    newAddBtn.onclick = () => addNestedFieldRow(newAddBtn);
+    container.appendChild(newAddBtn);
   }
+}
 
   // Mark form valid again (optional)
   validateFormFields();
