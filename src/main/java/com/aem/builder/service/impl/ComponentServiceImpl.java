@@ -308,12 +308,6 @@ public class ComponentServiceImpl implements ComponentService {
 
         String fieldName = null;
 
-        // --- Skip <content> wrappers
-        if ("content".equals(elem.getNodeName())) {
-            collectFields(elem, result);
-            return result;
-        }
-
         // --- Multifield naming resolution
         if ("multifield".equals(fieldType) && (nameAttr == null || nameAttr.isBlank())) {
             NodeList fieldNodes = elem.getElementsByTagName("field");
@@ -403,24 +397,62 @@ public class ComponentServiceImpl implements ComponentService {
         return result;
     }
 
-
-    // Recursive child collector
+    /**
+     * Recursively collects dialog fields from the given parent node.
+     * Skips technical containers but continues traversing into their children.
+     */
     private void collectFields(Element parent, List<ComponentField> fields) {
         NodeList children = parent.getChildNodes();
         for (int i = 0; i < children.getLength(); i++) {
             Node node = children.item(i);
-            if (node instanceof Element elem) {
-                String type = determineFieldType(elem);
-                if (!type.isEmpty()) {
-                    List<ComponentField> parsed = parseField(elem);
-                    if (parsed != null && !parsed.isEmpty()) {
-                        fields.addAll(parsed);
-                    }
-                } else {
+            if (!(node instanceof Element elem)) {
+                continue;
+            }
+
+            String resourceType = elem.getAttribute("sling:resourceType");
+            String type = determineFieldType(elem);
+
+            // --- Special handling for container nodes ---
+            if ("granite/ui/components/coral/foundation/container".equals(resourceType)) {
+                String parentResourceType = getParentResourceType(elem);
+
+                log.info("Checking container: nodeName={}, resourceType={}, parentResourceType={}",
+                        elem.getNodeName(), resourceType, parentResourceType);
+
+                // If container is not part of tabs, skip it as a field but still traverse inside
+                if (!"granite/ui/components/coral/foundation/tabs".equals(parentResourceType)) {
+                    log.info("Skipping container '{}' as field, but parsing its children", elem.getNodeName());
                     collectFields(elem, fields);
+                    continue;
                 }
             }
+
+            // --- Normal field processing ---
+            if (!type.isEmpty()) {
+                List<ComponentField> parsed = parseField(elem);
+                if (parsed != null && !parsed.isEmpty()) {
+                    fields.addAll(parsed);
+                }
+            } else {
+                // Recurse into children for nested items
+                collectFields(elem, fields);
+            }
         }
+    }
+
+    /**
+     * Finds the nearest ancestor that has a sling:resourceType.
+     * Useful because many AEM dialog wrapper nodes (like <items>) don't define one.
+     */
+    private String getParentResourceType(Element elem) {
+        Node parent = elem.getParentNode();
+        while (parent != null && parent instanceof Element parentElem) {
+            if (parentElem.hasAttribute("sling:resourceType")) {
+                return parentElem.getAttribute("sling:resourceType");
+            }
+            parent = parent.getParentNode();
+        }
+        return "";
     }
 
 
