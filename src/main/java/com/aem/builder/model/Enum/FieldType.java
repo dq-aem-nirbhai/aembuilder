@@ -19,7 +19,8 @@ public enum FieldType {
     PASSWORD("password", "granite/ui/components/coral/foundation/form/password"),
     SWITCH("switch", "granite/ui/components/coral/foundation/form/switch"),
     TAGFIELD("tagfield", "cq/gui/components/coral/common/form/tagfield"),
-    COLORFIELD("colorfield","granite/ui/components/coral/foundation/form/colorfield" );
+    COLORFIELD("colorfield","granite/ui/components/coral/foundation/form/colorfield" ),
+    TABS("tabs","granite/ui/components/coral/foundation/container" );
 
 
 
@@ -46,7 +47,7 @@ public enum FieldType {
                 MULTISELECT.toEntry(), PATHFIELD.toEntry(),  DATEPICKER.toEntry(),
                  FILEUPLOAD.toEntry(), RICHTEXT.toEntry(), MULTIFIELD.toEntry(),
                 PASSWORD.toEntry(), SWITCH.toEntry(),
-                TAGFIELD.toEntry(),COLORFIELD.toEntry()
+                TAGFIELD.toEntry(),COLORFIELD.toEntry(), TABS.toEntry()
         );
     }
 

@@ -148,8 +148,11 @@ public class FileGenerationUtil {
     /**
      * Generates the HTL (HTML Template Language) file for the component.
      */
+    /**
+     * Generates the HTL for a component, supporting fields, multifields, and tabs.
+     */
     private static void generateHTL(String folderPath, List<ComponentField> fields, String packageName,
-            String componentName, String superType) throws Exception {
+                                    String componentName, String superType) throws Exception {
         logger.info("HTL: Generating HTL for component '{}'", componentName);
         String modelClassName = capitalize(componentName) + "Model";
         StringBuilder sb = new StringBuilder();
@@ -170,74 +173,77 @@ public class FileGenerationUtil {
                 sb.append("<sly data-sly-resource=\"${@ resourceType='")
                         .append(superType).append("'}\"/>\n");
             }
+
             if (hasFields) {
-        for (ComponentField field : fields) {
-            String fieldName = field.getFieldName();
-            String fieldLabel = field.getFieldLabel();
-            String fieldType = field.getFieldType().toLowerCase();
+                for (ComponentField field : fields) {
+                    String fieldType = field.getFieldType().toLowerCase();
 
-            // Log each field processed
-            logger.info("HTL: Processing field '{}' of type '{}'", fieldName, fieldType);
+                    // If it's a tab, just go inside its child fields
+                    if ("tabs".equals(fieldType)) {
+                        logger.info("HTL: Processing tab '{}'", field.getFieldLabel());
+                        appendNestedHTL(sb, field.getNestedFields(), "model", "  ");
+                        continue;
+                    }
 
-            switch (fieldType) {
-                case "multifield" -> {
-                    sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append(" && model.")
-                            .append(fieldName).append(".size > 0}\">\n")
-                            .append("    <ul data-sly-list.item=\"${model.").append(fieldName).append("}\">\n");
-                    appendNestedHTL(sb, field.getNestedFields(), "item", "      ");
-                    sb.append("    </ul>\n")
-                            .append("  </sly>\n");
+                    String fieldName = field.getFieldName();
+                    String fieldLabel = field.getFieldLabel();
+
+                    logger.info("HTL: Processing field '{}' of type '{}'", fieldName, fieldType);
+
+                    switch (fieldType) {
+                        case "multifield" -> {
+                            sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append(" && model.")
+                                    .append(fieldName).append(".size > 0}\">\n")
+                                    .append("    <ul data-sly-list.item=\"${model.").append(fieldName).append("}\">\n");
+                            appendNestedHTL(sb, field.getNestedFields(), "item", "      ");
+                            sb.append("    </ul>\n")
+                                    .append("  </sly>\n");
+                        }
+                        case "checkbox" -> {
+                            sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append("}\">\n")
+                                    .append("    <p>").append(fieldLabel)
+                                    .append(": <input type=\"checkbox\" disabled checked=\"checked\"/></p>\n")
+                                    .append("  </sly>\n");
+                        }
+                        case "multiselect", "tagfield" -> {
+                            sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append(" && model.")
+                                    .append(fieldName).append(".size > 0}\">\n")
+                                    .append("    <ul data-sly-list.item=\"${model.").append(fieldName).append("}\">\n")
+                                    .append("      <li>${item}</li>\n")
+                                    .append("    </ul>\n")
+                                    .append("  </sly>\n");
+                        }
+                        case "image", "fileupload" -> {
+                            sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append("}\">\n")
+                                    .append("    <p>").append(fieldLabel)
+                                    .append(": <img src=\"${model.").append(fieldName)
+                                    .append("}\" alt=\"").append(fieldLabel)
+                                    .append("\" style=\"max-width:100%; height:auto;\"/></p>\n")
+                                    .append("  </sly>\n");
+                        }
+                        case "pathfield" -> {
+                            sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append("}\">\n")
+                                    .append("    <p>").append(fieldLabel).append(": <a href=\"${model.")
+                                    .append(fieldName).append("}\">${model.").append(fieldName).append("}</a></p>\n")
+                                    .append("  </sly>\n");
+                        }
+                        case "richtext" -> {
+                            sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append("}\">\n")
+                                    .append("    <p>").append(fieldLabel).append(": ${model.")
+                                    .append(fieldName).append(" @ context='html'}</p>\n")
+                                    .append("  </sly>\n");
+                        }
+                        default -> {
+                            sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append("}\">\n")
+                                    .append("    <p>").append(fieldLabel).append(": ${model.")
+                                    .append(fieldName).append("}</p>\n")
+                                    .append("  </sly>\n");
+                        }
+                    }
                 }
-                case "checkbox" -> {
-                    sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append("}\">\n")
-                            .append("    <p>").append(fieldLabel)
-                            .append(": <input type=\"checkbox\" disabled checked=\"checked\"/></p>\n")
-                            .append("  </sly>\n");
-                }
-                case  "multiselect" ,"tagfield" -> {
-                    sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append(" && model.")
-                            .append(fieldName).append(".size > 0}\">\n")
-                            .append("    <ul data-sly-list.item=\"${model.").append(fieldName).append("}\">\n")
-                            .append("      <li>${item}</li>\n")
-                            .append("    </ul>\n")
-                            .append("  </sly>\n");
-                }
-                case "image", "fileupload" -> {
-                    sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append("}\">\n")
-                            .append("    <p>").append(fieldLabel);
 
-
-                        sb.append(": <img src=\"${model.").append(fieldName)
-                                .append("}\" alt=\"").append(fieldLabel)
-                                .append("\" style=\"max-width:100%; height:auto;\"/></p>\n");
-
-
-                    sb.append("  </sly>\n");
-                }
-
-                case "pathfield" -> {
-                    sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append("}\">\n")
-                            .append("    <p>").append(fieldLabel).append(": <a href=\"${model.")
-                            .append(fieldName).append("}\">${model.").append(fieldName).append("}</a></p>\n")
-                            .append("  </sly>\n");
-                }
-                case "richtext" -> {
-                    sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append("}\">\n")
-                            .append("    <p>").append(fieldLabel).append(": ${model.")
-                            .append(fieldName).append(" @ context='html'}</p>\n")
-                            .append("  </sly>\n");
-                }
-                default -> {
-                    sb.append("  <sly data-sly-test=\"${model.").append(fieldName).append("}\">\n")
-                            .append("    <p>").append(fieldLabel).append(": ${model.")
-                            .append(fieldName).append("}</p>\n")
-                            .append("  </sly>\n");
-                }
-            }
-        }
-
-            sb.append("</sly>\n");
-            sb.append("<sly data-sly-call=\"${placeholderTemplate.placeholder @ isEmpty = !hasContent}\" />\n");
+                sb.append("</sly>\n");
+                sb.append("<sly data-sly-call=\"${placeholderTemplate.placeholder @ isEmpty = !hasContent}\" />\n");
             }
         }
 
@@ -247,37 +253,34 @@ public class FileGenerationUtil {
     }
 
     /**
-     * Recursively appends HTL markup for nested multifields.
+     * Recursively appends HTL markup for nested multifields and tabs.
      */
     private static void appendNestedHTL(StringBuilder sb, List<ComponentField> nestedFields, String modelVar, String indent) {
         if (nestedFields == null || nestedFields.isEmpty()) return;
 
         for (ComponentField nested : nestedFields) {
+            String fieldType = nested.getFieldType().toLowerCase();
+
+            // If it's a tab, skip wrapper and just render children
+            if ("tabs".equals(fieldType)) {
+                logger.info("HTL: Processing nested tab '{}'", nested.getFieldLabel());
+                appendNestedHTL(sb, nested.getNestedFields(), modelVar, indent);
+                continue;
+            }
+
             String fieldName = nested.getFieldName();
             String fieldLabel = nested.getFieldLabel();
-            String fieldType = nested.getFieldType().toLowerCase();
 
             sb.append(indent).append("<sly data-sly-test=\"${").append(modelVar).append(".")
                     .append(fieldName).append("}\">\n");
 
             switch (fieldType) {
                 case "image", "fileupload" -> {
-                    sb.append(indent).append("  <sly data-sly-test=\"${").append(modelVar).append(".").append(fieldName).append("}\">\n");
-                    sb.append(indent).append("    <p>").append(fieldLabel);
-
-
-                        sb.append(": <img src=\"${").append(modelVar).append(".").append(fieldName)
-                                .append("}\" alt=\"").append(fieldLabel)
-                                .append("\" style=\"max-width:100%; height:auto;\"/></p>\n");
-
-                        sb.append(": <a href=\"${").append(modelVar).append(".").append(fieldName)
-                                .append("}\" download>Download File</a></p>\n");
-
-
-                    sb.append(indent).append("  </sly>\n");
+                    sb.append(indent).append("  <p>").append(fieldLabel)
+                            .append(": <img src=\"${").append(modelVar).append(".").append(fieldName)
+                            .append("}\" alt=\"").append(fieldLabel)
+                            .append("\" style=\"max-width:100%; height:auto;\"/></p>\n");
                 }
-
-
                 case "richtext" -> sb.append(indent).append("  <p>").append(fieldLabel).append(": ${")
                         .append(modelVar).append(".").append(fieldName).append(" @ context='html'}</p>\n");
                 case "pathfield" -> sb.append(indent).append("  <p>").append(fieldLabel).append(": <a href=\"${")
@@ -285,7 +288,7 @@ public class FileGenerationUtil {
                         .append(modelVar).append(".").append(fieldName).append("}</a></p>\n");
                 case "checkbox" -> sb.append(indent).append("  <p>").append(fieldLabel)
                         .append(": <input type=\"checkbox\" disabled checked=\"checked\"/></p>\n");
-                case "multiselect","tagfield"  -> sb.append(indent).append("  <ul data-sly-list.item=\"${")
+                case "multiselect", "tagfield" -> sb.append(indent).append("  <ul data-sly-list.item=\"${")
                         .append(modelVar).append(".").append(fieldName).append("}\">\n")
                         .append(indent).append("    <li>${item}</li>\n")
                         .append(indent).append("  </ul>\n");
@@ -307,65 +310,111 @@ public class FileGenerationUtil {
     /**
      * Generates the dialog .content.xml for the component.
      */
-    public static void generateDialogContentXml(String componentName, String dialogFolder, String superType,
-            List<ComponentField> fields) throws Exception {
+    public static void generateDialogContentXml(String componentName, String dialogFolder,
+                                                String superType, List<ComponentField> fields) throws Exception {
         if (fields == null || fields.isEmpty()) {
             logger.info("DIALOG: Skipping dialog generation for component '{}' as no fields defined", componentName);
             return;
         }
-        logger.info("DIALOG: Generating dialog .content.xml for component '{}'", componentName);
-        String dialogTitle = componentName + " Dialog";
 
+        logger.info("DIALOG: Generating dialog .content.xml for component '{}'", componentName);
+
+        String dialogTitle = componentName + " Dialog";
         StringBuilder sb = new StringBuilder();
         String superTypeAttr = (superType != null && !superType.isBlank())
-                ? "\n                          sling:resourceSuperType=\"" + superType + "/cq:dialog\""
-                : "";
-        sb.append(String.format("""
-                <?xml version="1.0" encoding="UTF-8"?>
-                <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
-                          xmlns:cq="http://www.day.com/jcr/cq/1.0"
-                          xmlns:jcr="http://www.jcp.org/jcr/1.0"
-                          xmlns:nt="http://www.jcp.org/jcr/nt/1.0"
-                          jcr:primaryType="nt:unstructured"
-                          jcr:title="%s"
-                          sling:resourceType="cq/gui/components/authoring/dialog"%s>
-                <content
-                  jcr:primaryType="nt:unstructured"
-                  sling:resourceType="granite/ui/components/coral/foundation/container">
-                    <items
-                      jcr:primaryType="nt:unstructured">
-                      <tabs
-                        jcr:primaryType="nt:unstructured"
-                        sling:resourceType="granite/ui/components/coral/foundation/tabs">
-                        <items
-                          jcr:primaryType="nt:unstructured">
-                          <tab1
-                            jcr:primaryType="nt:unstructured"
-                            jcr:title="Main"
-                            sling:resourceType="granite/ui/components/coral/foundation/container">
-                            <items
-                              jcr:primaryType="nt:unstructured">
-                """, dialogTitle, superTypeAttr));
+                ? "\n sling:resourceSuperType=\"" + superType + "/cq:dialog\"" : "";
 
+        // Root structure
+        sb.append(String.format("""
+    <?xml version="1.0" encoding="UTF-8"?>
+    <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
+              xmlns:cq="http://www.day.com/jcr/cq/1.0"
+              xmlns:jcr="http://www.jcp.org/jcr/1.0"
+              jcr:primaryType="nt:unstructured"
+              jcr:title="%s"
+              sling:resourceType="cq/gui/components/authoring/dialog"%s>
+        <content jcr:primaryType="nt:unstructured"
+                 sling:resourceType="granite/ui/components/coral/foundation/container">
+            <layout jcr:primaryType="nt:unstructured"
+                    sling:resourceType="granite/ui/components/coral/foundation/layouts/tabs"/>
+            <items jcr:primaryType="nt:unstructured">
+                <tabs jcr:primaryType="nt:unstructured"
+                      sling:resourceType="granite/ui/components/coral/foundation/tabs">
+                    <items jcr:primaryType="nt:unstructured">
+    """, dialogTitle, superTypeAttr));
+
+        // Buffer for all fields that are not in a tab
+        List<ComponentField> mainTabFields = new ArrayList<>();
+
+        // Generate top-level tabs
         for (ComponentField field : fields) {
-            String nodeName = field.getFieldName();
-            logger.info("DIALOG: Adding dialog field '{}'", nodeName);
-            sb.append(generateFieldXml(nodeName, field));
+            if ("tabs".equalsIgnoreCase(field.getFieldType())) {
+                String tabNodeName = safeNodeName(field.getFieldName(), "tab");
+                String tabTitle = (field.getFieldLabel() != null && !field.getFieldLabel().isBlank())
+                        ? field.getFieldLabel() : tabNodeName;
+                String resourceType = getResourceType(field.getFieldType());
+
+                sb.append("        <").append(tabNodeName).append("\n")
+                        .append("            jcr:primaryType=\"nt:unstructured\"\n")
+                        .append("            jcr:title=\"").append(tabTitle).append("\"\n")
+                        .append("            sling:resourceType=\"").append(resourceType).append("\">\n")
+                        .append("            <items jcr:primaryType=\"nt:unstructured\">\n");
+
+                if (field.getNestedFields() != null) {
+                    for (ComponentField nf : field.getNestedFields()) {
+                        sb.append(generateFieldXml(safeNodeName(nf.getFieldName(), "field"), nf));
+                    }
+                }
+
+                sb.append("            </items>\n")
+                        .append("        </").append(tabNodeName).append(">\n");
+            } else {
+                mainTabFields.add(field);
+            }
         }
 
-        sb.append("""
-                            </items>
-                          </tab1>
-                        </items>
-                      </tabs>
-                    </items>
-                  </content>
-                </jcr:root>
-                """);
+        // Add a single "Main" tab for all non-tab fields, if any
+        if (!mainTabFields.isEmpty()) {
+            String resourceType = getResourceType("tabs");
 
-        FileUtils.writeStringToFile(new File(dialogFolder + "/.content.xml"), sb.toString(), StandardCharsets.UTF_8);
+            sb.append("        <main jcr:primaryType=\"nt:unstructured\"\n")
+                    .append("            jcr:title=\"Main\"\n")
+                    .append("            sling:resourceType=\"").append(resourceType).append("\">\n")
+                    .append("            <items jcr:primaryType=\"nt:unstructured\">\n");
+
+            for (ComponentField f : mainTabFields) {
+                sb.append(generateFieldXml(safeNodeName(f.getFieldName(), "field"), f));
+            }
+
+            sb.append("            </items>\n")
+                    .append("        </main>\n");
+        }
+
+        // Close XML
+        sb.append("""
+                    </items>
+                </tabs>
+            </items>
+        </content>
+    </jcr:root>
+    """);
+
+        // Write to file
+        FileUtils.writeStringToFile(new File(dialogFolder + "/.content.xml"),
+                sb.toString(), StandardCharsets.UTF_8);
+
         logger.info("DIALOG: Dialog .content.xml generated at {}/.content.xml", dialogFolder);
     }
+
+    /** Utility: safe XML node name */
+    private static String safeNodeName(String fieldName, String fallback) {
+        if (fieldName == null || fieldName.isBlank()) {
+            return fallback;
+        }
+        String sanitized = fieldName.replaceAll("[^a-zA-Z0-9_-]", ""); // letters, digits, underscore, hyphen
+        return sanitized.isEmpty() ? fallback : sanitized;
+    }
+
 
     /**
      * Generates XML for a single dialog field.
@@ -377,6 +426,16 @@ public class FileGenerationUtil {
         String name = field.getFieldName();
         List<OptionItem> options = field.getOptions();
         List<ComponentField> nested = field.getNestedFields();
+
+        if (nested != null) {
+            for (ComponentField nf : nested) {
+                if ("tabs".equalsIgnoreCase(nf.getFieldType())) {
+                    throw new IllegalArgumentException(
+                            "Nested tabs are not allowed inside field: " + name + " (" + label + ")");
+                }
+            }
+        }
+
 
         return switch (type) {
             case "textfield", "textarea", "numberfield", "hidden", "password",
@@ -532,11 +591,15 @@ public class FileGenerationUtil {
         return FieldType.getTypeResourceMap().getOrDefault(type.toLowerCase(), "");
     }
 
+
     /**
-     * Generates the Sling Model Java class for the component.
+     * Generates the Sling Model for a component.
+     * - Creates the class file
+     * - Iterates through fields
+     * - Skips "tabs" but goes inside its children
      */
     private static void generateSlingModel(String modelBasePath, String packageName, String componentName,
-            List<ComponentField> fields) throws Exception {
+                                           List<ComponentField> fields) throws Exception {
         logger.info("MODEL: Generating Sling Model for component '{}'", componentName);
         String className = capitalize(componentName) + "Model";
         File modelDir = new File(modelBasePath);
@@ -554,67 +617,43 @@ public class FileGenerationUtil {
                 .append("@Model(adaptables = Resource.class, defaultInjectionStrategy = DefaultInjectionStrategy.OPTIONAL)\n")
                 .append("public class ").append(className).append(" {\n\n");
 
-        // Add fields with logging
-        for (ComponentField field : fields) {
-            String name = field.getFieldName();
-            String type = field.getFieldType().toLowerCase();
-            logger.info("MODEL: Adding field '{}' of type '{}'", name, type);
+        List<ComponentField> generatedFields = addFieldsToModel(sb, modelBasePath, packageName, componentName, fields);
+        log.info("generateFields   {}",generatedFields);
 
-            switch (type) {
-                case "multifield" -> {
-                    generateChildModelClass(modelBasePath, packageName, componentName, field);
-                    sb.append("    @ChildResource\nprivate List<").append(capitalize(name)).append("> ").append(name)
-                            .append(";\n\n");
-                }
-                case "checkbox" -> sb.append("    @ValueMapValue\nprivate boolean ").append(name).append(";\n\n");
-                case  "multiselect","tagfield" ->
-                    sb.append("    @ValueMapValue\nprivate List<String> ").append(name).append(";\n\n");
-                case "numberfield" -> sb.append("    @ValueMapValue\nprivate double ").append(name).append(";\n\n");
-                default -> sb.append("    @ValueMapValue\nprivate String ").append(name).append(";\n\n");
-            }
-        }
+                sb.append("    /**\n")
+                .append("     * Checks if all fields in this model are empty.\n")
+                .append("     * Used in HTL: ${!model.empty}\n")
+                .append("     */\n")
+                .append("    public boolean isEmpty() {\n")
+                .append("        boolean empty = true;\n");
 
-        // Add getters
-        for (ComponentField field : fields) {
-            String name = field.getFieldName();
-            String getter = capitalize(name);
-            String type = field.getFieldType().toLowerCase();
-
-            switch (type) {
-                case "multifield" ->
-                    sb.append("    public List<").append(getter).append("> get").append(getter).append("() {\n")
-                            .append("        return ").append(name).append(";\n    }\n\n");
-                case "checkbox" -> sb.append("    public boolean is").append(getter).append("() {\n")
-                        .append("        return ").append(name).append(";\n    }\n\n");
-                case  "multiselect","tagfield" ->
-                    sb.append("    public List<String> get").append(getter).append("() {\n")
-                            .append("        return ").append(name).append(";\n    }\n\n");
-                case "numberfield" -> sb.append("    public double get").append(getter).append("() {\n")
-                        .append("        return ").append(name).append(";\n    }\n\n");
-                default -> sb.append("    public String get").append(getter).append("() {\n")
-                        .append("        return ").append(name).append(";\n    }\n\n");
-            }
-        }
-
-        // Add isEmpty method
-        sb.append("    public boolean isEmpty() {\n        return ");
-
-        List<String> emptyChecks = new ArrayList<>();
-        for (ComponentField field : fields) {
+        for (ComponentField field : generatedFields) {
             String name = field.getFieldName();
             String type = field.getFieldType().toLowerCase();
 
             switch (type) {
-                case "multifield",  "multiselect","tagfield" ->
-                    emptyChecks.add("(" + name + " == null || " + name + ".isEmpty())");
-                case "checkbox" -> emptyChecks.add("!" + name);
-                case "numberfield" -> emptyChecks.add(name + " == 0");
-                default -> emptyChecks.add("(" + name + " == null || " + name + ".isEmpty())");
+                case "multifield":
+                    sb.append("        if (").append(name).append(" != null && !").append(name).append(".isEmpty()) empty = false;\n");
+                    break;
+                case "checkbox":
+                    sb.append("        if (").append(name).append(") empty = false;\n");
+                    break;
+                case "multiselect":
+                case "tagfield":
+                    sb.append("        if (").append(name).append(" != null && !").append(name).append(".isEmpty()) empty = false;\n");
+                    break;
+                case "numberfield":
+                    sb.append("        if (").append(name).append(" != 0) empty = false;\n");
+                    break;
+                default:
+                    sb.append("        if (").append(name).append(" != null && !").append(name).append(".isEmpty()) empty = false;\n");
             }
         }
 
-        sb.append(String.join(" && ", emptyChecks)).append(";\n");
-        sb.append("    }\n}");
+        sb.append("        return empty;\n")
+                .append("    }\n");
+
+        sb.append("}");
 
         FileUtils.writeStringToFile(new File(modelBasePath + "/" + className + ".java"), sb.toString(),
                 StandardCharsets.UTF_8);
@@ -622,19 +661,72 @@ public class FileGenerationUtil {
     }
 
     /**
-     * Generates a child model class for multifield support.
+     * Recursively adds fields to the Sling Model class.
+     * - Handles multifield, checkbox, textfield, etc.
+     * - Skips "tabs" node but still processes its child fields
      */
-    private static void generateChildModelClass(String modelBasePath, String packageName, String componentName,
-            ComponentField field) throws Exception {
-        String className = capitalize(field.getFieldName());
-        logger.info("CHILDMODEL: Generating child model class '{}'", className);
-        File modelDir = new File(modelBasePath);
-        modelDir.mkdirs();
+    private static List<ComponentField> addFieldsToModel(StringBuilder sb, String modelBasePath, String packageName,
+                                         String componentName, List<ComponentField> fields) throws Exception {
+
+        List<ComponentField> generatedFields = new ArrayList<>();
+
+        if (fields == null)
+            return null;
+
+        for (ComponentField field : fields) {
+            String name = field.getFieldName();
+            String type = field.getFieldType().toLowerCase();
+
+            // Handle "tabs": skip tab node, but process children
+            if ("tabs".equals(type)) {
+                logger.info("MODEL: Skipping tab '{}', processing its children", name);
+                List<ComponentField> nestedFields = addFieldsToModel(sb, modelBasePath, packageName, componentName, field.getNestedFields());
+                if (nestedFields != null) generatedFields.addAll(nestedFields);
+                continue;
+            }
+
+            logger.info("MODEL: Adding field '{}' of type '{}'", name, type);
+
+            switch (type) {
+                case "multifield" -> {
+                    // Generate a child model class for multifield entries
+                    generateChildModelClass(modelBasePath, packageName, componentName, field);
+                    sb.append("    @ChildResource\n")
+                            .append("    private List<").append(capitalize(name)).append("> ").append(name).append(";\n\n");
+                }
+                case "checkbox" ->
+                        sb.append("    @ValueMapValue\n    private boolean ").append(name).append(";\n\n");
+                case "multiselect", "tagfield" ->
+                        sb.append("    @ValueMapValue\n    private List<String> ").append(name).append(";\n\n");
+                case "numberfield" ->
+                        sb.append("    @ValueMapValue\n    private double ").append(name).append(";\n\n");
+                default ->
+                        sb.append("    @ValueMapValue\n    private String ").append(name).append(";\n\n");
+            }
+
+            // Add getter
+            addGetter(sb, field);
+            generatedFields.add(field); // this field for isEmpty()
+
+        }
+
+        return generatedFields;
+    }
+
+    /**
+     * Generates a child model class for multifield entries.
+     * - Handles nested fields
+     * - Skips "tabs" but processes children
+     */
+    private static void generateChildModelClass(String modelBasePath, String packageName,
+                                                String parentComponentName, ComponentField parentField) throws Exception {
+        String className = capitalize(parentField.getFieldName());
+        logger.info("MODEL: Generating Child Model for multifield '{}'", parentField.getFieldName());
 
         StringBuilder sb = new StringBuilder();
         sb.append("package ").append(packageName).append(";\n\n")
-                .append("import javax.inject.Inject;\n")
                 .append("import java.util.List;\n")
+                .append("import javax.inject.Inject;\n")
                 .append("import org.apache.sling.api.resource.Resource;\n")
                 .append("import org.apache.sling.models.annotations.DefaultInjectionStrategy;\n")
                 .append("import org.apache.sling.models.annotations.Model;\n")
@@ -643,60 +735,44 @@ public class FileGenerationUtil {
                 .append("@Model(adaptables = Resource.class, defaultInjectionStrategy = DefaultInjectionStrategy.OPTIONAL)\n")
                 .append("public class ").append(className).append(" {\n\n");
 
-        // Add fields with logging
-        for (ComponentField subField : field.getNestedFields()) {
-            String subName = subField.getFieldName();
-            String type = subField.getFieldType().toLowerCase();
-            logger.info("CHILDMODEL: Adding nested field '{}' of type '{}'", subName, type);
+        // Add child fields
+        addFieldsToModel(sb, modelBasePath, packageName, parentComponentName, parentField.getNestedFields());
 
-            switch (type) {
-                case "multifield" -> {
-                    generateChildModelClass(modelBasePath, packageName, componentName, subField);
-                    sb.append("    @ChildResource\n")
-                            .append("    private List<").append(capitalize(subName)).append("> ")
-                            .append(subName).append(";\n\n");
-                }
-                case "checkbox" -> sb.append("    @ValueMapValue\n")
-                        .append("    private boolean ").append(subName).append(";\n\n");
-                case "numberfield" -> sb.append("    @ValueMapValue\n")
-                        .append("    private double ").append(subName).append(";\n\n");
-                case  "multiselect","tagfield"  -> sb.append("    @ValueMapValue\n")
-                        .append("    private List<String> ").append(subName).append(";\n\n");
-                default -> sb.append("    @ValueMapValue\n")
-                        .append("    private String ").append(subName).append(";\n\n");
-            }
-        }
-
-        // Add getters
-        for (ComponentField subField : field.getNestedFields()) {
-            String subName = subField.getFieldName();
-            String getter = capitalize(subName);
-            String type = subField.getFieldType().toLowerCase();
-
-            switch (type) {
-                case "multifield" ->
-                    sb.append("    public List<").append(capitalize(subName)).append("> get").append(getter)
-                            .append("() {\n")
-                            .append("        return ").append(subName).append(";\n    }\n\n");
-                case "checkbox" -> sb.append("    public boolean is").append(getter).append("() {\n")
-                        .append("        return ").append(subName).append(";\n    }\n\n");
-                case "numberfield" -> sb.append("    public double get").append(getter).append("() {\n")
-                        .append("        return ").append(subName).append(";\n    }\n\n");
-                case  "multiselect","tagfield" ->
-                    sb.append("    public List<String> get").append(getter).append("() {\n")
-                            .append("        return ").append(subName).append(";\n    }\n\n");
-
-                default -> sb.append("    public String get").append(getter).append("() {\n")
-                        .append("        return ").append(subName).append(";\n    }\n\n");
-            }
-        }
 
         sb.append("}");
 
         FileUtils.writeStringToFile(new File(modelBasePath + "/" + className + ".java"), sb.toString(),
                 StandardCharsets.UTF_8);
-        logger.info("CHILDMODEL: Child model class generated at {}/{}.java", modelBasePath, className);
+        logger.info("MODEL: Child Model generated at {}/{}.java", modelBasePath, className);
     }
+
+    /**
+     * Adds getter method for a field.
+     */
+    private static void addGetter(StringBuilder sb, ComponentField field) {
+        String name = field.getFieldName();
+        String getter = capitalize(name);
+        String type = field.getFieldType().toLowerCase();
+
+        switch (type) {
+            case "multifield" ->
+                    sb.append("    public List<").append(getter).append("> get").append(getter).append("() {\n")
+                            .append("        return ").append(name).append(";\n    }\n\n");
+            case "checkbox" ->
+                    sb.append("    public boolean is").append(getter).append("() {\n")
+                            .append("        return ").append(name).append(";\n    }\n\n");
+            case "multiselect", "tagfield" ->
+                    sb.append("    public List<String> get").append(getter).append("() {\n")
+                            .append("        return ").append(name).append(";\n    }\n\n");
+            case "numberfield" ->
+                    sb.append("    public double get").append(getter).append("() {\n")
+                            .append("        return ").append(name).append(";\n    }\n\n");
+            default ->
+                    sb.append("    public String get").append(getter).append("() {\n")
+                            .append("        return ").append(name).append(";\n    }\n\n");
+        }
+    }
+
 
     /**
      * Capitalizes the first letter of the input string.
