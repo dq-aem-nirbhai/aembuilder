@@ -88,7 +88,7 @@
 <div th:replace="fragments/navbar :: navbar"></div>
 
 <div class="container-fluid mt-4">
-    <a th:href="@{'/' + ${projectName}}" class="btn btn-outline-secondary mb-3">← Back to Deploy Page</a>
+    <a th:href="@{'/view/' + ${projectName}}" class="btn btn-outline-secondary mb-3">← Back to Deploy Page</a>
     <h2>Create Policy for Template (Container Policies)</h2>
 
     <form id="policyForm" class="mt-4">

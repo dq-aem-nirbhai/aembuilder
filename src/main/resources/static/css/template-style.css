@@ -1,75 +1,97 @@
+
+/* Background + container */
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f8f9fa;
-    margin: 0;
-    color: #333;
+  background: linear-gradient(to right, #f8fafc, #e2e8f0);
+  font-family: "Segoe UI", sans-serif;
+  margin: 0;
+  color: #333;
 }
 
+.container {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(8px);
+  animation: fadeInUp 0.8s ease;
+}
+
+/* Heading */
 h2 {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #0d6efd;
-    margin-left: 10px;
-    padding: 10px 0;
-    font-weight: 600;
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(to right, #0d6efd, #6610f2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 1.5rem;
 }
 
-form {
-    background: #fff;
-    animation: fadeInUp 0.8s ease;
+/* Form styling */
+.form-group label {
+  font-weight: 500;
+  margin-bottom: 0.3rem;
 }
 
-.card {
-    border-radius: 1rem;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+.form-control {
+  border-radius: 0.5rem;
+  padding: 10px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.form-label {
-    font-weight: 500;
+.form-control:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+  outline: none;
 }
 
-input[type="text"],
-select.form-control {
-    border-radius: 0.5rem;
-    padding: 10px;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+/* Buttons */
+.btn-primary {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+.btn-primary:hover {
+  background-color: #0b5ed7;
+  transform: scale(1.05);
+}
+.btn-outline-secondary {
+  font-weight: 500;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+}
+.btn-outline-secondary:hover {
+  background-color: #f1f1f1;
+  transform: scale(1.03);
 }
 
-input[type="text"]:focus,
-select.form-control:focus {
-    border-color: #0d6efd;
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-    outline: none;
+/* Messages */
+.text-danger {
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+#response {
+  font-weight: 500;
+  color: #198754; /* success green */
 }
 
-button[type="submit"] {
-    font-weight: 600;
-    padding: 12px;
-    transition: background-color 0.3s ease, transform 0.2s ease;
+/* Spinner Overlay */
+.spinner-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
 }
 
-button[type="submit"]:hover {
-    background-color: #0b5ed7;
-    transform: scale(1.03);
-}
-
-footer {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    background-color: #f8f9fa;
-    padding: 10px 0;
-    text-align: center;
-    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-}
-
+/* Animations */
 @keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }

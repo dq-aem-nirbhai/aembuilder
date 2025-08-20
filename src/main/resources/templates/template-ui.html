@@ -10,14 +10,8 @@
 </head>
 <body>
 <div th:replace="fragments/navbar :: navbar"></div>
-<div class="container mt-4">
-
-
-<div class="container mt-4 mb-5">
+<div class="container mt-5">
     <a th:href="@{'/view/' + ${projectName}}" class="btn btn-outline-secondary mb-3">← Back to DeployPage</a>
-
-    
-
     <form id="templateForm"
           th:action="@{'/' + ${projectName} + '/updatetemplate/'+${tempname}}"
           th:object="${template}" method="post" class="card p-4 shadow-sm rounded-4">
@@ -64,15 +58,9 @@
         </button>
     </form>
 </div>
-
 <footer>
     <div th:replace="fragments/navbar :: footer"></div>
 </footer>
-
-
-</div>
-<div th:replace="fragments/navbar :: footer"></div>
-
 <script th:src="@{/js/update-template.js}"></script>
 </body>
 </html>

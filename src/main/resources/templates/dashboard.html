@@ -15,7 +15,11 @@
 <body class="d-flex flex-column min-vh-100">
 
 <!-- Navbar -->
-<div th:replace="fragments/navbar :: navbar"></div>
+<!-- Sticky Navbar -->
+
+   <div th:replace="fragments/navbar :: navbar"></div>
+
+
 
 <!-- Header -->
 <div class="dashboard-header animate__animated animate__fadeInDown">
@@ -76,11 +80,6 @@
           <p><strong>Created:</strong> <span th:text="${project.createdDate}"></span></p>
           <p><strong>Path:</strong> <span th:text="${project.path}"></span></p>
 
-          <div class="d-grid gap-2">
-            <form th:action="@{'/delete/' + ${project.name}}" method="post">
-              <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this project?');">🗑️ Delete Project</button>
-            </form>
-          </div>
 
         </div>
 
