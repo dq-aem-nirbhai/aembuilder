@@ -6,29 +6,34 @@
 
   <!-- Bootstrap + Animate.css -->
   <link rel="stylesheet" href="/css/create.css">
-  <script th:src="@{/js/create.js}" defer></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css" />
-  <script th:src="@{/webjars/bootstrap/5.3.0/js/bootstrap.bundle.min.js}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+  <script src="/js/create.js" defer></script>
 </head>
 <body class="d-flex flex-column min-vh-100">
 
-<!-- Navbar -->
-<div th:replace="fragments/navbar :: navbar"></div>
-<div class="center-button">
+<!-- Sticky Navbar -->
+<header class="sticky-top shadow-sm bg-white z-3">
+  <div th:replace="fragments/navbar :: navbar"></div>
+</header>
+
+<div class="container py-4 animate__animated animate__fadeIn">
   <a th:href="@{'/dashboard'}" class="btn btn-outline-secondary">← Back to Dashboard</a>
 </div>
 
-<main class="container py-4 animate__animated animate__fadeIn">
+<main class="container py-4 animate__animated animate__fadeIn flex-grow-1">
   <div th:if="${error}" class="alert alert-danger" role="alert" th:text="${error}"></div>
+
   <form action="/save" method="post" th:object="${aemProjectModel}">
     <h2>Create AEM Project</h2>
 
-    <div class="flex-row">
-      <div class="flex-column">
+    <!-- Project Name & Package -->
+    <div class="flex-row mb-3">
+      <div class="flex-column me-3">
         <label>Project Name:</label>
         <input type="text" th:field="*{projectName}" id="projectName" required placeholder="Demo" />
-        <small id="nameStatus" class="form-text"></small> <!-- feedback here -->
+        <small id="nameStatus" class="form-text"></small>
       </div>
       <div class="flex-column">
         <label>Package Name (groupId):</label>
@@ -36,8 +41,9 @@
       </div>
     </div>
 
+    <!-- AEM Version -->
     <label>AEM Version:</label>
-    <select th:field="*{version}" required>
+    <select th:field="*{version}" required class="form-select mb-3">
       <option value="">-- Select AEM Version --</option>
       <option value="6.5.0">6.5.0</option>
       <option value="6.5.5">6.5.5</option>
@@ -49,104 +55,48 @@
       <option value="2023.2.12300.20230214T112441Z-230100">2023.2.12300</option>
     </select>
 
-    <div class="component-wrapper">
+    <!-- Components Section -->
+    <div class="component-wrapper mb-3">
       <label>Components</label>
-      <div class="component-box">
-        <ul id="selectedComponents" class="component-list">
-          <li id="noComponentText">No component selected</li>
-        </ul>
-        <button type="button" class="btn-add" onclick="toggleDropdown()">Add Components...</button>
-      </div>
-
-      <!-- New Checkbox Dropdown -->
-      <div class="dropdown-section" id="dropdownSection">
-        <div class="form-check">
-          <input class="form-check-input" type="checkbox" value="accordion" id="compAccordion">
-          <label class="form-check-label" for="compAccordion">Accordion</label>
-        </div>
-        <div class="form-check">
-          <input class="form-check-input" type="checkbox" value="image" id="compImage">
-          <label class="form-check-label" for="compImage">Image</label>
-        </div>
-        <div class="form-check">
-          <input class="form-check-input" type="checkbox" value="button" id="compButton">
-          <label class="form-check-label" for="compButton">Button</label>
-        </div>
-        <div class="form-check">
-          <input class="form-check-input" type="checkbox" value="card" id="compCard">
-          <label class="form-check-label" for="compCard">Card</label>
-        </div>
-      </div>
+      <ul id="selectedComponents" class="component-list mb-2">
+        <li id="noComponentText">No component selected</li>
+      </ul>
+      <button type="button" class="btn btn-outline-primary" onclick="openComponentModal()">Add Components...</button>
     </div>
 
     <input type="hidden" name="selectedComponents" id="selectedComponentsInput" />
 
     <!-- Loading Overlay -->
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="spinner-border" role="status"></div>
-</div>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner-border" role="status"></div>
+    </div>
 
-
-    <button type="submit">Create Project</button>
+    <button type="submit" class="btn btn-success">Create Project</button>
   </form>
 </main>
 
-<!-- Footer -->
-<footer th:replace="fragments/navbar :: footer"></footer>
+<!-- Sticky Footer -->
+<footer class="mt-auto sticky-bottom bg-white shadow-sm text-center py-3 z-3">
+  <div th:replace="fragments/navbar :: footer"></div>
+</footer>
 
-<!-- JS -->
-<script>
-  document.querySelector("form").addEventListener("submit", function () {
-    document.getElementById("loadingOverlay").style.display = "flex";
-  });
+<!-- Component Modal -->
+<div class="modal fade" id="componentModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5>Select Components</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="componentList" class="row row-cols-2 g-2"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="addSelectedComponents()">Add Selected</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-  const projectInput = document.getElementById("projectName");
-  const packageInput = document.getElementById("packageName");
-
-  projectInput.addEventListener("input", function () {
-    let rawValue = this.value.trim();
-    if (rawValue.length > 0) {
-      const capitalized = rawValue.charAt(0).toUpperCase() + rawValue.slice(1);
-      this.value = capitalized;
-      packageInput.value = "com.aem." + capitalized.replace(/\s+/g, '').toLowerCase();
-    } else {
-      packageInput.value = "";
-    }
-  });
-
-  function toggleDropdown() {
-    document.getElementById("dropdownSection").classList.toggle("show");
-  }
-
-  const selectedList = document.getElementById("selectedComponents");
-  const hiddenInput = document.getElementById("selectedComponentsInput");
-  const checkboxes = document.querySelectorAll(".dropdown-section .form-check-input");
-
-  function updateComponentList() {
-    selectedList.innerHTML = "";
-    const selected = [];
-
-    checkboxes.forEach(cb => {
-      if (cb.checked) {
-        selected.push(cb.value);
-        const li = document.createElement("li");
-        li.className = "component-item animate__animated animate__fadeIn";
-        li.textContent = cb.value;
-        selectedList.appendChild(li);
-      }
-    });
-
-    if (selected.length === 0) {
-      const placeholder = document.createElement("li");
-      placeholder.id = "noComponentText";
-      placeholder.textContent = "No component selected";
-      selectedList.appendChild(placeholder);
-    }
-
-    hiddenInput.value = selected.join(",");
-  }
-
-  checkboxes.forEach(cb => cb.addEventListener("change", updateComponentList));
-</script>
 </body>
 </html>

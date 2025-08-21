@@ -1,3 +1,4 @@
+
 document.addEventListener("DOMContentLoaded", function () {
     let existingTemplates = [];
 
@@ -10,6 +11,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const nameError = document.getElementById("name-error");
     const responseEl = document.getElementById("response");
     const templateForm = document.getElementById("templateForm");
+    const spinnerOverlay = document.getElementById("spinner-overlay");
 
     if (!projectnameInput || !nameInput || !templateForm || !templatetypeSelect) {
         console.error("One or more required elements are missing in the HTML.");
@@ -85,6 +87,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const data = { name, title, description, status, templateType };
 
+        // Show spinner
+        spinnerOverlay.classList.remove("d-none");
+
         fetch(`/create-template/${projectName}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -97,10 +102,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 templateForm.reset();
                 nameError.innerText = "";
                 existingTemplates.push(name.toLowerCase());
-setTimeout(() => {
-        window.location.href = `/view/${projectName}`;
-        // replace deploypage with your actual deploy page mapping
-    }, 1000);
+
+                setTimeout(() => {
+                    window.location.href = `/view/${projectName}`;
+                }, 1000);
+
                 // Reset field disable state
                 formFields.forEach(field => {
                     if (field !== templatetypeSelect) field.disabled = true;
@@ -109,6 +115,10 @@ setTimeout(() => {
             .catch(error => {
                 responseEl.style.color = "red";
                 responseEl.innerText = "Error: " + error;
+            })
+            .finally(() => {
+                // Hide spinner
+                spinnerOverlay.classList.add("d-none");
             });
     });
 });

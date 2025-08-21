@@ -237,21 +237,72 @@ public class ComponentServiceImpl implements ComponentService {
 
     @Override
     public String getComponentJava(String projectName, String componentName) {
-        String modelFileName = capitalize(componentName) + "Model.java";
-        Path javaRoot = Paths.get(PROJECTS_DIR, projectName, "core", "src", "main", "java");
-        try (Stream<Path> paths = Files.walk(javaRoot)) {
-            return paths.filter(p -> p.getFileName().toString().equals(modelFileName)).findFirst()
-                    .map(p -> {
-                        try {
-                            return Files.readString(p);
-                        } catch (IOException e) {
-                            log.error("Failed to read model for component {}", componentName, e);
-                            return "";
-                        }
-                    }).orElse("");
-        } catch (IOException e) {
-            log.error("Failed to locate model for component {}", componentName, e);
-            return "";
+        try {
+            String htlContent = getComponentHtml(projectName, componentName);
+
+            if (htlContent == null || htlContent.isEmpty()) {
+                return "// No HTL found for component: " + componentName;
+            }
+
+            // Extract Sling Model class from HTL
+            Pattern pattern = Pattern.compile("data-sly-use(?:\\.[A-Za-z0-9_-]+)?\\s*=\\s*\"([^\"]+)\"");
+            Matcher matcher = pattern.matcher(htlContent);
+
+            String modelClass = null;
+            while (matcher.find()) {
+                String candidate = matcher.group(1);
+                if (!candidate.endsWith(".html") && candidate.contains(".")) {
+                    modelClass = candidate;
+                    break;
+                }
+            }
+
+            if (modelClass == null) {
+                return "// No Sling Model binding found in HTL for: " + componentName;
+            }
+
+            StringBuilder result = new StringBuilder();
+            Set<String> processed = new HashSet<>();
+
+            Deque<String> stack = new ArrayDeque<>();
+            stack.push(modelClass);
+
+            while (!stack.isEmpty()) {
+                String current = stack.pop();
+
+                // Skip duplicates
+                if (!processed.add(current)) continue;
+
+                Path javaFile = Paths.get(
+                        PROJECTS_DIR, projectName, "core", "src", "main", "java",
+                        current.replace(".", "/") + ".java"
+                );
+
+                if (!Files.exists(javaFile)) continue;
+
+                String code = Files.readString(javaFile);
+                String simpleName = current.substring(current.lastIndexOf(".") + 1);
+                String packageName = current.substring(0, current.lastIndexOf("."));
+
+                result.append("// -------------------------------------------------\n")
+                        .append(simpleName).append(" =====\n\n")
+                        .append(code).append("\n\n");
+
+                // 🔍 Find possible child class references
+                Matcher refMatcher = Pattern.compile("\\b([A-Z][A-Za-z0-9_]+)\\b").matcher(code);
+                while (refMatcher.find()) {
+                    String refClass = refMatcher.group(1);
+                    if (!refClass.equals(simpleName)) {
+                        stack.push(packageName + "." + refClass);
+                    }
+                }
+            }
+
+            return result.toString();
+
+        } catch (Exception e) {
+            log.error("Failed while resolving Sling Model for component {}", componentName, e);
+            return "// Error while resolving Sling Model: " + e.getMessage();
         }
     }
 
