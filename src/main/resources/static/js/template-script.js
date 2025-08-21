@@ -72,17 +72,53 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Handle form submission
     templateForm.addEventListener("submit", function (event) {
-        const buttonText = templateForm.querySelector("button[type=submit]").innerText;
-        if (buttonText.includes("Update")) {
-            // Show spinner for exactly 5 seconds before submitting
-            event.preventDefault();
-            spinnerOverlay.style.display = "flex";
+        event.preventDefault();
 
-            setTimeout(() => {
-                spinnerOverlay.style.display = "none";
-                templateForm.submit(); // continue normal submission
-            }, 5000);
+        const name = nameInput.value.trim();
+        const title = titleInput.value.trim();
+        const description = descriptionInput.value.trim();
+        const status = statusInput.value;
+        const templateType = templatetypeSelect.value;
+
+        if (existingTemplates.includes(name.toLowerCase())) {
+            nameError.innerText = "Template already exists.";
             return;
         }
+
+        const data = { name, title, description, status, templateType };
+
+        // Show spinner
+        spinnerOverlay.classList.remove("d-none");
+
+        fetch(`/create-template/${projectName}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.text())
+            .then(result => {
+                responseEl.style.color = "green";
+                responseEl.innerText = result;
+                templateForm.reset();
+                nameError.innerText = "";
+                existingTemplates.push(name.toLowerCase());
+
+                setTimeout(() => {
+                    window.location.href = `/view/${projectName}`;
+                }, 1000);
+
+                // Reset field disable state
+                formFields.forEach(field => {
+                    if (field !== templatetypeSelect) field.disabled = true;
+                });
+            })
+            .catch(error => {
+                responseEl.style.color = "red";
+                responseEl.innerText = "Error: " + error;
+            })
+            .finally(() => {
+                // Hide spinner
+                spinnerOverlay.classList.add("d-none");
+            });
     });
 });
