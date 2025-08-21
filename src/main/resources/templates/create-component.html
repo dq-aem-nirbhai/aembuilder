@@ -169,10 +169,11 @@
   <div th:replace="fragments/navbar :: footer"></div>
 </footer>
 
-<!-- Inline JS Variables -->
 <script th:inline="javascript">
-  window.editMode =  false;
-  window.componentData = {};
+  /*<![CDATA[*/
+  window.editMode = /*[[${editMode}]]*/ false;
+  window.componentData = /*[[${componentData}]]*/ {};
+  /*]]>*/
 </script>
 <script src="/js/create-component.js"></script>
 
