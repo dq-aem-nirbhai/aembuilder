@@ -156,12 +156,46 @@ public class TemplatePolicyImpl implements TemplatePolicy {
 
     @Override
     public void assignPolicyToTemplate(String projectName, String templateName,
-                                       String policyNodeName) throws Exception {
+                                       String componentPath, String policyNodeName) throws Exception {
         String templatePath = "generated-projects/" + projectName +
                 "/ui.content/src/main/content/jcr_root/conf/" + projectName +
                 "/settings/wcm/templates/" + templateName + "/policies/.content.xml";
 
-        writeFile(templatePath, TemplateUtil.policyForParticularTemplate(policyNodeName, projectName));
+        File xmlFile = new File(templatePath);
+        if (!xmlFile.exists()) {
+            // Create minimal mapping structure if missing
+            Files.createDirectories(xmlFile.getParentFile().toPath());
+            String skeleton = """
+                    <?xml version="1.0" encoding="UTF-8"?>
+                    <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0" xmlns:cq="http://www.day.com/jcr/cq/1.0" xmlns:jcr="http://www.jcp.org/jcr/1.0" xmlns:nt="http://www.jcp.org/jcr/nt/1.0" jcr:primaryType="cq:Page">
+                        <jcr:content jcr:primaryType="nt:unstructured" sling:resourceType="wcm/core/components/policies/mappings">
+                            <root jcr:primaryType="nt:unstructured" sling:resourceType="wcm/core/components/policies/mapping"/>
+                        </jcr:content>
+                    </jcr:root>
+                    """;
+            Files.writeString(xmlFile.toPath(), skeleton, StandardCharsets.UTF_8);
+        }
+
+        DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+        Document doc = builder.parse(xmlFile);
+
+        Element root = (Element) doc.getElementsByTagName("root").item(0);
+        String componentName = componentPath.substring(componentPath.lastIndexOf('/') + 1);
+
+        NodeList existing = root.getElementsByTagName(componentName);
+        Element componentEl;
+        if (existing.getLength() > 0) {
+            componentEl = (Element) existing.item(0);
+        } else {
+            componentEl = doc.createElement(componentName);
+            componentEl.setAttribute("jcr:primaryType", NT_UNSTRUCTURED);
+            componentEl.setAttribute("sling:resourceType", "wcm/core/components/policies/mapping");
+            root.appendChild(componentEl);
+        }
+
+        componentEl.setAttribute("cq:policy", projectName + "/components/" + componentName + "/" + policyNodeName);
+
+        saveDocument(doc, xmlFile);
     }
 
     @Override
@@ -171,7 +205,7 @@ public class TemplatePolicyImpl implements TemplatePolicy {
                                       Map<String, Map<String, String>> styles) throws Exception {
         String nodeName = addPolicy(projectName, policyName, componentPath,
                 styleDefaultClasses, styleDefaultElement, styles);
-        assignPolicyToTemplate(projectName, templateName, nodeName);
+        assignPolicyToTemplate(projectName, templateName, componentPath, nodeName);
         return nodeName;
     }
 
@@ -223,7 +257,7 @@ public class TemplatePolicyImpl implements TemplatePolicy {
 
                     updated = true;
                     String policynode = policyEl.getNodeName();
-                    assignPolicyToTemplate(projectName, templateName, policynode);
+                    assignPolicyToTemplate(projectName, templateName, request.getComponentPath(), policynode);
                     System.out.println("✅ Existing policy updated: " + request.getName());
                     break;
                 }
@@ -239,7 +273,7 @@ public class TemplatePolicyImpl implements TemplatePolicy {
                     request.getStyleDefaultClasses(),
                     request.getStyleDefaultElement(),
                     request.getStyles());
-            assignPolicyToTemplate(projectName, templateName, policynode);
+            assignPolicyToTemplate(projectName, templateName, request.getComponentPath(), policynode);
             System.out.println("➕ New policy created: " + request.getName());
         }
     }
