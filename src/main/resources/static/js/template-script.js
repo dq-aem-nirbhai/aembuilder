@@ -1,114 +1,130 @@
-document.addEventListener("DOMContentLoaded", function () {
-    let existingTemplates = [];
 
-    const projectnameInput = document.getElementById("projectname");
-    const nameInput = document.getElementById("name");
-    const titleInput = document.getElementById("title");
-    const descriptionInput = document.getElementById("description");
-    const statusInput = document.getElementById("status");
-    const templatetypeSelect = document.getElementById("templatetype");
-    const nameError = document.getElementById("name-error");
-    const responseEl = document.getElementById("response");
-    const templateForm = document.getElementById("templateForm");
+// document.addEventListener("DOMContentLoaded", function () {
+//     let existingTemplates = [];
 
-    if (!projectnameInput || !nameInput || !templateForm || !templatetypeSelect) {
-        console.error("One or more required elements are missing in the HTML.");
-        return;
-    }
+//     const projectnameInput = document.getElementById("projectname");
+//     const nameInput = document.getElementById("name");
+//     const titleInput = document.getElementById("title");
+//     const descriptionInput = document.getElementById("description");
+//     const statusInput = document.getElementById("status");
+//     const templatetypeSelect = document.getElementById("templatetype");
+//     const nameError = document.getElementById("name-error");
+//     const responseEl = document.getElementById("response");
+//     const templateForm = document.getElementById("templateForm");
+//     const spinnerOverlay = document.getElementById("spinner-overlay");
 
-    const projectName = projectnameInput.value;
+//     if (!projectnameInput || !nameInput || !templateForm || !templatetypeSelect) {
+//         console.error("One or more required elements are missing in the HTML.");
+//         return;
+//     }
 
-    // Disable all form fields initially except template type
-    const formFields = document.querySelectorAll('#templateForm input, #templateForm select, #templateForm button');
-    formFields.forEach(field => {
-        if (field !== templatetypeSelect) {
-            field.disabled = true;
-        }
-    });
+//     const projectName = projectnameInput.value;
 
-    // Enable fields when a template type is selected
-    templatetypeSelect.addEventListener("change", () => {
-        const enable = templatetypeSelect.value !== "";
-        formFields.forEach(field => {
-            if (field !== templatetypeSelect) field.disabled = !enable;
-        });
-    });
+//     // Disable all form fields initially except template type
+//     const formFields = document.querySelectorAll('#templateForm input, #templateForm select, #templateForm button');
+//     formFields.forEach(field => {
+//         if (field !== templatetypeSelect) {
+//             field.disabled = true;
+//         }
+//     });
 
-    // Fetch template types
-    fetch(`/template-types/${projectName}`)
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
-            data.forEach(type => {
-                const option = document.createElement("option");
-                option.value = type;
-                option.textContent = type;
-                templatetypeSelect.appendChild(option);
-            });
-        })
-        .catch(error => console.error("Error loading template types:", error));
+//     // Enable fields when a template type is selected
+//     templatetypeSelect.addEventListener("change", () => {
+//         const enable = templatetypeSelect.value !== "";
+//         formFields.forEach(field => {
+//             if (field !== templatetypeSelect) field.disabled = !enable;
+//         });
+//     });
 
-    // Load existing template names when name field is focused
-    nameInput.addEventListener("focus", function () {
-        if (existingTemplates.length === 0) {
-            fetch(`/templates/list/${projectName}`)
-                .then(response => response.json())
-                .then(data => {
-                    existingTemplates = data.map(name => name.toLowerCase());
-                })
-                .catch(error => console.error("Error fetching existing templates:", error));
-        }
-    });
+//     // Fetch template types
+//     fetch(`/template-types/${projectName}`)
+//         .then(response => {
+//             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+//             return response.json();
+//         })
+//         .then(data => {
+//             data.forEach(type => {
+//                 const option = document.createElement("option");
+//                 option.value = type;
+//                 option.textContent = type;
+//                 templatetypeSelect.appendChild(option);
+//             });
+//         })
+//         .catch(error => console.error("Error loading template types:", error));
 
-    // Check for duplicate name while typing
-    nameInput.addEventListener("input", function () {
-        const inputName = this.value.trim().toLowerCase();
-        nameError.innerText = existingTemplates.includes(inputName) ? "Template already exists." : "";
-    });
+//     // Load existing template names when name field is focused
+//     nameInput.addEventListener("focus", function () {
+//         if (existingTemplates.length === 0) {
+//             fetch(`/templates/list/${projectName}`)
+//                 .then(response => response.json())
+//                 .then(data => {
+//                     existingTemplates = data.map(name => name.toLowerCase());
+//                 })
+//                 .catch(error => console.error("Error fetching existing templates:", error));
+//         }
+//     });
 
-    // Handle form submission
-    templateForm.addEventListener("submit", function (event) {
-        event.preventDefault();
+//     // Check for duplicate name while typing
+//     nameInput.addEventListener("input", function () {
+//         const inputName = this.value.trim().toLowerCase();
+//         nameError.innerText = existingTemplates.includes(inputName) ? "Template already exists." : "";
+//     });
 
-        const name = nameInput.value.trim();
-        const title = titleInput.value.trim();
-        const description = descriptionInput.value.trim();
-        const status = statusInput.value;
-        const templateType = templatetypeSelect.value;
+//     // Handle form submission
+//     templateForm.addEventListener("submit", function (event) {
+//         event.preventDefault();
 
-        if (existingTemplates.includes(name.toLowerCase())) {
-            nameError.innerText = "Template already exists.";
-            return;
-        }
+//         const name = nameInput.value.trim();
+//         const title = titleInput.value.trim();
+//         const description = descriptionInput.value.trim();
+//         const status = statusInput.value;
+//         const templateType = templatetypeSelect.value;
 
-        const data = { name, title, description, status, templateType };
+//         if (existingTemplates.includes(name.toLowerCase())) {
+//             nameError.innerText = "Template already exists.";
+//             return;
+//         }
 
-        fetch(`/create-template/${projectName}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data)
-        })
-            .then(response => response.text())
-            .then(result => {
-                responseEl.style.color = "green";
-                responseEl.innerText = result;
-                templateForm.reset();
-                nameError.innerText = "";
-                existingTemplates.push(name.toLowerCase());
-setTimeout(() => {
-        window.location.href = `/view/${projectName}`;
-        // replace deploypage with your actual deploy page mapping
-    }, 1000);
-                // Reset field disable state
-                formFields.forEach(field => {
-                    if (field !== templatetypeSelect) field.disabled = true;
-                });
-            })
-            .catch(error => {
-                responseEl.style.color = "red";
-                responseEl.innerText = "Error: " + error;
-            });
-    });
-});
+//         const data = { name, title, description, status, templateType };
+
+//         // Show spinner
+//         spinnerOverlay.classList.remove("d-none");
+//         const spinnerStart = Date.now();
+
+//         fetch(`/create-template/${projectName}`, {
+//             method: "POST",
+//             headers: { "Content-Type": "application/json" },
+//             body: JSON.stringify(data)
+//         })
+//             .then(response => response.text())
+//             .then(result => {
+//                 responseEl.style.color = "green";
+//                 responseEl.innerText = result;
+//                 templateForm.reset();
+//                 nameError.innerText = "";
+//                 existingTemplates.push(name.toLowerCase());
+
+//                 setTimeout(() => {
+//                     window.location.href = `/view/${projectName}`;
+//                 }, 1000);
+
+//                 // Reset field disable state
+//                 formFields.forEach(field => {
+//                     if (field !== templatetypeSelect) field.disabled = true;
+//                 });
+//             })
+//             .catch(error => {
+//                 responseEl.style.color = "red";
+//                 responseEl.innerText = "Error: " + error;
+//             })
+//             .finally(() => {
+//                 // Ensure spinner stays for at least 5 seconds
+//                 const elapsed = Date.now() - spinnerStart;
+//                 const remaining = Math.max(0, 5000 - elapsed);
+
+//                 setTimeout(() => {
+//                     spinnerOverlay.classList.add("d-none");
+//                 }, remaining);
+//             });
+//     });
+// });

@@ -2,18 +2,34 @@
     let selectedTemplates = [];
 
     function getProjectName() {
-        return document.getElementById('componentModal').getAttribute('data-project');
+        const el = document.getElementById('componentModal');
+        return el ? el.getAttribute('data-project') : '';
+    }
+
+    function setDeployDisabled(disabled) {
+        const btn = document.getElementById('deployBtn');
+        if (!btn) return;
+        if (disabled) {
+            btn.classList.add('disabled');
+            btn.setAttribute('aria-disabled', 'true');
+        } else {
+            btn.classList.remove('disabled');
+            btn.removeAttribute('aria-disabled');
+        }
     }
 
     function renderList(containerId, dataList, selectedList, type) {
         const container = document.getElementById(containerId);
+        if (!container) return;
         container.innerHTML = '';
 
-        const allItems = [...new Set([...dataList.unique, ...dataList.duplicate, ...selectedList])];
+        const unique = (dataList && Array.isArray(dataList.unique)) ? dataList.unique : [];
+        const duplicate = (dataList && Array.isArray(dataList.duplicate)) ? dataList.duplicate : [];
+        const allItems = [...new Set([...unique, ...duplicate, ...selectedList])];
 
         allItems.forEach(item => {
             const isAlreadyAdded = selectedList.includes(item);
-            const isDuplicate = dataList.duplicate.includes(item);
+            const isDuplicate = duplicate.includes(item);
 
             let labelSuffix = '';
             let isDisabled = false;
@@ -28,77 +44,93 @@
                 isDisabled = true;
             }
 
-            container.innerHTML += `
+            container.insertAdjacentHTML('beforeend', `
                 <div class="col">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" value="${item}" ${isChecked ? 'checked' : ''} ${isDisabled ? 'disabled' : ''}>
                         <label class="form-check-label ${isDisabled ? 'text-muted' : ''}">${item}${labelSuffix}</label>
                     </div>
-                </div>`;
+                </div>`);
         });
     }
 
     function openComponentModal() {
         const projectName = getProjectName();
         fetch(`/fetch-components/${projectName}`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('Failed to fetch components');
+                return res.json();
+            })
             .then(data => {
                 renderList('componentList', data, selectedComponents, 'component');
                 new bootstrap.Modal(document.getElementById('componentModal')).show();
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Unable to load components. Please try again.');
             });
     }
 
     function openTemplateModal() {
         const projectName = getProjectName();
         fetch(`/fetch-templates/${projectName}`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('Failed to fetch templates');
+                return res.json();
+            })
             .then(data => {
                 renderList('templateList', data, selectedTemplates, 'template');
                 new bootstrap.Modal(document.getElementById('templateModal')).show();
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Unable to load templates. Please try again.');
             });
     }
 
     function addSelected(type) {
         const listId = type === 'component' ? 'componentList' : 'templateList';
         const selected = Array.from(document.querySelectorAll(`#${listId} input[type=checkbox]:checked:not(:disabled)`))
-                              .map(cb => cb.value);
-        const container = document.getElementById(type === 'component' ? 'newComponentsList' : 'newTemplatesList');
+            .map(cb => cb.value);
+
+        const containerId = type === 'component' ? 'newComponentsList' : 'newTemplatesList';
+        const container = document.getElementById(containerId);
         const list = type === 'component' ? selectedComponents : selectedTemplates;
 
         selected.forEach(item => {
             if (!list.includes(item)) list.push(item);
-            const div = document.createElement('div');
-            div.className = 'col';
-            div.innerHTML = `
-                <div class="border rounded p-2 bg-light text-center shadow-sm removable-item">
+            const col = document.createElement('div');
+            col.className = 'col';
+            col.innerHTML = `
+                <div class="border rounded p-2 bg-light text-center shadow-sm removable-item" data-item-name="${item}">
                     ${item}
-                    <span class="remove-btn" onclick="removeItem('${item}', '${type}')">&times;</span>
+                    <span class="remove-btn text-danger" onclick="removeItem('${item}', '${type}')">&times;</span>
                 </div>`;
-            container.appendChild(div);
+            container.appendChild(col);
         });
 
         document.getElementById(type === 'component' ? 'newComponentsContainer' : 'newTemplatesContainer').style.display = 'block';
         showSave();
-        bootstrap.Modal.getInstance(document.getElementById(type + 'Modal')).hide();
+        const modalEl = document.getElementById(type + 'Modal');
+        const instance = bootstrap.Modal.getInstance(modalEl);
+        if (instance) instance.hide();
     }
 
-    function addSelectedComponents() {
-        addSelected('component');
-    }
-
-    function addSelectedTemplates() {
-        addSelected('template');
-    }
+    function addSelectedComponents() { addSelected('component'); }
+    function addSelectedTemplates() { addSelected('template'); }
 
     function removeItem(name, type) {
         const list = type === 'component' ? selectedComponents : selectedTemplates;
         const idx = list.indexOf(name);
         if (idx !== -1) list.splice(idx, 1);
+
         const containerId = type === 'component' ? 'newComponentsList' : 'newTemplatesList';
         const container = document.getElementById(containerId);
-        Array.from(container.children).forEach(col => {
-            if (col.textContent.includes(name)) col.remove();
-        });
+        const itemEl = container.querySelector(`[data-item-name="${CSS && CSS.escape ? CSS.escape(name) : name}"]`);
+        if (itemEl) {
+            const col = itemEl.closest('.col') || itemEl;
+            col.remove();
+        }
 
         const mainContainerId = type === 'component' ? 'newComponentsContainer' : 'newTemplatesContainer';
         if (list.length === 0) {
@@ -109,13 +141,13 @@
 
     function showSave() {
         document.getElementById('saveBtn').style.display = 'inline-block';
-        document.getElementById('deployBtn').disabled = true;
+        setDeployDisabled(true);
     }
 
     function checkSaveVisibility() {
         if (selectedComponents.length === 0 && selectedTemplates.length === 0) {
             document.getElementById('saveBtn').style.display = 'none';
-            document.getElementById('deployBtn').disabled = false;
+            setDeployDisabled(false);
         }
     }
 
@@ -131,29 +163,33 @@
             }));
         }
 
+        if (selectedTemplates.length > 0) {
+            promises.push(fetch(`/add-template/${projectName}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(selectedTemplates)
+            }));
+        }
 
-       if (selectedTemplates.length > 0) {
-    promises.push(fetch(`/add-template/${projectName}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(selectedTemplates)
-    }));
-}
+        if (promises.length === 0) {
+            checkSaveVisibility();
+            return;
+        }
 
-
-        Promise.all(promises).then(() => {
-            const msg = document.getElementById('successMessage');
-            msg.style.display = 'block';
-            setTimeout(() => {
-                msg.style.display = 'none';
-                window.location.reload();
-            }, 2000);
-        });
+        Promise.all(promises)
+            .then(responses => {
+                const anyBad = responses.some(r => !r.ok);
+                if (anyBad) throw new Error('One or more requests failed');
+                const msg = document.getElementById('successMessage');
+                msg.style.display = 'block';
+                setTimeout(() => {
+                    msg.style.display = 'none';
+                    window.location.reload();
+                }, 1500);
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Save failed. Please check server logs and try again.');
+                setDeployDisabled(false);
+            });
     }
-
-
-div.innerHTML = `
-    <div class="border rounded p-2 text-center shadow-sm removable-item new-item">
-        ${item}
-        <span class="remove-btn" onclick="removeItem('${item}', '${type}')">&times;</span>
-    </div>`;
