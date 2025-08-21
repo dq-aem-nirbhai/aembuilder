@@ -8,6 +8,24 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
   <link rel="stylesheet" href="/css/create-component.css">
+
+  <style>
+    /* Spinner Overlay */
+    #loadingOverlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(255, 255, 255, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .spinner-border {
+      width: 3rem;
+      height: 3rem;
+    }
+  </style>
 </head>
 <body>
 
@@ -139,6 +157,13 @@
   </div>
 </div>
 
+<!-- Loading Spinner Overlay -->
+<div id="loadingOverlay">
+  <div class="spinner-border text-primary" role="status">
+    <span class="visually-hidden">Loading...</span>
+  </div>
+</div>
+
 <!-- Footer -->
 <footer>
   <div th:replace="fragments/navbar :: footer"></div>
@@ -146,13 +171,29 @@
 
 <!-- Inline JS Variables -->
 <script th:inline="javascript">
-
-
   window.editMode =  false;
-
-
   window.componentData = {};
 </script>
 <script src="/js/create-component.js"></script>
+
+<script>
+  // === Spinner Logic ===
+  document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("componentForm");
+    const overlay = document.getElementById("loadingOverlay");
+
+    form.addEventListener("submit", function (e) {
+      if (document.getElementById("createButton").innerText.includes("Update")) {
+        e.preventDefault(); // stop immediate submission
+        overlay.style.display = "flex"; // show spinner
+        setTimeout(() => {
+          overlay.style.display = "none"; // hide spinner after 5s
+          form.submit(); // submit form after delay
+        }, 5000);
+      }
+    });
+  });
+</script>
+
 </body>
 </html>

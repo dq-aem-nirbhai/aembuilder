@@ -363,7 +363,6 @@ function populateFieldRow(row, field, level = 0) {
       container.appendChild(newAddBtn);
     }
   }
-
   // Mark form valid again (optional)
   validateFormFields();
 }
