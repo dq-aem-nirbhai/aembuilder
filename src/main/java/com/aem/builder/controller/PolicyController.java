@@ -55,8 +55,22 @@ public class PolicyController {
         return "policies"; // Thymeleaf page for creating policy
     }
 
-    public String addPolicyToParticularTemplate() {
-        return "";
+    @PostMapping("/api/{project}/templates/{template}/policy")
+    @ResponseBody
+    public ResponseEntity<String> addPolicyToTemplate(@PathVariable String project,
+            @PathVariable String template,
+            @RequestBody PolicyRequest request) {
+        try {
+            String node = policyXmlUpdater.addPolicyToTemplate(project, template,
+                    request.getName(), request.getComponentPath(),
+                    request.getStyleDefaultClasses(),
+                    request.getStyleDefaultElement(), request.getStyles());
+            return ResponseEntity.ok(node);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error saving policy");
+        }
     }
 
 
