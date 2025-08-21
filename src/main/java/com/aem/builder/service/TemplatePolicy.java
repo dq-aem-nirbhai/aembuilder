@@ -12,6 +12,11 @@ public interface TemplatePolicy {
     public void assignPolicyToTemplate(String projectName, String templateName,
                                        String policyNodeName) throws Exception;
 
+    String addPolicyToTemplate(String projectName, String templateName,
+                               String policyName, String componentPath,
+                               String styleDefaultClasses, String styleDefaultElement,
+                               Map<String, Map<String, String>> styles) throws Exception;
+
     public void saveOrUpdatePolicy(String projectName, String templateName, PolicyRequest request) throws Exception;
     List<String> getExistingPolicies(String projectName) throws Exception;
 

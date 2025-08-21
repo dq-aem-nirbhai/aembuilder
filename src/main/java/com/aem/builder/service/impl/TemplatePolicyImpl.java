@@ -164,6 +164,17 @@ public class TemplatePolicyImpl implements TemplatePolicy {
         writeFile(templatePath, TemplateUtil.policyForParticularTemplate(policyNodeName, projectName));
     }
 
+    @Override
+    public String addPolicyToTemplate(String projectName, String templateName,
+                                      String policyName, String componentPath,
+                                      String styleDefaultClasses, String styleDefaultElement,
+                                      Map<String, Map<String, String>> styles) throws Exception {
+        String nodeName = addPolicy(projectName, policyName, componentPath,
+                styleDefaultClasses, styleDefaultElement, styles);
+        assignPolicyToTemplate(projectName, templateName, nodeName);
+        return nodeName;
+    }
+
     void writeFile(String path, String content) throws IOException {
         Path filePath = Paths.get(path);
         Files.createDirectories(filePath.getParent());
