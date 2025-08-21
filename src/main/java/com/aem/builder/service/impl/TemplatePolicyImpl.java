@@ -222,11 +222,21 @@ public class TemplatePolicyImpl implements TemplatePolicy {
 
         Element root = (Element) doc.getElementsByTagName("root").item(0);
         String cleanPath = normalizeComponentPath(componentPath);
+
+        // Mirror the component path under the policies hierarchy. Strip any leading
+        // `/apps` or `/libs` so the stored structure matches what AEM generates and
+        // avoid duplicating the project name when a path without `/apps` is
+        // provided.
         String rel = cleanPath;
-        int idx = rel.indexOf("/components/");
-        if (idx >= 0) {
-            rel = rel.substring(idx + "/components/".length());
+        if (rel.startsWith("/")) {
+            rel = rel.substring(1);
         }
+        if (rel.startsWith("apps/")) {
+            rel = rel.substring("apps/".length());
+        } else if (rel.startsWith("libs/")) {
+            rel = rel.substring("libs/".length());
+        }
+
         String[] segments = rel.split("/");
         Element current = root;
         for (String seg : segments) {
@@ -235,7 +245,9 @@ public class TemplatePolicyImpl implements TemplatePolicy {
             current.setAttribute("sling:resourceType", "wcm/core/components/policies/mapping");
         }
 
-        current.setAttribute("cq:policy", projectName + "/components/" + rel + "/" + policyNodeName);
+        // The cq:policy value is relative to the policies root and should mirror
+        // the node structure we just created.
+        current.setAttribute("cq:policy", rel + "/" + policyNodeName);
 
         saveDocument(doc, xmlFile);
     }
