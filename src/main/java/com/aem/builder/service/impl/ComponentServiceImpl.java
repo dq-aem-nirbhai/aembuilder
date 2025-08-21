@@ -48,10 +48,6 @@ public class ComponentServiceImpl implements ComponentService {
         return m.find() ? m.group(1) : "";
     }
 
-
-
-
-
     @Override
     public List<String> fetchComponentsFromGeneratedProjects(String projectName) {
         File componentsDir = new File(PROJECTS_DIR,
@@ -352,24 +348,22 @@ public class ComponentServiceImpl implements ComponentService {
         return type;
     }
 
-    private ComponentField parseField(Element elem) {
+    private List<ComponentField> parseField(Element elem) {
+        List<ComponentField> result = new ArrayList<>();
+
         String fieldLabel = elem.getAttribute("fieldLabel");
-        String nameAttr = elem.getAttribute("name");
+        String nameAttr   = elem.getAttribute("name");
         String fileRefAttr = elem.getAttribute("fileReferenceParameter");
         String resourceType = elem.getAttribute("sling:resourceType");
+        String fieldType  = getFieldTypeFromResource(resourceType);
 
-        // Determine fieldType from resourceType
-        String fieldType = getFieldTypeFromResource(resourceType);
         String fieldName = null;
 
-        // Special case: if multifield has no name, try to get it from nested <field> element's name
+        // --- Multifield naming resolution
         if ("multifield".equals(fieldType) && (nameAttr == null || nameAttr.isBlank())) {
-            Element fieldElem = null;
             NodeList fieldNodes = elem.getElementsByTagName("field");
             if (fieldNodes.getLength() > 0) {
-                fieldElem = (Element) fieldNodes.item(0);
-            }
-            if (fieldElem != null) {
+                Element fieldElem = (Element) fieldNodes.item(0);
                 String nestedFieldName = fieldElem.getAttribute("name");
                 if (nestedFieldName != null && !nestedFieldName.isBlank()) {
                     fieldName = nestedFieldName.startsWith("./") ? nestedFieldName.substring(2) : nestedFieldName;
@@ -377,18 +371,12 @@ public class ComponentServiceImpl implements ComponentService {
             }
         }
 
-        // If still null, fallback to normal logic
-        if (fieldName == null) {
-            if (nameAttr != null && !nameAttr.isBlank()) {
-                if ("fileupload".equals(fieldType)) {
-                    if (fileRefAttr != null && !fileRefAttr.isBlank()) {
-                        fieldName = fileRefAttr.startsWith("./") ? fileRefAttr.substring(2) : fileRefAttr;
-                    } else {
-                        fieldName = nameAttr.startsWith("./") ? nameAttr.substring(2) : nameAttr;
-                    }
-                } else {
-                    fieldName = nameAttr.startsWith("./") ? nameAttr.substring(2) : nameAttr;
-                }
+        // --- Normal field name resolution
+        if (fieldName == null && nameAttr != null && !nameAttr.isBlank()) {
+            if ("fileupload".equals(fieldType) && fileRefAttr != null && !fileRefAttr.isBlank()) {
+                fieldName = fileRefAttr.startsWith("./") ? fileRefAttr.substring(2) : fileRefAttr;
+            } else {
+                fieldName = nameAttr.startsWith("./") ? nameAttr.substring(2) : nameAttr;
             }
         }
 
@@ -398,107 +386,126 @@ public class ComponentServiceImpl implements ComponentService {
         List<OptionItem> options = null;
         List<ComponentField> nested = null;
 
+        // --- Handle multifield
         if ("multifield".equals(fieldType)) {
-            // Multifield stores nested fields inside a <field> element
-            Element fieldElem = null;
-            NodeList fieldNodes = elem.getElementsByTagName("field");
+            nested = new ArrayList<>();
+            NodeList fieldNodes = elem.getElementsByTagName("items");
             if (fieldNodes.getLength() > 0) {
-                fieldElem = (Element) fieldNodes.item(0);
+                Element itemsElem = (Element) fieldNodes.item(0);
+                collectFields(itemsElem, nested); // ✅ recurse into children
             }
-
-            if (fieldElem != null) {
-                // Extract nested fields from <items> inside <field>
-                Element itemsElem = null;
-                NodeList itemsNodes = fieldElem.getElementsByTagName("items");
-                if (itemsNodes.getLength() > 0) {
-                    itemsElem = (Element) itemsNodes.item(0);
-                }
-
-                if (itemsElem != null) {
-                    nested = new ArrayList<>();
-                    NodeList nodes = itemsElem.getChildNodes();
-                    int nestedCount = 0;
-                    for (int i = 0; i < nodes.getLength(); i++) {
-                        Node n = nodes.item(i);
-                        if (n instanceof Element child) {
-                            ComponentField childField = parseField(child);
-                            if (childField != null) {
-                                nested.add(childField);
-                                nestedCount++;
-                            } else {
-                                log.warn("Nested field [{}] returned null inside multifield '{}'", i, fieldName);
-                            }
-                        }
-                    }
-                    log.info("Parsed {} nested fields inside multifield '{}'", nestedCount, fieldName);
-                } else {
-                    log.warn("No <items> found inside multifield's <field> '{}'", fieldName);
-                }
-            } else {
-                log.warn("No <field> element found inside multifield '{}'", fieldName);
-            }
-
         }
-        else if ("select".equals(fieldType) || "multiselect".equals(fieldType)
-                ||  "radiogroup".equals(fieldType)) {
 
-            // Detect real type for select vs multiselect
+        // --- Handle select / multiselect / radiogroup
+        else if ("select".equals(fieldType) || "multiselect".equals(fieldType) || "radiogroup".equals(fieldType)) {
             if ("select".equals(fieldType)) {
                 String multipleAttr = elem.getAttribute("multiple");
                 if ("true".equalsIgnoreCase(multipleAttr)) {
-                    fieldType = "multiselect"; // Preserve as multiselect if attribute is set
-                    log.info("Detected 'multiple' attribute, changing type to multiselect for '{}'", fieldName);
+                    fieldType = "multiselect";
                 }
             }
-
             NodeList itemsNodes = elem.getElementsByTagName("items");
             if (itemsNodes.getLength() > 0) {
                 Element itemsElem = (Element) itemsNodes.item(0);
-
                 options = new ArrayList<>();
                 NodeList optionNodes = itemsElem.getChildNodes();
-                int optionCount = 0;
-
                 for (int i = 0; i < optionNodes.getLength(); i++) {
                     Node n = optionNodes.item(i);
                     if (n instanceof Element optionElem) {
                         String text = optionElem.getAttribute("text");
                         String value = optionElem.getAttribute("value");
-
                         if ((text != null && !text.isBlank()) || (value != null && !value.isBlank())) {
                             options.add(new OptionItem(text, value));
-                            optionCount++;
-                            log.info("Added option: text='{}', value='{}'", text, value);
                         }
                     }
                 }
-                log.info("Parsed {} option items for '{}'", optionCount, fieldName);
-
-            } else {
-                log.warn("No <items> found for options in '{}'", fieldName);
             }
         }
 
+        // --- Handle tab containers (granite/ui/components/coral/foundation/container)
+        else if ("tabs".equals(fieldType)) {
+            String jcrTitle = elem.getAttribute("jcr:title");
+            if (jcrTitle != null && !jcrTitle.isBlank()) {
+                fieldLabel = jcrTitle;
+            }
+            String tabName = elem.getNodeName();
 
-        return new ComponentField(fieldLabel, fieldName, fieldType, nested, options);
+            nested = new ArrayList<>();
+            NodeList childNodes = elem.getChildNodes();
+            for (int i = 0; i < childNodes.getLength(); i++) {
+                Node n = childNodes.item(i);
+                if (n instanceof Element childElem && "items".equals(childElem.getNodeName())) {
+                    collectFields(childElem, nested);
+                }
+            }
+
+            result.add(new ComponentField(fieldLabel, tabName, "tabs", nested, null));
+            return result;
+        }
+
+        // --- Default: simple field
+        result.add(new ComponentField(fieldLabel, fieldName, fieldType, nested, options));
+        return result;
     }
 
-
-
+    /**
+     * Recursively collects dialog fields from the given parent node.
+     * Skips technical containers but continues traversing into their children.
+     */
     private void collectFields(Element parent, List<ComponentField> fields) {
         NodeList children = parent.getChildNodes();
         for (int i = 0; i < children.getLength(); i++) {
             Node node = children.item(i);
-            if (node instanceof Element elem) {
-                String type = determineFieldType(elem);
-                if (!type.isEmpty()) {
-                    fields.add(parseField(elem));
-                } else {
+            if (!(node instanceof Element elem)) {
+                continue;
+            }
+
+            String resourceType = elem.getAttribute("sling:resourceType");
+            String type = determineFieldType(elem);
+
+            // --- Special handling for container nodes ---
+            if ("granite/ui/components/coral/foundation/container".equals(resourceType)) {
+                String parentResourceType = getParentResourceType(elem);
+
+                log.info("Checking container: nodeName={}, resourceType={}, parentResourceType={}",
+                        elem.getNodeName(), resourceType, parentResourceType);
+
+                // If container is not part of tabs, skip it as a field but still traverse inside
+                if (!"granite/ui/components/coral/foundation/tabs".equals(parentResourceType)) {
+                    log.info("Skipping container '{}' as field, but parsing its children", elem.getNodeName());
                     collectFields(elem, fields);
+                    continue;
                 }
+            }
+
+            // --- Normal field processing ---
+            if (!type.isEmpty()) {
+                List<ComponentField> parsed = parseField(elem);
+                if (parsed != null && !parsed.isEmpty()) {
+                    fields.addAll(parsed);
+                }
+            } else {
+                // Recurse into children for nested items
+                collectFields(elem, fields);
             }
         }
     }
+
+    /**
+     * Finds the nearest ancestor that has a sling:resourceType.
+     * Useful because many AEM dialog wrapper nodes (like <items>) don't define one.
+     */
+    private String getParentResourceType(Element elem) {
+        Node parent = elem.getParentNode();
+        while (parent != null && parent instanceof Element parentElem) {
+            if (parentElem.hasAttribute("sling:resourceType")) {
+                return parentElem.getAttribute("sling:resourceType");
+            }
+            parent = parent.getParentNode();
+        }
+        return "";
+    }
+
 
     @Override
     public Map<String, List<String>> getProjectComponentsMap(List<String> projects) {

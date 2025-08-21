@@ -14,14 +14,20 @@ import org.w3c.dom.NodeList;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -29,7 +35,6 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
-
 @Service
 @AllArgsConstructor
 @Slf4j
@@ -96,6 +101,41 @@ public class AemProjectServiceImpl implements AemProjectService {
             if (exitCode != 0) {
                 throw new IOException("AEM project generation failed with exit code: " + exitCode);
             }
+            String pomPath = baseDir + appId + "/pom.xml";
+            File pomFile = new File(pomPath);
+            if (pomFile.exists()) {
+                try {
+                    var builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+                    Document doc = builder.parse(pomFile);
+                    Element projectEl = doc.getDocumentElement();
+
+                    // Locate or create <properties>
+                    NodeList propsList = doc.getElementsByTagName("properties");
+                    Element propsEl;
+                    if (propsList.getLength() > 0) {
+                        propsEl = (Element) propsList.item(0);
+                    } else {
+                        propsEl = doc.createElement("properties");
+                        projectEl.appendChild(propsEl);
+                    }
+
+                    // Add createdDate if not already present
+                    if (doc.getElementsByTagName("createdDate").getLength() == 0) {
+                        Element createdDateEl = doc.createElement("createdDate");
+                        createdDateEl.setTextContent(
+                                ZonedDateTime.now()
+                                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))                        );
+                        propsEl.appendChild(createdDateEl);
+
+                        // Save back to pom.xml
+                        Transformer transformer = TransformerFactory.newInstance().newTransformer();
+                        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+                        transformer.transform(new DOMSource(doc), new StreamResult(pomFile));
+                    }
+                } catch (Exception e) {
+                    System.err.println("⚠️ Failed to inject createdDate into pom.xml: " + e.getMessage());
+                }
+            }
             String componentsTargetPath = baseDir + appId + "/ui.apps/src/main/content/jcr_root/apps/" + appId + "/components/";
             File contentFolder = new File(componentsTargetPath);
             if (!contentFolder.exists()) {
@@ -122,6 +162,8 @@ public class AemProjectServiceImpl implements AemProjectService {
                 String version = "Unknown";
                 String groupId = "Unknown";
                 String createdDate = "Unknown";
+                String importDate = "Unknown";
+                String displayName="Unknown";
                 String path = new File(projectsFolder, name).getPath();
 
                 try {
@@ -141,19 +183,30 @@ public class AemProjectServiceImpl implements AemProjectService {
                         }
 
                         groupId = doc.getElementsByTagName("groupId").item(0).getTextContent();
+                        NodeList nameNodes = doc.getElementsByTagName("name");
+                        if (nameNodes.getLength() > 0) {
+                            displayName = nameNodes.item(0).getTextContent();
+                        } else {
+                            displayName = name;
+                        }
+
+                        NodeList createdDateNodes = doc.getElementsByTagName("createdDate");
+                        NodeList importDateNodes = doc.getElementsByTagName("importDate");
+
+                        if (createdDateNodes.getLength() > 0) {
+                            createdDate = createdDateNodes.item(0).getTextContent();
+                        } else if (importDateNodes.getLength() > 0) {
+                            importDate = importDateNodes.item(0).getTextContent();
+                        }
+
                     }
+
                 } catch (Exception ignored) {
                 }
 
-                try {
-                    BasicFileAttributes attr = Files.readAttributes(new File(projectsFolder, name).toPath(),
-                            BasicFileAttributes.class);
-                    createdDate = attr.creationTime().toInstant().atZone(java.time.ZoneId.systemDefault())
-                            .format(DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm"));
-                } catch (Exception ignored) {
-                }
 
-                projects.add(new ProjectDetails(name, version, groupId, createdDate, path));
+
+                projects.add(new ProjectDetails(displayName,name, version, groupId, createdDate,importDate, path));
             }
         }
         return projects;
@@ -269,6 +322,52 @@ public class AemProjectServiceImpl implements AemProjectService {
         } catch (IOException e) {
             org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
             throw new IOException("Failed to import project '" + artifactId + "'. Could not move files.", e);
+        }
+
+        Path pomFile = target.resolve("pom.xml");
+        try {
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            org.w3c.dom.Document doc = dBuilder.parse(pomFile.toFile());
+            doc.getDocumentElement().normalize();
+
+            org.w3c.dom.NodeList propsList = doc.getElementsByTagName("properties");
+            org.w3c.dom.Element propertiesElement;
+            if (propsList.getLength() > 0) {
+                propertiesElement = (org.w3c.dom.Element) propsList.item(0);
+            } else {
+                propertiesElement = doc.createElement("properties");
+                doc.getDocumentElement().appendChild(propertiesElement);
+            }
+
+            // Remove <createdDate> if exists
+            NodeList createdNodes = doc.getElementsByTagName("createdDate");
+            if (createdNodes.getLength() > 0) {
+                org.w3c.dom.Node toRemove = createdNodes.item(0);
+                propertiesElement.removeChild(toRemove);
+            }
+
+            // Add or update <importDate>
+            NodeList importNodes = doc.getElementsByTagName("importDate");
+            String now = ZonedDateTime.now()
+                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            // yyyy-MM-dd
+
+            if (importNodes.getLength() > 0) {
+                importNodes.item(0).setTextContent(now);
+            } else {
+                org.w3c.dom.Element importDateEl = doc.createElement("importDate");
+                importDateEl.setTextContent(now);
+                propertiesElement.appendChild(importDateEl);
+            }
+
+            // Save pom.xml back
+            Transformer transformer = TransformerFactory.newInstance().newTransformer();
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            transformer.transform(new DOMSource(doc), new StreamResult(pomFile.toFile()));
+
+        } catch (Exception e) {
+            throw new IOException("Failed to update pom.xml with importDate.", e);
         }
 
         // Cleanup temp extraction dir
