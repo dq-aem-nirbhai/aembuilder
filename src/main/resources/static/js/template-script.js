@@ -1,4 +1,3 @@
-
 document.addEventListener("DOMContentLoaded", function () {
     let existingTemplates = [];
 
@@ -87,8 +86,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const data = { name, title, description, status, templateType };
 
-        // Show spinner
+        // Show spinner immediately
         spinnerOverlay.classList.remove("d-none");
+        const startTime = Date.now();
 
         fetch(`/create-template/${projectName}`, {
             method: "POST",
@@ -103,22 +103,31 @@ document.addEventListener("DOMContentLoaded", function () {
                 nameError.innerText = "";
                 existingTemplates.push(name.toLowerCase());
 
-                setTimeout(() => {
-                    window.location.href = `/view/${projectName}`;
-                }, 1000);
-
                 // Reset field disable state
                 formFields.forEach(field => {
                     if (field !== templatetypeSelect) field.disabled = true;
                 });
+
+                // Ensure spinner stays visible for 5 seconds
+                const elapsed = Date.now() - startTime;
+                const remaining = Math.max(0, 5000 - elapsed);
+
+                setTimeout(() => {
+                    spinnerOverlay.classList.add("d-none");
+                    window.location.href = `/view/${projectName}`;
+                }, remaining);
             })
             .catch(error => {
                 responseEl.style.color = "red";
                 responseEl.innerText = "Error: " + error;
-            })
-            .finally(() => {
-                // Hide spinner
-                spinnerOverlay.classList.add("d-none");
+
+                // Ensure spinner stays visible for 5 seconds
+                const elapsed = Date.now() - startTime;
+                const remaining = Math.max(0, 5000 - elapsed);
+
+                setTimeout(() => {
+                    spinnerOverlay.classList.add("d-none");
+                }, remaining);
             });
     });
 });

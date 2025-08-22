@@ -176,21 +176,24 @@
 </script>
 <script src="/js/create-component.js"></script>
 
+<!-- Spinner Trigger Script -->
 <script>
-  // === Spinner Logic ===
   document.addEventListener("DOMContentLoaded", function () {
     const form = document.getElementById("componentForm");
     const overlay = document.getElementById("loadingOverlay");
+    const createBtn = document.getElementById("createButton");
 
-    form.addEventListener("submit", function (e) {
-      if (document.getElementById("createButton").innerText.includes("Update")) {
-        e.preventDefault(); // stop immediate submission
-        overlay.style.display = "flex"; // show spinner
-        setTimeout(() => {
-          overlay.style.display = "none"; // hide spinner after 5s
-          form.submit(); // submit form after delay
-        }, 5000);
-      }
+    form.addEventListener("submit", function (event) {
+      event.preventDefault(); // prevent immediate form submission
+
+      overlay.style.display = "flex"; // show spinner
+      createBtn.disabled = true; // disable button
+
+      // Wait 5 seconds before submitting
+      setTimeout(() => {
+        overlay.style.display = "none"; // hide spinner after 5s
+        form.submit(); // now submit form
+      }, 5000);
     });
   });
 </script>
