@@ -265,14 +265,23 @@ public class PolicyServiceImpl implements PolicyService {
         String base = buildConfPath(project);
         ensureFolderContent(new File(base + "/settings/wcm/policies"));
         File centralPolicyFile = new File(base + "/settings/wcm/policies/.content.xml");
+
+        // Write the policy to the central policy file
         writePolicyFile(centralPolicyFile, componentResourceType, policy);
 
+        // Build the correct full policy path
+        // Example: chair/components/Bahubali/policy_123456789
+        String componentName = componentResourceType.substring(componentResourceType.lastIndexOf("/") + 1);
+        String fullPolicyPath = project + "/components/" + componentName + "/" + policyId;
+
+        // Update template mapping
         String mappingPath = base + "/settings/wcm/templates/" + template + "/policies/.content.xml";
-        updateTemplateMapping(mappingPath, componentResourceType + "/" + policyId);
+        updateTemplateMapping(mappingPath, fullPolicyPath);
 
         log.info("POLICY: Saved policy '{}' for componentResourceType '{}'", policyId, componentResourceType);
         return policyId;
     }
+
 
     /**
      * Writes or updates a policy in the central policy file.
@@ -591,21 +600,60 @@ public class PolicyServiceImpl implements PolicyService {
                 root.setAttribute("xmlns:jcr", "http://www.jcp.org/jcr/1.0");
                 root.setAttribute("xmlns:sling", "http://sling.apache.org/jcr/sling/1.0");
                 root.setAttribute("xmlns:nt", "http://www.jcp.org/jcr/nt/1.0");
-                root.setAttribute("jcr:primaryType", "nt:unstructured");
+                root.setAttribute("xmlns:cq", "http://www.day.com/jcr/cq/1.0");
+                root.setAttribute("jcr:primaryType", "cq:Page");
                 doc.appendChild(root);
             }
 
+            // Parse policy path: e.g., chair/components/Bahubali/policy_123456789
             String[] segments = policyPath.split("/");
-            String compType = segments[0];
-            String policyId = segments[1];
+            if (segments.length < 4) {
+                throw new IllegalArgumentException("Invalid policy path: " + policyPath);
+            }
 
-            Element componentEl = getOrCreateChild(doc, root, compType);
-            componentEl.setAttribute("cq:policy", policyPath);
+            String project = segments[0];         // e.g., chair
+            String component = segments[2];       // e.g., Bahubali
+
+            // Build jcr:content
+            Element jcrContent = getOrCreateChild(doc, root, "jcr:content");
+            jcrContent.setAttribute("jcr:primaryType", "nt:unstructured");
+            jcrContent.setAttribute("cq:lastModified", "{Date}" + new Date().toInstant().toString());
+            jcrContent.setAttribute("cq:lastModifiedBy", "admin");
+            jcrContent.setAttribute("cq:policy", project + "/components/page/policy");
+            jcrContent.setAttribute("sling:resourceType", "wcm/core/components/policies/mappings");
+
+            // Build root > container
+            Element rootNode = getOrCreateChild(doc, jcrContent, "root");
+            rootNode.setAttribute("jcr:primaryType", "nt:unstructured");
+            rootNode.setAttribute("sling:resourceType", "wcm/core/components/policies/mapping");
+            if (!rootNode.hasAttribute("cq:policy")) {
+                rootNode.setAttribute("cq:policy", project + "/components/container/policy_" + System.currentTimeMillis());
+            }
+
+            Element container = getOrCreateChild(doc, rootNode, "container");
+            container.setAttribute("jcr:primaryType", "nt:unstructured");
+            container.setAttribute("sling:resourceType", "wcm/core/components/policies/mapping");
+            if (!container.hasAttribute("cq:policy")) {
+                container.setAttribute("cq:policy", project + "/components/container/policy_" + (System.currentTimeMillis() + 1));
+            }
+
+            // Build <{project}> > <components> > <{component}>
+            Element projectNode = getOrCreateChild(doc, container, project);
+            projectNode.setAttribute("jcr:primaryType", "nt:unstructured");
+
+            Element components = getOrCreateChild(doc, projectNode, "components");
+            components.setAttribute("jcr:primaryType", "nt:unstructured");
+
+            Element componentNode = getOrCreateChild(doc, components, component);
+            componentNode.setAttribute("jcr:primaryType", "nt:unstructured");
+            componentNode.setAttribute("sling:resourceType", "wcm/core/components/policies/mapping");
+            componentNode.setAttribute("cq:policy", policyPath); // 🔁 This updates if exists
 
             writeDoc(doc, mappingFile);
-            log.info("POLICY: Updated template mapping at {}", mappingFilePath);
+            log.info("✅ POLICY: Template mapping updated successfully for component: {}", component);
+
         } catch (Exception e) {
-            log.error("POLICY: Failed to update template mapping file: " + mappingFilePath, e);
+            log.error("❌ POLICY: Failed to update template mapping file: {}", mappingFilePath, e);
         }
     }
 
@@ -655,7 +703,7 @@ public class PolicyServiceImpl implements PolicyService {
     private void writeDoc(Document doc, File file) throws Exception {
         Transformer transformer = TransformerFactory.newInstance().newTransformer();
         transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "1");
         DOMSource source = new DOMSource(doc);
         StreamResult result = new StreamResult(file);
         transformer.transform(source, result);
