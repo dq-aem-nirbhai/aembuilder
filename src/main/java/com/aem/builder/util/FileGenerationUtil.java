@@ -324,35 +324,96 @@ public class FileGenerationUtil {
         String superTypeAttr = (superType != null && !superType.isBlank())
                 ? "\n sling:resourceSuperType=\"" + superType + "/cq:dialog\"" : "";
 
-        // Root structure
-        sb.append(String.format("""
-    <?xml version="1.0" encoding="UTF-8"?>
-    <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
-              xmlns:cq="http://www.day.com/jcr/cq/1.0"
-              xmlns:jcr="http://www.jcp.org/jcr/1.0"
-              jcr:primaryType="nt:unstructured"
-              jcr:title="%s"
-              sling:resourceType="cq/gui/components/authoring/dialog"%s>
-        <content jcr:primaryType="nt:unstructured"
-                 sling:resourceType="granite/ui/components/coral/foundation/container">
-            <layout jcr:primaryType="nt:unstructured"
-                    sling:resourceType="granite/ui/components/coral/foundation/layouts/tabs"/>
-            <items jcr:primaryType="nt:unstructured">
-                <tabs jcr:primaryType="nt:unstructured"
-                      sling:resourceType="granite/ui/components/coral/foundation/tabs">
+        // Split tabs vs non-tabs
+        List<ComponentField> tabFields = new ArrayList<>();
+        List<ComponentField> nonTabFields = new ArrayList<>();
+
+        for (ComponentField f : fields) {
+            if ("tabs".equalsIgnoreCase(f.getFieldType())) {
+                tabFields.add(f);
+            } else {
+                nonTabFields.add(f);
+            }
+        }
+
+        // If no tabs at all => flat dialog (better structure with fixedcolumns + column)
+        if (tabFields.isEmpty()) {
+            sb.append(String.format("""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
+                      xmlns:cq="http://www.day.com/jcr/cq/1.0"
+                      xmlns:jcr="http://www.jcp.org/jcr/1.0"
+                      jcr:primaryType="nt:unstructured"
+                      jcr:title="%s"
+                      sling:resourceType="cq/gui/components/authoring/dialog"%s>
+                <content jcr:primaryType="nt:unstructured"
+                         sling:resourceType="granite/ui/components/coral/foundation/container">
+                    <layout jcr:primaryType="nt:unstructured"
+                            sling:resourceType="granite/ui/components/coral/foundation/layouts/fixedcolumns"/>
                     <items jcr:primaryType="nt:unstructured">
-    """, dialogTitle, superTypeAttr));
+                        <column jcr:primaryType="nt:unstructured"
+                                sling:resourceType="granite/ui/components/coral/foundation/container">
+                            <items jcr:primaryType="nt:unstructured">
+            """, dialogTitle, superTypeAttr));
 
-        // Buffer for all fields that are not in a tab
-        List<ComponentField> mainTabFields = new ArrayList<>();
+            for (ComponentField f : nonTabFields) {
+                sb.append(generateFieldXml(safeNodeName(f.getFieldName(), "field"), f));
+            }
 
-        // Generate top-level tabs
-        for (ComponentField field : fields) {
-            if ("tabs".equalsIgnoreCase(field.getFieldType())) {
+            sb.append("""
+                            </items>
+                        </column>
+                    </items>
+                </content>
+            </jcr:root>
+            """);
+
+        } else {
+            // Tabs exist. Try to find an EXPLICIT "Main" tab among them.
+            ComponentField explicitMainTab = null;
+            for (ComponentField tf : tabFields) {
+                String nodeName = safeNodeName(tf.getFieldName(), "tab");
+                String title = tf.getFieldLabel();
+                if ("main".equalsIgnoreCase(nodeName) ||
+                        (title != null && title.trim().equalsIgnoreCase("Main"))) {
+                    explicitMainTab = tf;
+                    break; // first match wins
+                }
+            }
+
+            boolean willAutoCreateMain = explicitMainTab == null && !nonTabFields.isEmpty();
+
+            sb.append(String.format("""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
+                      xmlns:cq="http://www.day.com/jcr/cq/1.0"
+                      xmlns:jcr="http://www.jcp.org/jcr/1.0"
+                      jcr:primaryType="nt:unstructured"
+                      jcr:title="%s"
+                      sling:resourceType="cq/gui/components/authoring/dialog"%s>
+                <content jcr:primaryType="nt:unstructured"
+                         sling:resourceType="granite/ui/components/coral/foundation/container">
+                    <layout jcr:primaryType="nt:unstructured"
+                            sling:resourceType="granite/ui/components/coral/foundation/layouts/tabs"/>
+                    <items jcr:primaryType="nt:unstructured">
+                        <tabs jcr:primaryType="nt:unstructured"
+                              sling:resourceType="granite/ui/components/coral/foundation/tabs">
+                            <items jcr:primaryType="nt:unstructured">
+            """, dialogTitle, superTypeAttr));
+
+            // Safety: avoid duplicate tab node names
+            java.util.Set<String> writtenTabNodeNames = new java.util.HashSet<>();
+
+            for (ComponentField field : tabFields) {
                 String tabNodeName = safeNodeName(field.getFieldName(), "tab");
                 String tabTitle = (field.getFieldLabel() != null && !field.getFieldLabel().isBlank())
                         ? field.getFieldLabel() : tabNodeName;
                 String resourceType = getResourceType(field.getFieldType());
+
+                if (!writtenTabNodeNames.add(tabNodeName.toLowerCase())) {
+                    logger.warn("DIALOG: Duplicate tab node name '{}' detected. Skipping duplicate.", tabNodeName);
+                    continue;
+                }
 
                 sb.append("        <").append(tabNodeName).append("\n")
                         .append("            jcr:primaryType=\"nt:unstructured\"\n")
@@ -366,38 +427,46 @@ public class FileGenerationUtil {
                     }
                 }
 
+                if (explicitMainTab == field && !nonTabFields.isEmpty()) {
+                    for (ComponentField f : nonTabFields) {
+                        sb.append(generateFieldXml(safeNodeName(f.getFieldName(), "field"), f));
+                    }
+                }
+
                 sb.append("            </items>\n")
                         .append("        </").append(tabNodeName).append(">\n");
-            } else {
-                mainTabFields.add(field);
-            }
-        }
-
-        // Add a single "Main" tab for all non-tab fields, if any
-        if (!mainTabFields.isEmpty()) {
-            String resourceType = getResourceType("tabs");
-
-            sb.append("        <main jcr:primaryType=\"nt:unstructured\"\n")
-                    .append("            jcr:title=\"Main\"\n")
-                    .append("            sling:resourceType=\"").append(resourceType).append("\">\n")
-                    .append("            <items jcr:primaryType=\"nt:unstructured\">\n");
-
-            for (ComponentField f : mainTabFields) {
-                sb.append(generateFieldXml(safeNodeName(f.getFieldName(), "field"), f));
             }
 
-            sb.append("            </items>\n")
-                    .append("        </main>\n");
-        }
+            if (willAutoCreateMain) {
+                String resourceType = getResourceType("tabs");
+                String autoMainNodeName = "main";
+                if (!writtenTabNodeNames.add(autoMainNodeName)) {
+                    autoMainNodeName = "main1";
+                    writtenTabNodeNames.add(autoMainNodeName);
+                }
 
-        // Close XML
-        sb.append("""
+                sb.append("        <").append(autoMainNodeName).append("\n")
+                        .append("            jcr:primaryType=\"nt:unstructured\"\n")
+                        .append("            jcr:title=\"Main\"\n")
+                        .append("            sling:resourceType=\"").append(resourceType).append("\">\n")
+                        .append("            <items jcr:primaryType=\"nt:unstructured\">\n");
+
+                for (ComponentField f : nonTabFields) {
+                    sb.append(generateFieldXml(safeNodeName(f.getFieldName(), "field"), f));
+                }
+
+                sb.append("            </items>\n")
+                        .append("        </").append(autoMainNodeName).append(">\n");
+            }
+
+            sb.append("""
+                            </items>
+                        </tabs>
                     </items>
-                </tabs>
-            </items>
-        </content>
-    </jcr:root>
-    """);
+                </content>
+            </jcr:root>
+            """);
+        }
 
         // Write to file
         FileUtils.writeStringToFile(new File(dialogFolder + "/.content.xml"),
