@@ -31,7 +31,8 @@ document.addEventListener("DOMContentLoaded", function () {
       div.classList.add('nested-row', 'mb-2');
       div.style.marginLeft = `${level * 20}px`;
       div.style.borderStyle = 'dashed';
-      div.querySelector('.action-col').innerHTML = '<button type="button" class="btn btn-danger" onclick="removeNestedFieldRow(this)">-</button>';
+      div.querySelector('.action-col').innerHTML =
+        '<button type="button" class="btn btn-danger" onclick="removeNestedFieldRow(this)">-</button>';
     } else {
       div.classList.add('field-row', 'border', 'p-2', 'mb-3');
     }
@@ -40,19 +41,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
   window.autoFillFieldName = function (labelInput) {
     const row = labelInput.closest('.field-row, .nested-row');
-
-    // 🔹 New: Capitalize first letter, lowercase the rest
     let labelValue = labelInput.value.trim();
     if (labelValue.length > 0) {
-      labelValue = labelValue.charAt(0).toUpperCase() + labelValue.slice(1).toLowerCase();
+      labelValue =
+        labelValue.charAt(0).toUpperCase() + labelValue.slice(1).toLowerCase();
       labelInput.value = labelValue;
     }
-
     const nameInput = row.querySelector('.fieldName');
     const camelCase = labelValue
       .replace(/[^a-zA-Z0-9 ]/g, '')
       .split(/\s+/)
-      .map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .map((w, i) =>
+        i === 0
+          ? w.toLowerCase()
+          : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+      )
       .join('');
     nameInput.value = camelCase;
     validateFormFields();
@@ -66,7 +69,9 @@ document.addEventListener("DOMContentLoaded", function () {
     opt.innerHTML = '';
     nested.innerHTML = '';
 
-    if (["select", "multiselect", "checkboxgroup", "radiogroup"].includes(type)) {
+    if (
+      ["select", "multiselect", "checkboxgroup", "radiogroup"].includes(type)
+    ) {
       const addBtn = document.createElement('button');
       addBtn.type = 'button';
       addBtn.className = 'btn btn-sm btn-secondary mb-2';
@@ -74,7 +79,7 @@ document.addEventListener("DOMContentLoaded", function () {
       addBtn.onclick = () => addOptionRow(addBtn);
       opt.appendChild(addBtn);
       addOptionRow(addBtn);
-    } else if (type === 'multifield'||type==='tabs') {
+    } else if (type === 'multifield' || type === 'tabs') {
       const addBtn = document.createElement('button');
       addBtn.type = 'button';
       addBtn.className = 'btn btn-sm btn-secondary mb-2';
@@ -89,10 +94,11 @@ document.addEventListener("DOMContentLoaded", function () {
   window.addFieldRow = function () {
     const container = document.getElementById('fieldsContainer');
     const row = createBaseRow(false);
-    row.querySelector('.action-col').innerHTML = '<button type="button" class="btn btn-danger" onclick="removeFieldRow(this)">-</button>';
+    row.querySelector('.action-col').innerHTML =
+      '<button type="button" class="btn btn-danger" onclick="removeFieldRow(this)">-</button>';
     container.appendChild(row);
     updateIndexes();
-    row.classList.add('animate__animated','animate__fadeIn');
+    row.classList.add('animate__animated', 'animate__fadeIn');
     validateFormFields();
     updateMandatoryButtons();
   };
@@ -113,6 +119,7 @@ document.addEventListener("DOMContentLoaded", function () {
     updateIndexes();
     validateFormFields();
   }
+
   window.removeNestedFieldRow = function (btn) {
     btn.closest('.nested-row').remove();
     updateIndexes();
@@ -130,6 +137,7 @@ document.addEventListener("DOMContentLoaded", function () {
     updateIndexes();
     validateFormFields();
   }
+
   window.removeOptionRow = function (btn) {
     btn.parentElement.remove();
     updateIndexes();
@@ -176,7 +184,8 @@ document.addEventListener("DOMContentLoaded", function () {
         actionCol.innerHTML = '';
       } else {
         if (!actionCol.querySelector('button')) {
-          actionCol.innerHTML = '<button type="button" class="btn btn-danger" onclick="removeFieldRow(this)">-</button>';
+          actionCol.innerHTML =
+            '<button type="button" class="btn btn-danger" onclick="removeFieldRow(this)">-</button>';
         }
       }
     });
@@ -204,12 +213,14 @@ document.addEventListener("DOMContentLoaded", function () {
       validateFormFields();
       return;
     }
-
-    fetch(`/check-componentName/${projectName}?componentName=${encodeURIComponent(componentName)}`)
-      .then(response => response.json())
-      .then(isAvailable => {
+    fetch(
+      `/check-componentName/${projectName}?componentName=${encodeURIComponent(componentName)}`
+    )
+      .then((response) => response.json())
+      .then((isAvailable) => {
         if (isAvailable === false) {
-          errorDiv.innerText = '⚠️ Component name already exists. Please choose another.';
+          errorDiv.innerText =
+            '⚠️ Component name already exists. Please choose another.';
           errorDiv.classList.add('text-danger');
           errorDiv.classList.remove('text-success');
           componentNameInput.classList.add('is-invalid');
@@ -223,7 +234,8 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       })
       .catch(() => {
-        errorDiv.innerText = '⚠️ Server error while checking component name.';
+        errorDiv.innerText =
+          '⚠️ Server error while checking component name.';
         errorDiv.classList.add('text-danger');
         errorDiv.classList.remove('text-success');
         componentNameInput.classList.add('is-invalid');
@@ -246,7 +258,9 @@ document.addEventListener("DOMContentLoaded", function () {
       createButton.disabled = true;
       return;
     }
-    const rows = document.querySelectorAll('#fieldsContainer .field-row, #fieldsContainer .nested-row');
+    const rows = document.querySelectorAll(
+      '#fieldsContainer .field-row, #fieldsContainer .nested-row'
+    );
     if (mode === 'new' && rows.length === 0) {
       createButton.disabled = true;
       return;
@@ -282,7 +296,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!data) return;
     componentNameInput.value = data.componentName || '';
     componentNameInput.readOnly = true;
-    document.getElementById('componentGroup').value = data.componentGroup || '';
+    document.getElementById('componentGroup').value =
+      data.componentGroup || '';
     if (data.superType) {
       modeSelect.value = 'extend';
       toggleSuperType();
@@ -294,78 +309,83 @@ document.addEventListener("DOMContentLoaded", function () {
     const container = document.getElementById('fieldsContainer');
     container.innerHTML = '';
     if (data.fields) {
-      data.fields.forEach(f => {
+      data.fields.forEach((f) => {
         const row = createBaseRow(false);
-        row.querySelector('.action-col').innerHTML = '<button type="button" class="btn btn-danger" onclick="removeFieldRow(this)">-</button>';
+        row.querySelector('.action-col').innerHTML =
+          '<button type="button" class="btn btn-danger" onclick="removeFieldRow(this)">-</button>';
         container.appendChild(row);
         populateFieldRow(row, f);
       });
     }
+
+    // ✅ Add global "+ Add Field" button in edit mode
+    if (window.editMode) {
+      let addFieldBtn = document.getElementById('editAddFieldBtn');
+      if (!addFieldBtn) {
+        addFieldBtn = document.createElement('button');
+        addFieldBtn.id = 'editAddFieldBtn';
+        addFieldBtn.type = 'button';
+        addFieldBtn.className = 'btn btn-outline-primary mb-3';
+        addFieldBtn.textContent = '+ Add Field';
+        addFieldBtn.onclick = () => addFieldRow();
+        container.parentNode.insertBefore(
+          addFieldBtn,
+          document.getElementById('createButton')
+        );
+      }
+    }
+
     updateIndexes();
     validateFormFields();
   }
 
-function populateFieldRow(row, field, level = 0) {
-  // Fill label, name, and type fields
-  row.querySelector('.fieldLabel').value = field.fieldLabel || '';
-  row.querySelector('.fieldName').value = field.fieldName || '';
-  row.querySelector('.fieldType').value = field.fieldType || '';
+  function populateFieldRow(row, field, level = 0) {
+    row.querySelector('.fieldLabel').value = field.fieldLabel || '';
+    row.querySelector('.fieldName').value = field.fieldName || '';
+    row.querySelector('.fieldType').value = field.fieldType || '';
+    handleFieldTypeChange(row.querySelector('.fieldType'));
 
-  // Trigger UI changes based on field type (options or nested fields)
-  handleFieldTypeChange(row.querySelector('.fieldType'));
-
-  // === Handle Options ===
-  if (field.options && field.options.length > 0) {
-    const container = row.querySelector('.options-container');
-
-    // Save the Add Option button before clearing
-    const addBtn = container.querySelector('button');
-    container.innerHTML = '';
-
-    field.options.forEach(opt => {
-      const div = document.createElement('div');
-      div.className = 'option-row input-group mb-2';
-      div.innerHTML = `
-        <input type="text" class="form-control optionText" placeholder="Text" value="${opt.text || ''}" required>
-        <input type="text" class="form-control optionValue" placeholder="Value" value="${opt.value || ''}" required>
-        <button type="button" class="btn btn-danger" onclick="removeOptionRow(this)">-</button>`;
-      container.appendChild(div);
-    });
-
-    if (addBtn) {
-      container.appendChild(addBtn);
+    // === Handle Options ===
+    if (field.options && field.options.length > 0) {
+      const container = row.querySelector('.options-container');
+      const addBtn = container.querySelector('button');
+      container.innerHTML = '';
+      field.options.forEach((opt) => {
+        const div = document.createElement('div');
+        div.className = 'option-row input-group mb-2';
+        div.innerHTML = `
+          <input type="text" class="form-control optionText" placeholder="Text" value="${opt.text || ''}" required>
+          <input type="text" class="form-control optionValue" placeholder="Value" value="${opt.value || ''}" required>
+          <button type="button" class="btn btn-danger" onclick="removeOptionRow(this)">-</button>`;
+        container.appendChild(div);
+      });
+      if (addBtn) {
+        container.appendChild(addBtn);
+      }
     }
+
+    // === Handle Nested Fields ===
+    if (
+      (field.fieldType === 'multifield' || field.fieldType === 'tabs') &&
+      field.nestedFields &&
+      Array.isArray(field.nestedFields)
+    ) {
+      const container = row.querySelector('.nested-container');
+      container.innerHTML = '';
+      field.nestedFields.forEach((nestedField) => {
+        const nestedRow = createBaseRow(true, level + 1);
+        container.appendChild(nestedRow);
+        populateFieldRow(nestedRow, nestedField, level + 1);
+      });
+      // ✅ Always ensure "Add Field" button exists in edit mode
+      const newAddBtn = document.createElement('button');
+      newAddBtn.type = 'button';
+      newAddBtn.className = 'btn btn-sm btn-secondary mb-2';
+      newAddBtn.textContent = 'Add Field';
+      newAddBtn.onclick = () => addNestedFieldRow(newAddBtn);
+      container.appendChild(newAddBtn);
+    }
+
+    validateFormFields();
   }
-
-  // === Handle Nested Fields ===
-if ((field.fieldType === 'multifield' || field.fieldType === 'tabs')
-    && field.nestedFields && Array.isArray(field.nestedFields)) {
-  const container = row.querySelector('.nested-container');
-
-  // Save Add Field button before clearing
-  const addBtn = container.querySelector('button');
-  container.innerHTML = '';
-
-  field.nestedFields.forEach(nestedField => {
-    const nestedRow = createBaseRow(true, level + 1);   // 🔹 stays same, reuses nested-row logic
-    container.appendChild(nestedRow);
-    populateFieldRow(nestedRow, nestedField, level + 1);
-  });
-
-  if (addBtn) {
-    container.appendChild(addBtn);
-  } else {
-    const newAddBtn = document.createElement('button');
-    newAddBtn.type = 'button';
-    newAddBtn.className = 'btn btn-sm btn-secondary mb-2';
-    newAddBtn.textContent = 'Add Field';
-    newAddBtn.onclick = () => addNestedFieldRow(newAddBtn);
-    container.appendChild(newAddBtn);
-  }
-}
-
-  // Mark form valid again (optional)
-  validateFormFields();
-}
-
 });
