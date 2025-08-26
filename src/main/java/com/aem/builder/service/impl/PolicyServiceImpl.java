@@ -366,7 +366,7 @@ public class PolicyServiceImpl implements PolicyService {
                         styleEl.setAttribute("jcr:primaryType", "nt:unstructured");
                         styleEl.setAttribute("cq:styleLabel", sm.getName());
                         styleEl.setAttribute("cq:styleClasses", sm.getCssClass());
-                        styleEl.setAttribute("cq:styleId", "style_" + System.currentTimeMillis());
+                        styleEl.setAttribute("cq:styleId", String.valueOf(System.currentTimeMillis()+i));
                         stylesEl.appendChild(styleEl);
                     }
 
