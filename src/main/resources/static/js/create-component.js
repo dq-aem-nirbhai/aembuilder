@@ -317,24 +317,6 @@ document.addEventListener("DOMContentLoaded", function () {
         populateFieldRow(row, f);
       });
     }
-
-    // ✅ Add global "+ Add Field" button in edit mode
-    if (window.editMode) {
-      let addFieldBtn = document.getElementById('editAddFieldBtn');
-      if (!addFieldBtn) {
-        addFieldBtn = document.createElement('button');
-        addFieldBtn.id = 'editAddFieldBtn';
-        addFieldBtn.type = 'button';
-        addFieldBtn.className = 'btn btn-outline-primary mb-3';
-        addFieldBtn.textContent = '+ Add Field';
-        addFieldBtn.onclick = () => addFieldRow();
-        container.parentNode.insertBefore(
-          addFieldBtn,
-          document.getElementById('createButton')
-        );
-      }
-    }
-
     updateIndexes();
     validateFormFields();
   }
@@ -377,7 +359,7 @@ document.addEventListener("DOMContentLoaded", function () {
         container.appendChild(nestedRow);
         populateFieldRow(nestedRow, nestedField, level + 1);
       });
-      // ✅ Always ensure "Add Field" button exists in edit mode
+      // ✅ Always ensure "Add Field" button exists for nested fields
       const newAddBtn = document.createElement('button');
       newAddBtn.type = 'button';
       newAddBtn.className = 'btn btn-sm btn-secondary mb-2';
