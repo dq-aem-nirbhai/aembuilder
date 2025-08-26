@@ -6,24 +6,46 @@ import com.aem.builder.model.DTO.OptionItem;
 import com.aem.builder.model.Enum.FieldType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.StringUtils;
+import java.util.List;
+
 import java.io.File;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.List;
+
 import java.util.Optional;
 import java.util.stream.Stream;
+
+
+
 
 /**
  * Utility class for generating AEM component files, dialogs, and models.
  */
 @Slf4j
 public class FileGenerationUtil {
+
+    private static final String PROJECTS_DIR = "generated-projects";
 
     private static final Logger logger = LoggerFactory.getLogger(FileGenerationUtil.class);
 
@@ -791,4 +813,229 @@ public class FileGenerationUtil {
             return "";
         }
     }
+
+//-------------------- update files --------------------
+
+    public static void updateAllFiles(String projectName, ComponentRequest request) {
+        logger.info("FILEGEN: Starting file update for project: {}", projectName);
+        try {
+            String appsRoot = "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps";
+            File appsDir = new File(appsRoot);
+
+            String appName = projectName;
+
+            File[] dirs = appsDir.listFiles(File::isDirectory);
+            if (dirs != null) {
+                for (File dir : dirs) {
+                    if (!"msm".equals(dir.getName())) {
+                        appName = dir.getName(); // Found a valid app folder
+                        break;
+                    }
+                }
+            }
+
+            String basePath = appsRoot + "/" + appName + "/components/";
+
+            Path javaSourceRoot = Paths.get("generated-projects/" + projectName + "/core/src/main/java/");
+
+            // Find models directory
+            Path modelPath = findModelBasePath(javaSourceRoot);
+            log.info("ModelPath {}", modelPath);
+
+            String modelBasePath = modelPath.toString();
+            log.info("ModelBasePath {}", modelBasePath);
+
+            String packageName = javaSourceRoot.relativize(modelPath).toString().replace(File.separatorChar, '.');
+            log.info("PackageName {}", packageName);
+
+            // ------------------- call update methods -------------------
+            updateContentXml(projectName, request);
+            updateDialog(projectName, request);
+            updateSlingModel(projectName, request);
+           // updateHTL(projectName, request);
+
+            logger.info("FILEGEN: Successfully updated all files for project: {}", projectName);
+        } catch (Exception e) {
+            logger.error("FILEGEN: Error updating files for project: {}", projectName, e);
+            e.printStackTrace();
+        }
+    }
+
+
+    // -------------------- update content.xml --------------------
+    public static void updateContentXml(String projectName, ComponentRequest request) throws IOException {
+        // Path to the actual component .content.xml
+        File contentXml = new File(PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
+                + projectName + "/components/" + request.getComponentName() + "/.content.xml");
+
+        if (!contentXml.exists()) return;
+
+        String xmlContent = FileUtils.readFileToString(contentXml, StandardCharsets.UTF_8);
+
+        // Update jcr:title if provided
+        if (request.getSectionTitle() != null) {
+            xmlContent = xmlContent.replaceAll("jcr:title=\"[^\"]*\"", "jcr:title=\"" + request.getSectionTitle() + "\"");
+        }
+
+        // Update component group if provided
+        if (request.getComponentGroup() != null) {
+            if (xmlContent.contains("componentGroup=")) {
+                xmlContent = xmlContent.replaceAll("componentGroup=\"[^\"]*\"", "componentGroup=\"" + request.getComponentGroup() + "\"");
+            } else {
+                // If attribute not present, insert it after jcr:primaryType
+                xmlContent = xmlContent.replaceFirst("jcr:primaryType=\"[^\"]*\"",
+                        "$0 componentGroup=\"" + request.getComponentGroup() + "\"");
+            }
+        }
+
+        FileUtils.writeStringToFile(contentXml, xmlContent, StandardCharsets.UTF_8);
+    }
+
+
+    public static void updateDialog(String projectName, ComponentRequest request) {
+        try {
+            String dialogPath = PROJECTS_DIR + "/" + projectName
+                    + "/ui.apps/src/main/content/jcr_root/apps/"
+                    + projectName + "/components/" + request.getComponentName()
+                    + "/_cq_dialog/.content.xml";
+
+            File dialogFile = new File(dialogPath);
+
+            if (!dialogFile.exists()) {
+                logger.warn("Dialog file not found for component {}. Generating fresh dialog...", request.getComponentName());
+                generateDialogContentXml(request.getComponentName(),
+                        "_cq_dialog",
+                        request.getSuperType(),
+                        request.getFields());
+                return;
+            }
+
+            // ✅ Parse existing dialog XML using W3C DOM
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            org.w3c.dom.Document doc = dBuilder.parse(dialogFile);
+            doc.getDocumentElement().normalize();
+
+            // ✅ For each field in request, update or add
+            for (ComponentField field : request.getFields()) {
+                org.w3c.dom.Element existingField = findFieldByName(doc, field.getFieldName());
+                if (existingField != null) {
+                    // update existing attributes
+                    existingField.setAttribute("fieldLabel", field.getFieldLabel());
+                    existingField.setAttribute("sling:resourceType", getResourceType(field.getFieldType()));
+                } else {
+                    // append new field node
+                    org.w3c.dom.Element newField = createFieldElement(doc, field);
+                    //doc.getDocumentElement().appendChild(newField);
+                    // Find the <main><items> node where fields should be added
+                    NodeList mainNodes = doc.getElementsByTagName("main");
+                    if (mainNodes.getLength() > 0) {
+                        Element main = (Element) mainNodes.item(0);
+                        NodeList itemsNodes = main.getElementsByTagName("items");
+                        if (itemsNodes.getLength() > 0) {
+                            Element itemsEl = (Element) itemsNodes.item(0);
+                            itemsEl.appendChild(newField); // ✅ append in correct location
+                        }
+                    }
+
+                }
+            }
+
+            // ✅ Write back updated XML
+            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+            Transformer transformer = transformerFactory.newTransformer();
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            DOMSource source = new DOMSource(doc);
+            StreamResult result = new StreamResult(dialogFile);
+            transformer.transform(source, result);
+
+            logger.info("Dialog updated successfully for component {}", request.getComponentName());
+
+        } catch (Exception e) {
+            logger.error("Error updating dialog for component " + request.getComponentName(), e);
+        }
+    }
+
+    /**
+     * Find existing field node by "name" attribute
+     */
+    private static Element findFieldByName(Document doc, String fieldName) {
+        NodeList itemsNodes = doc.getElementsByTagName("items");
+        for (int i = 0; i < itemsNodes.getLength(); i++) {
+            Node itemsNode = itemsNodes.item(i);
+            NodeList children = itemsNode.getChildNodes();
+            for (int j = 0; j < children.getLength(); j++) {
+                Node n = children.item(j);
+                if (n instanceof Element el) {
+                    String nameAttr = el.getAttribute("name");
+                    if (nameAttr != null && nameAttr.endsWith(fieldName)) { // match "./fieldName"
+                        return el;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Create a new field node with proper tag name and attributes
+     */
+    private static Element createFieldElement(Document doc, ComponentField field) {
+        Element fieldEl = doc.createElement(field.getFieldName()); // ✅ use fieldName as node name
+        fieldEl.setAttribute("jcr:primaryType", "nt:unstructured");
+        fieldEl.setAttribute("sling:resourceType", getResourceType(field.getFieldType()));
+        fieldEl.setAttribute("fieldLabel", field.getFieldLabel());
+        fieldEl.setAttribute("name", "./" + field.getFieldName());
+        return fieldEl;
+    }
+
+
+        // -------------------- update Sling Model --------------------
+        public static void updateSlingModel(String projectName, ComponentRequest request) throws IOException {
+            File modelFile = new File(PROJECTS_DIR + "/" + projectName + "/core/src/main/java/com/" + projectName
+                    + "/core/models/" + StringUtils.capitalize(request.getComponentName()) + ".java");
+
+            if (!modelFile.exists()) return;
+
+            String content = FileUtils.readFileToString(modelFile, StandardCharsets.UTF_8);
+
+           /* for (ComponentField field : request.getFields()) {
+                String type = (field.getNestedFields() != null && !field.getNestedFields().isEmpty()) ? "List<String>" : "String";
+
+                if (!content.contains("private " + type + " " + field.getFieldName())) {
+                    String fieldCode = "\n\t@Inject @Named(\"" + field.getFieldName() + "\")\n\tprivate " + type + " " + field.getFieldName() + ";\n" +
+                            "\n\tpublic " + type + " get" + StringUtils.capitalize(field.getFieldName()) + "() {\n\t\treturn " + field.getFieldName() + ";\n\t}\n";
+                    content = content.replaceFirst("\\}", fieldCode + "\n}");
+                }
+
+            }*/
+
+            for (ComponentField field : request.getFields()) {
+                String fieldName = field.getFieldName();
+                if (fieldName == null || fieldName.isBlank()) continue; // skip invalid
+
+                String type;
+
+                // Handle special cases
+                if ("multifield".equalsIgnoreCase(field.getFieldType())) {
+                    type = "List<String>";
+                } else {
+                    type = "String";
+                }
+
+                String fieldSignature = "private " + type + " " + fieldName;
+                if (!content.contains(fieldSignature)) {
+                    String fieldCode = "\n\t@Inject @Named(\"" + fieldName + "\")\n\tprivate " + type + " " + fieldName + ";\n" +
+                            "\n\tpublic " + type + " get" + StringUtils.capitalize(fieldName) + "() {\n\t\treturn " + fieldName + ";\n\t}\n";
+
+                    // Insert before last class closing brace only
+                    content = content.replaceFirst("(\\n}\\s*)$", fieldCode + "\n}");
+                }
+            }
+
+            FileUtils.writeStringToFile(modelFile, content, StandardCharsets.UTF_8);
+        }
+
+
+
 }

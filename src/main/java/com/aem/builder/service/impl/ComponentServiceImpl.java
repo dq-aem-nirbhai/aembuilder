@@ -161,7 +161,7 @@ public class ComponentServiceImpl implements ComponentService {
         req.setFields(fields);
         return req;
     }
-
+/*
     @Override
     public void updateComponent(String projectName, ComponentRequest request) {
         String compPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName
@@ -172,7 +172,25 @@ public class ComponentServiceImpl implements ComponentService {
             log.warn("Could not clean component folder before update", e);
         }
         FileGenerationUtil.generateAllFiles(projectName, request);
+    }*/
+
+    @Override
+    public void updateComponent(String projectName, ComponentRequest request) {
+        String compPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
+                + projectName + "/components/" + request.getComponentName();
+
+        File componentFolder = new File(compPath);
+
+        if (!componentFolder.exists()) {
+            // Component does not exist → generate new
+            FileGenerationUtil.generateAllFiles(projectName, request);
+        } else {
+            // Component exists → update all files
+            FileGenerationUtil.updateAllFiles(projectName, request);
+        }
     }
+
+
 
     @Override
     public void deleteComponent(String projectName, String componentName) {
