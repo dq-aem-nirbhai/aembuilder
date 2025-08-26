@@ -50,37 +50,67 @@ public class ComponentServiceImpl implements ComponentService {
 
     @Override
     public List<String> fetchComponentsFromGeneratedProjects(String projectName) {
-        File componentsDir = new File(PROJECTS_DIR,
-                projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components");
-        if (componentsDir.exists()) {
-            return Arrays.stream(componentsDir.listFiles(File::isDirectory))
-                    .map(File::getName)
-                    .collect(Collectors.toList());
-        }
-        return List.of();
+        // fetchComponentsWithGroups returns Map<componentName, componentGroup>
+        Map<String, String> components = fetchComponentsWithGroups(projectName);
+
+        // Return only the component names as a list
+        return new ArrayList<>(components.keySet());
     }
+
+    private static final Set<String> EXCLUDED_FOLDERS = Set.of(
+            "_cq_",   // prefixes like _cq_design_dialog, _cq_template
+            ".",      // hidden folders
+            "cq:template",
+            "new",
+            "old",
+            "backup"
+    );
 
     @Override
     public Map<String, String> fetchComponentsWithGroups(String projectName) {
         Map<String, String> result = new LinkedHashMap<>();
         File componentsDir = new File(PROJECTS_DIR,
                 projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components");
-        log.info("componentsDir {}",componentsDir);
+        log.info("componentsDir {}", componentsDir);
+
         if (componentsDir.exists()) {
-            File[] dirs = componentsDir.listFiles(File::isDirectory);
-            if (dirs != null) {
-                for (File comp : dirs) {
-                    File contentXml = new File(comp, ".content.xml");
-                    String group = "";
-                    if (contentXml.exists()) {
-                        String content = FileGenerationUtil.readFile(contentXml);
-                        group = extractProperty(content, "componentGroup").trim();
-                    }
-                    result.put(comp.getName(), group);
-                }
+            fetchRealComponentsRecursive(componentsDir, result);
+        }
+
+        return result;
+    }
+
+    private void fetchRealComponentsRecursive(File dir, Map<String, String> result) {
+        if (!dir.isDirectory()) return;
+
+        String dirName = dir.getName();
+
+        // Skip excluded folders
+        if (EXCLUDED_FOLDERS.stream().anyMatch(ex ->
+                dirName.equalsIgnoreCase(ex) || dirName.startsWith(ex))) {
+            return;
+        }
+
+        File contentXml = new File(dir, ".content.xml");
+        if (contentXml.exists()) {
+            String content = FileGenerationUtil.readFile(contentXml);
+
+            // Extra safety: skip if it's a design dialog
+            if (content.contains("Design Dialog") || content.contains("cq/gui/components/authoring/dialog")) {
+                return;
+            }
+
+            String group = extractProperty(content, "componentGroup").trim();
+            // Use only component folder name as key
+            result.put(dirName, group);
+        }
+
+        File[] subDirs = dir.listFiles(File::isDirectory);
+        if (subDirs != null) {
+            for (File subDir : subDirs) {
+                fetchRealComponentsRecursive(subDir, result);
             }
         }
-        return result;
     }
 
     @Override
@@ -127,8 +157,8 @@ public class ComponentServiceImpl implements ComponentService {
 
     @Override
     public ComponentRequest loadComponent(String projectName, String componentName) {
-        String basePath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName
-                + "/components/" + componentName;
+
+     String basePath=   findComponentPathExact(projectName,componentName);
         String group = "";
         String superType = null;
         List<ComponentField> fields = new ArrayList<>();
@@ -173,60 +203,187 @@ public class ComponentServiceImpl implements ComponentService {
         }
         FileGenerationUtil.generateAllFiles(projectName, request);
     }
-
     @Override
     public void deleteComponent(String projectName, String componentName) {
-        List<String> modelFiles = collectModelFiles(projectName, componentName);
-        String compPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName
-                + "/components/" + componentName;
+        log.info("Deleting component '{}' from project '{}'", componentName, projectName);
+
+        // 1. Find component folder
+        String compPath = findComponentPathExact(projectName, componentName);
+        if (compPath == null) {
+            log.warn("Component '{}' not found in project '{}'", componentName, projectName);
+            return;
+        }
+        log.info("Component folder found at '{}'", compPath);
+
+        // 2. Collect Sling Models from HTL recursively
+        Set<String> slingModels = new HashSet<>();
         try {
-            FileUtils.deleteDirectory(new File(compPath));
+            slingModels = collectSlingModelsFromHTLFolder(new File(compPath));
         } catch (IOException e) {
-            log.error("Failed to delete component folder {}", componentName, e);
+            log.error("Failed to read HTL files for component '{}'", componentName, e);
+        }
+        log.info("Sling Models found in HTL: {}", slingModels);
+
+        // 3. Collect multifield names
+        ComponentRequest req = loadComponent(projectName, componentName);
+        Set<String> multifieldNames = req.getFields().stream()
+                .filter(f -> "multifield".equals(f.getFieldType()))
+                .map(ComponentField::getFieldName)
+                .collect(Collectors.toSet());
+
+        // 4. Collect all Java classes to delete (main + child classes)
+        Set<String> javaClassesToDelete = new HashSet<>();
+        Set<String> processedClasses = new HashSet<>();
+        Path javaRoot = Paths.get(PROJECTS_DIR, projectName, "core", "src", "main", "java");
+
+        for (String fqcn : slingModels) {
+            String simpleName = fqcn.substring(fqcn.lastIndexOf('.') + 1);
+            try {
+                collectClassAndChildren(javaRoot, simpleName, javaClassesToDelete, processedClasses, multifieldNames);
+            } catch (IOException e) {
+                log.error("Failed to collect child classes for '{}'", fqcn, e);
+            }
         }
 
-        Path javaRoot = Paths.get(PROJECTS_DIR, projectName, "core", "src", "main", "java");
-        Set<String> targets = new HashSet<>(modelFiles);
+        // 5. Delete component folder
+        try {
+            FileUtils.deleteDirectory(new File(compPath));
+            log.info("Deleted component folder '{}'", compPath);
+        } catch (IOException e) {
+            log.error("Failed to delete component folder '{}'", componentName, e);
+        }
+
+        // 6. Delete all collected Java classes
         try (Stream<Path> paths = Files.walk(javaRoot)) {
-            paths.filter(p -> targets.contains(p.getFileName().toString()))
+            paths.filter(p -> javaClassesToDelete.contains(p.getFileName().toString()))
                     .forEach(p -> {
                         try {
                             Files.deleteIfExists(p);
+                            log.info("Deleted Java class '{}'", p);
                         } catch (IOException ex) {
-                            log.error("Failed to delete model for component {}", componentName, ex);
+                            log.error("Failed to delete Java class '{}'", p, ex);
                         }
                     });
         } catch (IOException e) {
-            log.error("Failed to locate model for component {}", componentName, e);
+            log.error("Failed to locate model classes for component '{}'", componentName, e);
         }
     }
 
-    private List<String> collectModelFiles(String projectName, String componentName) {
-        List<String> files = new ArrayList<>();
-        files.add(capitalize(componentName) + "Model.java");
-        ComponentRequest req = loadComponent(projectName, componentName);
-        addMultifieldClasses(req.getFields(), files);
-        return files;
+    /**
+     * Recursively collect fully qualified Sling Model class names from HTL files
+     */
+    private Set<String> collectSlingModelsFromHTLFolder(File dir) throws IOException {
+        Set<String> slingModels = new HashSet<>();
+        if (!dir.isDirectory()) return slingModels;
+
+        File[] files = dir.listFiles();
+        if (files == null) return slingModels;
+
+        for (File file : files) {
+            if (file.isDirectory()) {
+                slingModels.addAll(collectSlingModelsFromHTLFolder(file));
+            } else if (file.isFile() && file.getName().endsWith(".html")) {
+                slingModels.addAll(extractSlingModelsFromHTL(file));
+            }
+        }
+        return slingModels;
     }
 
-    private void addMultifieldClasses(List<ComponentField> fields, List<String> files) {
-        if (fields == null) {
+    /**
+     * Extract fully qualified Sling Model class names from HTL
+     */
+    private Set<String> extractSlingModelsFromHTL(File htlFile) throws IOException {
+        Set<String> classes = new HashSet<>();
+        List<String> lines = Files.readAllLines(htlFile.toPath());
+
+        for (String line : lines) {
+            line = line.trim();
+            if (line.contains("data-sly-use")) {
+                int eqIndex = line.indexOf("=");
+                if (eqIndex > 0) {
+                    String ref = line.substring(eqIndex + 1).replaceAll("[\"';]", "").trim();
+                    // Remove trailing HTML characters like /> or >
+                    ref = ref.replaceAll("[/>].*$", "").trim();
+                    if (ref.startsWith("com.")) {
+                        classes.add(ref);
+                    }
+                }
+            }
+        }
+        return classes;
+    }
+
+    /**
+     * Recursively collect a Java class and all child classes via @ChildResource or multifield variable
+     */
+    private void collectClassAndChildren(Path javaRoot, String className,
+                                         Set<String> javaClassesToDelete,
+                                         Set<String> processedClasses,
+                                         Set<String> multifieldNames) throws IOException {
+        if (processedClasses.contains(className)) return;
+        processedClasses.add(className);
+
+        Path classPath = findJavaClassRecursive(javaRoot, className + ".java");
+        if (classPath == null) {
+            log.warn("Java class '{}' not found under '{}'", className, javaRoot);
             return;
         }
-        for (ComponentField field : fields) {
-            if ("multifield".equals(field.getFieldType())) {
-                files.add(capitalize(field.getFieldName()) + ".java");
-                addMultifieldClasses(field.getNestedFields(), files);
-            } else if (field.getNestedFields() != null && !field.getNestedFields().isEmpty()) {
-                addMultifieldClasses(field.getNestedFields(), files);
+        log.info("Found Java class '{}' at '{}'", className, classPath);
+
+        javaClassesToDelete.add(classPath.getFileName().toString());
+
+        List<String> lines = Files.readAllLines(classPath);
+
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i).trim();
+
+            // 1. Detect @ChildResource field
+            if (line.contains("@ChildResource")) {
+                // Check the next few lines for field declaration (skip annotations)
+                for (int j = i + 1; j < Math.min(i + 4, lines.size()); j++) {
+                    String fieldLine = lines.get(j).trim();
+                    Matcher m = Pattern.compile("(?:private|protected|public)?\\s*(?:List<([A-Z]\\w+)>|Set<([A-Z]\\w+)>|([A-Z]\\w+))\\s+\\w+;").matcher(fieldLine);
+                    if (m.find()) {
+                        String childClass = m.group(1) != null ? m.group(1) :
+                                m.group(2) != null ? m.group(2) : m.group(3);
+                        if (childClass != null && !childClass.equals(className)) {
+                            log.info("Found @ChildResource child class '{}' in '{}'", childClass, className);
+                            collectClassAndChildren(javaRoot, childClass, javaClassesToDelete, processedClasses, multifieldNames);
+                        }
+                    }
+                }
+            }
+
+
+            // 2. Detect multifield child classes
+            for (String mfName : multifieldNames) {
+                if (line.matches(".*\\b([A-Z]\\w+)\\s+" + mfName + ";.*")) {
+                    String childClassName = line.replaceAll(".*\\b([A-Z]\\w+)\\s+" + mfName + ";.*", "$1");
+                    log.info("Found child class '{}' for multifield '{}' in '{}'", childClassName, mfName, className);
+                    collectClassAndChildren(javaRoot, childClassName, javaClassesToDelete, processedClasses, multifieldNames);
+                }
             }
         }
     }
 
+    /**
+     * Recursively find Java class by simple file name under javaRoot
+     */
+    private Path findJavaClassRecursive(Path javaRoot, String className) throws IOException {
+        try (Stream<Path> paths = Files.walk(javaRoot)) {
+            return paths.filter(p -> p.getFileName().toString().equals(className))
+                    .findFirst()
+                    .orElse(null);
+        }
+    }
+
+
     @Override
     public String getComponentHtml(String projectName, String componentName) {
-        Path htmlPath = Paths.get(PROJECTS_DIR, projectName, "ui.apps", "src", "main", "content", "jcr_root",
-                "apps", projectName, "components", componentName, componentName + ".html");
+
+
+        String componentPathExact = findComponentPathExact(projectName, componentName);
+        Path htmlPath = Paths.get( componentPathExact,componentName + ".html");
         try {
             return Files.readString(htmlPath);
         } catch (IOException e) {
@@ -508,33 +665,9 @@ public class ComponentServiceImpl implements ComponentService {
 
 
     @Override
-    public Map<String, List<String>> getProjectComponentsMap(List<String> projects) {
-        Map<String, List<String>> projectComponentsMap = new HashMap<>();
-
-        for (String project : projects) {
-            String componentDirPath = System.getProperty("user.dir") +
-                    "/generated-projects/" + project +
-                    "/ui.apps/src/main/content/jcr_root/apps/" + project + "/components";
-
-            File componentDir = new File(componentDirPath);
-
-            if (componentDir.exists() && componentDir.isDirectory()) {
-                File[] componentDirs = componentDir.listFiles(File::isDirectory);
-                List<String> componentNames = new ArrayList<>();
-                if (componentDirs != null) {
-                    for (File comp : componentDirs) {
-                        componentNames.add(comp.getName());
-                    }
-                }
-                projectComponentsMap.put(project, componentNames);
-            } else {
-                projectComponentsMap.put(project, new ArrayList<>());
-            }
-
-
-        }
-
-        return projectComponentsMap;
+    public  List<String> getProjectComponentsMap(String projectName) {
+        Map<String, String> components = fetchComponentsWithGroups(projectName);
+        return new ArrayList<>(components.keySet());
     }
 
     @Override
@@ -580,7 +713,6 @@ public class ComponentServiceImpl implements ComponentService {
             try {
                 File source = new File("src/main/resources/aem-components/" + component);
                 File destination = new File(targetPath + "/" + component);
-
                 if (!source.exists()) {
                     System.err.println("Source component not found: " + source.getAbsolutePath());
                     continue;
@@ -766,7 +898,6 @@ public class ComponentServiceImpl implements ComponentService {
     }
 
 
-    //component creation
     @Override
     public List<String> getComponentGroups(String projectName) {
         String appTitle = readAppTitleFromPom(projectName);
@@ -780,31 +911,48 @@ public class ComponentServiceImpl implements ComponentService {
         groups.add(appTitle);
 
         if (folder.exists()) {
-            File[] subDirs = folder.listFiles(File::isDirectory);
-            if (subDirs != null) {
-                for (File comp : subDirs) {
-                    File contentXml = new File(comp, ".content.xml");
-                    if (contentXml.exists()) {
-                        String content = FileGenerationUtil.readFile(contentXml);
-                        String group = extractProperty(content, "componentGroup").trim();
-                        if (!group.isEmpty()) {
-                            groups.add(group);
-                        }
-                    }
-                }
-            }
+            collectComponentGroupsRecursive(folder, groups);
         }
 
         final String finalAppTitle = appTitle;
+        // Remove unwanted groups consistently
         groups.removeIf(g -> {
             String trimmed = g.trim();
-            return trimmed.equals(finalAppTitle + " - Structure")
-                    || trimmed.equals(".hidden");
+            return trimmed.equals(finalAppTitle + " - Structure") // exclude Structure
+                    || trimmed.equals(".hidden")                // exclude hidden
+                    || trimmed.contains(" - Form");               // exclude Form
         });
 
         return groups.isEmpty() ? List.of(appTitle) : new ArrayList<>(groups);
     }
 
+    private void collectComponentGroupsRecursive(File dir, Set<String> groups) {
+        if (!dir.isDirectory()) return;
+
+        String dirName = dir.getName();
+        // Skip excluded folders like _cq_, hidden, new/old/backup
+        if (EXCLUDED_FOLDERS.stream().anyMatch(ex -> dirName.equalsIgnoreCase(ex) || dirName.startsWith(ex))) {
+            return;
+        }
+
+        // Check for .content.xml in this folder
+        File contentXml = new File(dir, ".content.xml");
+        if (contentXml.exists()) {
+            String content = FileGenerationUtil.readFile(contentXml);
+            String group = extractProperty(content, "componentGroup").trim();
+            if (!group.isEmpty()) {
+                groups.add(group); // add all groups; exclusion handled later
+            }
+        }
+
+        // Recurse into subdirectories
+        File[] subDirs = dir.listFiles(File::isDirectory);
+        if (subDirs != null) {
+            for (File subDir : subDirs) {
+                collectComponentGroupsRecursive(subDir, groups);
+            }
+        }
+    }
 
 
     public String readAppTitleFromPom(String projectName) {
@@ -833,7 +981,7 @@ public class ComponentServiceImpl implements ComponentService {
     //component checking
     @Override
     public boolean isComponentNameAvailable(String projectName, String componentName) {
-        String basePath = "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
+       String basePath= findComponentPathExact( projectName,  componentName);
         File componentsDir = new File(basePath);
 
         if (!componentsDir.exists() || !componentsDir.isDirectory()) {
@@ -932,7 +1080,61 @@ public class ComponentServiceImpl implements ComponentService {
         }
         return "Others";
     }
+/*
+
+Updating logic below
+ */
 
 
+    /**
+     * Search for a component anywhere under the project's components folder
+     * Stops at the first match since component names are unique
+     * @param projectName - AEM project name
+     * @param componentName - Exact name of the component to search
+     * @return Full path of the component if found, otherwise null
+     */
+    public String findComponentPathExact(String projectName, String componentName) {
+        File componentsRoot = new File(PROJECTS_DIR,
+                projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components");
+
+        if (componentsRoot.exists()) {
+            return searchComponentRecursiveExact(componentsRoot, componentName);
+        }
+
+        return null;
+    }
+
+    private String searchComponentRecursiveExact(File dir, String componentName) {
+        if (!dir.isDirectory()) return null;
+
+        // Exact case-sensitive match
+        if (dir.getName().equals(componentName)) {
+            return dir.getAbsolutePath();
+        }
+
+        // Recurse into subdirectories
+        File[] subDirs = dir.listFiles(File::isDirectory);
+        if (subDirs != null) {
+            for (File subDir : subDirs) {
+                String found = searchComponentRecursiveExact(subDir, componentName);
+                if (found != null) {
+                    return found; // stop as soon as we find it
+                }
+            }
+        }
+
+        return null; // not found in this branch
+    }
 
 }
+
+
+
+
+
+
+
+
+
+
+
