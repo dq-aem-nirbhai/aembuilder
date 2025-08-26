@@ -1,4 +1,4 @@
-/* Base styles */
+  
 body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   background: linear-gradient(to right, #f8fafc, #e2e8f0);
@@ -7,7 +7,6 @@ body {
   min-height: 100vh;
   margin: 0;
 }
-
 main {
   flex: 1;
 }
@@ -76,12 +75,6 @@ select:focus {
   min-width: 250px;
 }
 
-/* Center button */
-.center-button {
-  display: block;
-  margin: 1rem auto;
-}
-
 /* Component selection box */
 .component-wrapper {
   margin-top: 25px;
@@ -118,7 +111,7 @@ select:focus {
   font-weight: 500;
 }
 
-/* Dropdown section with checkboxes */
+/* Dropdown section */
 .dropdown-section {
   max-height: 0;
   overflow: hidden;
@@ -131,27 +124,18 @@ select:focus {
   padding: 0 10px;
   margin-top: 10px;
 }
-
 .dropdown-section.show {
   max-height: 300px;
   opacity: 1;
   transform: translateY(0);
   padding: 10px;
 }
-
-/* Fix checkbox alignment */
 .dropdown-section .form-check {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 6px;
 }
-
-.dropdown-section .form-check-input {
-  margin: 0;
-  flex-shrink: 0;
-}
-
 .dropdown-section .form-check-label {
   margin: 0;
   font-weight: 500;
@@ -169,11 +153,9 @@ select:focus {
   cursor: pointer;
   transition: background 0.3s ease;
 }
-
 .btn-add:hover {
   background: linear-gradient(to right, #005ce6, #0040c1);
 }
-
 button[type="submit"] {
   margin-top: 30px;
   width: 100%;
@@ -187,13 +169,11 @@ button[type="submit"] {
   cursor: pointer;
   transition: background 0.3s ease;
 }
-
 button[type="submit"]:hover {
   background: linear-gradient(to right, #0077cc, #005fa3);
 }
 
 /* Loading overlay */
-/* Fullscreen Loading Overlay */
 .loading-overlay {
   position: fixed;
   top: 0;
@@ -202,36 +182,21 @@ button[type="submit"]:hover {
   height: 100%;
   background: rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(3px);
-  display: flex;
+  display: none;
   justify-content: center;
   align-items: center;
   z-index: 2000;
-  display: none;
 }
-
 .loading-overlay.active {
   display: flex;
 }
-
-
 .loading-overlay .spinner-border {
   width: 3rem;
   height: 3rem;
-  color: #2563eb; /* blue spinner */
+  color: #2563eb;
 }
 
-
-/* Animation */
-@keyframes fadeInUp {
-  0% {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* Disabled button */
 .disabled-btn {
   background-color: #ccc !important;
   color: #666 !important;
@@ -239,4 +204,9 @@ button[type="submit"]:hover {
   pointer-events: none !important;
   border: 1px solid #aaa !important;
   opacity: 0.7;
+}
+
+@keyframes fadeInUp {
+  0% { opacity: 0; transform: translateY(30px); }
+  100% { opacity: 1; transform: translateY(0); }
 }

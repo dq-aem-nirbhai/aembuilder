@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const nameError = document.getElementById("name-error");
     const responseEl = document.getElementById("response");
     const templateForm = document.getElementById("templateForm");
+    const spinnerOverlay = document.getElementById("spinner-overlay");
 
     if (!projectnameInput || !nameInput || !templateForm || !templatetypeSelect) {
         console.error("One or more required elements are missing in the HTML.");
@@ -85,6 +86,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const data = { name, title, description, status, templateType };
 
+        // Show spinner immediately
+        spinnerOverlay.classList.remove("d-none");
+        const startTime = Date.now();
+
         fetch(`/create-template/${projectName}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -97,18 +102,32 @@ document.addEventListener("DOMContentLoaded", function () {
                 templateForm.reset();
                 nameError.innerText = "";
                 existingTemplates.push(name.toLowerCase());
-setTimeout(() => {
-        window.location.href = `/view/${projectName}`;
-        // replace deploypage with your actual deploy page mapping
-    }, 1000);
+
                 // Reset field disable state
                 formFields.forEach(field => {
                     if (field !== templatetypeSelect) field.disabled = true;
                 });
+
+                // Ensure spinner stays visible for 5 seconds
+                const elapsed = Date.now() - startTime;
+                const remaining = Math.max(0, 5000 - elapsed);
+
+                setTimeout(() => {
+                    spinnerOverlay.classList.add("d-none");
+                    window.location.href = `/view/${projectName}`;
+                }, remaining);
             })
             .catch(error => {
                 responseEl.style.color = "red";
                 responseEl.innerText = "Error: " + error;
+
+                // Ensure spinner stays visible for 5 seconds
+                const elapsed = Date.now() - startTime;
+                const remaining = Math.max(0, 5000 - elapsed);
+
+                setTimeout(() => {
+                    spinnerOverlay.classList.add("d-none");
+                }, remaining);
             });
     });
 });

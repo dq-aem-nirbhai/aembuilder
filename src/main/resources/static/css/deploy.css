@@ -1,5 +1,6 @@
-.removable-item { position: relative; padding-right: 20px; }
-        .remove-btn { position: absolute; top: 3px; right: 5px; color: red; cursor: pointer; }
-        #successMessage {
-            display: none;
-        }
+   
+        .removable-item { position: relative; padding-right: 24px; }
+        .remove-btn { position: absolute; top: 4px; right: 6px; cursor: pointer; }
+        #successMessage { display: none; }
+     
+        a.btn.disabled { pointer-events: none; opacity: .65; }

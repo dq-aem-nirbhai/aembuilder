@@ -8,9 +8,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ProjectDetails {
+    private  String displayName;
     private String name;
     private String version;
     private String groupId;
     private String createdDate;
+    private String importDate;
     private String path;
 }

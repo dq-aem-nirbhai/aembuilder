@@ -377,12 +377,6 @@ public class ComponentServiceImpl implements ComponentService {
 
         String fieldName = null;
 
-        // --- Skip <content> wrappers
-        if ("content".equals(elem.getNodeName())) {
-            collectFields(elem, result);
-            return result;
-        }
-
         // --- Multifield naming resolution
         if ("multifield".equals(fieldType) && (nameAttr == null || nameAttr.isBlank())) {
             NodeList fieldNodes = elem.getElementsByTagName("field");
@@ -472,24 +466,62 @@ public class ComponentServiceImpl implements ComponentService {
         return result;
     }
 
-
-    // Recursive child collector
+    /**
+     * Recursively collects dialog fields from the given parent node.
+     * Skips technical containers but continues traversing into their children.
+     */
     private void collectFields(Element parent, List<ComponentField> fields) {
         NodeList children = parent.getChildNodes();
         for (int i = 0; i < children.getLength(); i++) {
             Node node = children.item(i);
-            if (node instanceof Element elem) {
-                String type = determineFieldType(elem);
-                if (!type.isEmpty()) {
-                    List<ComponentField> parsed = parseField(elem);
-                    if (parsed != null && !parsed.isEmpty()) {
-                        fields.addAll(parsed);
-                    }
-                } else {
+            if (!(node instanceof Element elem)) {
+                continue;
+            }
+
+            String resourceType = elem.getAttribute("sling:resourceType");
+            String type = determineFieldType(elem);
+
+            // --- Special handling for container nodes ---
+            if ("granite/ui/components/coral/foundation/container".equals(resourceType)) {
+                String parentResourceType = getParentResourceType(elem);
+
+                log.info("Checking container: nodeName={}, resourceType={}, parentResourceType={}",
+                        elem.getNodeName(), resourceType, parentResourceType);
+
+                // If container is not part of tabs, skip it as a field but still traverse inside
+                if (!"granite/ui/components/coral/foundation/tabs".equals(parentResourceType)) {
+                    log.info("Skipping container '{}' as field, but parsing its children", elem.getNodeName());
                     collectFields(elem, fields);
+                    continue;
                 }
             }
+
+            // --- Normal field processing ---
+            if (!type.isEmpty()) {
+                List<ComponentField> parsed = parseField(elem);
+                if (parsed != null && !parsed.isEmpty()) {
+                    fields.addAll(parsed);
+                }
+            } else {
+                // Recurse into children for nested items
+                collectFields(elem, fields);
+            }
         }
+    }
+
+    /**
+     * Finds the nearest ancestor that has a sling:resourceType.
+     * Useful because many AEM dialog wrapper nodes (like <items>) don't define one.
+     */
+    private String getParentResourceType(Element elem) {
+        Node parent = elem.getParentNode();
+        while (parent != null && parent instanceof Element parentElem) {
+            if (parentElem.hasAttribute("sling:resourceType")) {
+                return parentElem.getAttribute("sling:resourceType");
+            }
+            parent = parent.getParentNode();
+        }
+        return "";
     }
 
 
@@ -606,7 +638,7 @@ public class ComponentServiceImpl implements ComponentService {
 
                 // Copy model and its dependencies
                 if (parentModel != null && parentModel.exists()) {
-                   copyModelAndDependencies(parentModel, slingModelsSourcePath, modelBasePath,packageName, copiedModels);
+                    copyModelAndDependencies(parentModel, slingModelsSourcePath, modelBasePath,packageName, copiedModels);
 
                 } else {
                     System.out.println("No matching Sling Model found for: " + component);
@@ -763,7 +795,7 @@ public class ComponentServiceImpl implements ComponentService {
         String path = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
         File folder = new File(path);
         Set<String> groups = new HashSet<>();
-      groups.add(appTitle);
+        groups.add(appTitle);
 
         if (folder.exists()) {
             File[] subDirs = folder.listFiles(File::isDirectory);
@@ -845,15 +877,17 @@ public class ComponentServiceImpl implements ComponentService {
     /**
      * Fetch all components from local project structure.
      */
-    public Map<String, List<String>> getComponentsByGroup(String projectname) {
+    public Map<String, List<String>> getComponentsByGroup(String projectName) {
         String COMPONENTS_PATH =
-                "generated-projects/"+projectname+"/ui.apps/src/main/content/jcr_root/apps/"+projectname+"/components";
+                "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
+
         Map<String, List<String>> groupedComponents = new HashMap<>();
-        scanComponents(new File(COMPONENTS_PATH), groupedComponents);
+        scanComponents(new File(COMPONENTS_PATH), groupedComponents, "/apps/" + projectName + "/components");
         return groupedComponents;
     }
 
-    private void scanComponents(File folder, Map<String, List<String>> groupedComponents) {
+
+    private void scanComponents(File folder, Map<String, List<String>> groupedComponents, String basePath) {
         if (!folder.exists() || !folder.isDirectory()) return;
 
         for (File file : folder.listFiles()) {
@@ -868,18 +902,23 @@ public class ComponentServiceImpl implements ComponentService {
 
             if (contentXml.exists() && isComponent(contentXml)) {
                 String group = getComponentGroup(contentXml);
+                if (group == null) continue; // skip .hidden
+
                 groupedComponents.computeIfAbsent(group, k -> new ArrayList<>());
 
-                List<String> list = groupedComponents.get(group);
-                if (!list.contains(name)) { // Avoid duplicates
-                    list.add(name);
+                // build full relative path like /apps/project/components/form/options
+                String relativePath = basePath + "/" + name;
+
+                if (!groupedComponents.get(group).contains(relativePath)) {
+                    groupedComponents.get(group).add(relativePath);
                 }
             }
 
-            // Recurse into subfolders
-            scanComponents(file, groupedComponents);
+            // recurse deeper
+            scanComponents(file, groupedComponents, basePath + "/" + name);
         }
     }
+
 
     private boolean isComponent(File contentXml) {
         try {
@@ -900,13 +939,18 @@ public class ComponentServiceImpl implements ComponentService {
             Element root = doc.getDocumentElement();
 
             if (root.hasAttribute("componentGroup")) {
-                return root.getAttribute("componentGroup");
+                String group = root.getAttribute("componentGroup");
+                if (".hidden".equalsIgnoreCase(group)) {
+                    return null; // special case: skip hidden
+                }
+                return group;
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
         return "Others";
     }
+
 
 
 }
