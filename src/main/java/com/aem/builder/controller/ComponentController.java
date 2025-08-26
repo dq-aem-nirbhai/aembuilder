@@ -27,8 +27,8 @@ public class ComponentController {
     public Map<String, List<String>> getComponents(@PathVariable String projectname) throws IOException {
         List<String> allComponents = componentService.getAllComponents();
         List<String> projectComponents = componentService
-                .getProjectComponentsMap(List.of(projectname))
-                .getOrDefault(projectname, new ArrayList<>());
+                .getProjectComponentsMap(projectname);
+
 
         log.info(projectname);
 
@@ -88,8 +88,7 @@ public class ComponentController {
             available.addAll(componentService.fetchComponentsFromGeneratedProjects(project).stream()
                     .map(name -> "/apps/" + project + "/components/" + name)
                     .toList());
-            available.addAll(componentService.getAllComponents());
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Error loading available components", e);
         }
         Map<String, String> compMap = new LinkedHashMap<>();

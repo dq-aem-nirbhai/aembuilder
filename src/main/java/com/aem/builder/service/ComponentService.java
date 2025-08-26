@@ -17,7 +17,7 @@ public interface ComponentService {
 
     List<String> getExistingProjects();
 
-    Map<String, List<String>> getProjectComponentsMap(List<String> projects);
+     List<String> getProjectComponentsMap(String projectName);
 
     List<String> getCommonComponents(List<String> allComponents, List<String> projectComponents);
 
