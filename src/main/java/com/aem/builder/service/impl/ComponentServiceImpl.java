@@ -620,7 +620,7 @@ public class ComponentServiceImpl implements ComponentService {
 
                 // Copy model and its dependencies
                 if (parentModel != null && parentModel.exists()) {
-                   copyModelAndDependencies(parentModel, slingModelsSourcePath, modelBasePath,packageName, copiedModels);
+                    copyModelAndDependencies(parentModel, slingModelsSourcePath, modelBasePath,packageName, copiedModels);
 
                 } else {
                     System.out.println("No matching Sling Model found for: " + component);
@@ -777,7 +777,7 @@ public class ComponentServiceImpl implements ComponentService {
         String path = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
         File folder = new File(path);
         Set<String> groups = new HashSet<>();
-      groups.add(appTitle);
+        groups.add(appTitle);
 
         if (folder.exists()) {
             File[] subDirs = folder.listFiles(File::isDirectory);
