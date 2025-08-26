@@ -13,7 +13,5 @@ public class PolicyRequest {
     private String componentPath;
     private String styleDefaultClasses;
     private String styleDefaultElement;
-    private Map<String, Map<String, String>> styles;
-
-
+    private Map<String, Map<String, Object>> styles;
 }

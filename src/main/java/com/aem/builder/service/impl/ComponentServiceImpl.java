@@ -859,15 +859,17 @@ public class ComponentServiceImpl implements ComponentService {
     /**
      * Fetch all components from local project structure.
      */
-    public Map<String, List<String>> getComponentsByGroup(String projectname) {
+    public Map<String, List<String>> getComponentsByGroup(String projectName) {
         String COMPONENTS_PATH =
-                "generated-projects/"+projectname+"/ui.apps/src/main/content/jcr_root/apps/"+projectname+"/components";
+                "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
+
         Map<String, List<String>> groupedComponents = new HashMap<>();
-        scanComponents(new File(COMPONENTS_PATH), groupedComponents);
+        scanComponents(new File(COMPONENTS_PATH), groupedComponents, "/apps/" + projectName + "/components");
         return groupedComponents;
     }
 
-    private void scanComponents(File folder, Map<String, List<String>> groupedComponents) {
+
+    private void scanComponents(File folder, Map<String, List<String>> groupedComponents, String basePath) {
         if (!folder.exists() || !folder.isDirectory()) return;
 
         for (File file : folder.listFiles()) {
@@ -882,18 +884,23 @@ public class ComponentServiceImpl implements ComponentService {
 
             if (contentXml.exists() && isComponent(contentXml)) {
                 String group = getComponentGroup(contentXml);
+                if (group == null) continue; // skip .hidden
+
                 groupedComponents.computeIfAbsent(group, k -> new ArrayList<>());
 
-                List<String> list = groupedComponents.get(group);
-                if (!list.contains(name)) { // Avoid duplicates
-                    list.add(name);
+                // build full relative path like /apps/project/components/form/options
+                String relativePath = basePath + "/" + name;
+
+                if (!groupedComponents.get(group).contains(relativePath)) {
+                    groupedComponents.get(group).add(relativePath);
                 }
             }
 
-            // Recurse into subfolders
-            scanComponents(file, groupedComponents);
+            // recurse deeper
+            scanComponents(file, groupedComponents, basePath + "/" + name);
         }
     }
+
 
     private boolean isComponent(File contentXml) {
         try {
@@ -914,13 +921,18 @@ public class ComponentServiceImpl implements ComponentService {
             Element root = doc.getDocumentElement();
 
             if (root.hasAttribute("componentGroup")) {
-                return root.getAttribute("componentGroup");
+                String group = root.getAttribute("componentGroup");
+                if (".hidden".equalsIgnoreCase(group)) {
+                    return null; // special case: skip hidden
+                }
+                return group;
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
         return "Others";
     }
+
 
 
 }
