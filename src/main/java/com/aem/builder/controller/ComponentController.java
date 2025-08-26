@@ -211,7 +211,7 @@ public class ComponentController {
     @ResponseBody
     public Map<String, List<Map<String, String>>> getGroupedComponents(@PathVariable String projectName) throws IOException {
         // Fetch grouped components from service
-        Map<String, List<String>> groupedComponents = componentService.getComponentsByGroup( projectName);
+        Map<String, List<String>> groupedComponents = componentService.getComponentsByGroup(projectName);
 
         Map<String, List<Map<String, String>>> response = new LinkedHashMap<>();
 
@@ -223,15 +223,18 @@ public class ComponentController {
 
             for (String comp : components) {
                 Map<String, String> compObj = new LinkedHashMap<>();
-                compObj.put("name", comp);  // component name
-                compObj.put("path", "/apps/"+projectName+"/components/" + comp); // component path
+
+                // comp is already a full path like /apps/accenture/components/form/options
+                compObj.put("name", comp.substring(comp.lastIndexOf("/") + 1)); // just the last folder
+                compObj.put("path", comp); // full path
                 componentList.add(compObj);
             }
-                response.put(groupName, componentList);
+            response.put(groupName, componentList);
         }
 
         return response;
     }
+
 
 }
 

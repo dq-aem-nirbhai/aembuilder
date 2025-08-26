@@ -30,8 +30,8 @@ public class PolicyController {
 
     @PostMapping("/policies/add/{projectName}")
     public ResponseEntity<String> addOrUpdatePolicy(@PathVariable String projectName,
-            @RequestParam String templateName,
-            @RequestBody PolicyRequest request) {
+                                                    @RequestParam String templateName,
+                                                    @RequestBody PolicyRequest request) {
         try {
             System.out.println(request);
             // This should create OR update the policy:
@@ -45,8 +45,8 @@ public class PolicyController {
 
     @GetMapping("/{projectName}/addpolicy")
     public String redirectToPolicyForm(@PathVariable("projectName") String projectName,
-            @RequestParam String templateName,
-            Model model) {
+                                       @RequestParam String templateName,
+                                       Model model) {
         // Pass templateName to form
         model.addAttribute("projectName", projectName);
         model.addAttribute("templateName", templateName);
@@ -74,7 +74,7 @@ public class PolicyController {
 
     @GetMapping("/get-policy-details")
     public ResponseEntity<PolicyRequest> getPolicyDetails(@RequestParam String projectName,
-            @RequestParam String policyTitle) {
+                                                          @RequestParam String policyTitle) {
         try {
             PolicyRequest policy = policyXmlUpdater.getPolicyDetails(projectName, policyTitle);
             if (policy == null)
@@ -90,8 +90,8 @@ public class PolicyController {
     @GetMapping("/api/{project}/component/policy")
     @ResponseBody
     public PolicyModel loadPolicy(@PathVariable String project,
-            @RequestParam String resource,
-            @RequestParam String policyId) {
+                                  @RequestParam String resource,
+                                  @RequestParam String policyId) {
 
         log.info("......{}", policyService.loadPolicy(project, resource, policyId));
         return policyService.loadPolicy(project, resource, policyId);
@@ -104,8 +104,8 @@ public class PolicyController {
      */
     @GetMapping("/{project}/templates/{template}/components")
     public String showComponents(@PathVariable String project,
-            @PathVariable String template,
-            Model model) {
+                                 @PathVariable String template,
+                                 Model model) {
         List<String> components = policyService.getAllowedComponents(project, template);
         List<ComponentInfo> componentInfos = policyService.checkDesignDialogs(project, components);
         model.addAttribute("projectName", project);
@@ -120,9 +120,9 @@ public class PolicyController {
      */
     @GetMapping("/{project}/templates/{template}/component")
     public String showPolicyEditor(@PathVariable String project,
-            @PathVariable String template,
-            @RequestParam("resource") String component,
-            Model model) {
+                                   @PathVariable String template,
+                                   @RequestParam("resource") String component,
+                                   Model model) {
         List<PolicyModel> policies = policyService.getPolicies(project, component);
         model.addAttribute("projectName", project);
         model.addAttribute("templateName", template);
@@ -134,9 +134,9 @@ public class PolicyController {
     @PostMapping("/api/{project}/templates/{template}/component/policy")
     @ResponseBody
     public ResponseEntity<String> savePolicy(@PathVariable String project,
-            @PathVariable String template,
-            @RequestParam String resource,
-            @RequestBody PolicyModel policy) {
+                                             @PathVariable String template,
+                                             @RequestParam String resource,
+                                             @RequestBody PolicyModel policy) {
 
         String id = policyService.savePolicy(project, template, resource, policy);
         return ResponseEntity.ok(id);
