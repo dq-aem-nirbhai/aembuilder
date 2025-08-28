@@ -33,12 +33,18 @@ public class DeployController {
         List<String> templates = templateService.fetchTemplatesFromGeneratedProjects(projectName);
         Map<String, String> compMap = componentService.fetchComponentsWithGroups(projectName);
 
+        // If project not found or no components/templates
+        if ((templates == null || templates.isEmpty()) &&
+                (compMap == null || compMap.isEmpty())) {
+            log.error("DEPLOY: No project found for name '{}'", projectName);
+            model.addAttribute("errorMessage", "Project '" + projectName + "' not found or has no data.");
+            return "error"; // forward to error.html (or error.jsp depending on your setup)
+        }
 
         List<String> components = new ArrayList<>(compMap.keySet());
-
         String appTitle = componentService.readAppTitleFromPom(projectName);
 
-// Fallback to appName if title not found
+        // Fallback to appName if title not found
         if (appTitle == null || appTitle.isBlank()) {
             appTitle = projectName;
         }
@@ -58,16 +64,14 @@ public class DeployController {
                 .map(Map.Entry::getKey)
                 .toList();
 
-
-
-        log.info("Editable {}",editable);
-
+        log.info("Editable {}", editable);
 
         model.addAttribute("components", components);
         model.addAttribute("editableComponents", editable);
         model.addAttribute("templates", templates);
         model.addAttribute("projectName", projectName);
         model.addAttribute("canDeploy", true);
+
         log.debug("DEPLOY: Added attributes to model for project: {}", projectName);
         return "deploy";
     }

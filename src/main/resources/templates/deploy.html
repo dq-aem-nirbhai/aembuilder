@@ -23,8 +23,9 @@
         <a href="/dashboard" class="btn btn-outline-secondary mb-3">← Back to Dashboard</a>
 
         <!-- Success Message -->
-        <div id="successMessage" class="alert alert-success text-center" role="alert">
-            Components and Templates saved successfully.
+        <div th:if="${message}" id="flashMessage" class="flash-message">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <span th:text="${message}"></span>
         </div>
 
         <!-- Action buttons -->
@@ -50,7 +51,7 @@
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h4>Components</h4>
                     <div class="d-flex gap-2">
-                        <a th:href="@{'/create/' + ${projectName}}" class="btn btn-sm btn-outline-primary">+ Create Component</a>
+                        <a th:href="@{'/createComponent/' + ${projectName}}" class="btn btn-sm btn-outline-primary">+ Create Component</a>
                         <a href="#" class="btn btn-sm btn-outline-primary" onclick="openComponentModal()">+ Component Library</a>
                     </div>
                 </div>

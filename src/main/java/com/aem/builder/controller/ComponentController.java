@@ -61,7 +61,7 @@ public class ComponentController {
         }
     }
     //component creation
-    @GetMapping("/create/{project}")
+    @GetMapping("/createComponent/{project}")
     public String showComponentForm(@PathVariable String project, Model model) {
         model.addAttribute("projectName", project);
 
@@ -141,18 +141,18 @@ public class ComponentController {
         return "create-component";
     }
 
-    @PostMapping("/component/create/{project}")
+    @PostMapping("/saveComponent/{project}")
     public String createComponent(@PathVariable String project,
                                   @ModelAttribute ComponentRequest request,
                                   RedirectAttributes redirectAttributes) {
         try {
             componentService.generateComponent(project, request);
-            redirectAttributes.addFlashAttribute("message", "Component created successfully!");
+            redirectAttributes.addFlashAttribute("message", request.getComponentName()+" Component created successfully!");
             return "redirect:/view/" + project;
         } catch (Exception e) {
             log.error("Error creating component", e);
             redirectAttributes.addFlashAttribute("error", "Failed to create component: " + e.getMessage());
-            return "redirect:/create/" + project;
+            return "redirect:/createcreateComponent/" + project;
         }
     }
 
@@ -162,7 +162,7 @@ public class ComponentController {
                                   RedirectAttributes redirectAttributes) {
         try {
             componentService.updateComponent(project, request);
-            redirectAttributes.addFlashAttribute("message", "Component updated successfully!");
+            redirectAttributes.addFlashAttribute("message", request.getComponentName()+" Component updated successfully!");
             return "redirect:/view/" + project;
         } catch (Exception e) {
             log.error("Error updating component", e);
@@ -177,7 +177,7 @@ public class ComponentController {
                                   RedirectAttributes redirectAttributes) {
         try {
             componentService.deleteComponent(project, componentName);
-            redirectAttributes.addFlashAttribute("message", "Component deleted successfully!");
+            redirectAttributes.addFlashAttribute("message", componentName+" Component deleted successfully!");
         } catch (Exception e) {
             log.error("Error deleting component", e);
             redirectAttributes.addFlashAttribute("error", "Failed to delete component: " + e.getMessage());

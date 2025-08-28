@@ -981,26 +981,25 @@ public class ComponentServiceImpl implements ComponentService {
     //component checking
     @Override
     public boolean isComponentNameAvailable(String projectName, String componentName) {
-       String basePath= findComponentPathExact( projectName,  componentName);
-        File componentsDir = new File(basePath);
+        String basePath = findComponentPathExact(projectName, componentName);
 
-        if (!componentsDir.exists() || !componentsDir.isDirectory()) {
-            // If the parent folder doesn't exist yet, name is available
-            log.warn("Components folder does not exist: {}", basePath);
+        if (basePath == null || basePath.isBlank()) {
+            log.warn("Base path not found for project '{}' and component '{}'", projectName, componentName);
+            // If no base path is found, we assume component does not exist → available
             return true;
         }
 
-        String[] existingComponents = componentsDir.list();
-        if (existingComponents != null) {
-            for (String name : existingComponents) {
-                if (name.equals(componentName)) { // 🔍 Case-sensitive match
-                    log.info("Component '{}' already exists (case-sensitive match)", name);
-                    return false; // Not available
-                }
-            }
+        File componentDir = new File(basePath);
+
+        // If component folder already exists, name is NOT available
+        if (componentDir.exists() && componentDir.isDirectory()) {
+            log.info("Component '{}' already exists at path {}", componentName, basePath);
+            return false;
         }
 
-        return true; // Available if no exact case-sensitive match found
+        // Otherwise, name is available
+        log.info("Component '{}' is available at path {}", componentName, basePath);
+        return true;
     }
 
 
