@@ -217,7 +217,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Component paths
    const paths = data.componentPath
-     ? data.componentPath.replace(/[\[\]\s]/g, "").split(",")
+     ? data.componentPath.replace(/[\[\]]/g, "").split(",")
      : [];
 
    document.querySelectorAll(".accordion-item").forEach((item) => {

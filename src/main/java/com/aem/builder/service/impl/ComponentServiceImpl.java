@@ -1108,7 +1108,7 @@ Updating logic below
 
         // Exact case-sensitive match
         if (dir.getName().equals(componentName)) {
-            return dir.getAbsolutePath();
+            return dir.getPath();
         }
 
         // Recurse into subdirectories
