@@ -4,3 +4,46 @@
         #successMessage { display: none; }
      
         a.btn.disabled { pointer-events: none; opacity: .65; }
+        /* Flash message container */
+        .flash-message {
+            display: block;
+            max-width: 40%;
+            padding: 14px 10px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            text-align: center;
+            margin: 0 auto 20px auto;
+            color: #0d3b66;
+            background: linear-gradient(135deg, #d6f0ff, #a5d8ff);
+            box-shadow: 0 6px 18px rgba(0, 123, 255, 0.2);
+
+            opacity: 0;
+            transform: translateY(-20px);
+            animation: slideDownFade 0.6s ease forwards, fadeOut 0.8s ease 4s forwards;
+        }
+
+        /* Slide-in animation */
+        @keyframes slideDownFade {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Fade out after delay */
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-10px);
+                pointer-events: none;
+            }
+        }

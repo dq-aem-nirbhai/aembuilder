@@ -193,3 +193,9 @@
                 setDeployDisabled(false);
             });
     }
+ window.addEventListener("DOMContentLoaded", () => {
+        const flash = document.getElementById("flashMessage");
+        if (flash) {
+            setTimeout(() => flash.remove(), 5000); // remove after animation
+        }
+    });
