@@ -81,22 +81,11 @@ public class ComponentController {
         model.addAttribute("fieldTypes", sortedByKey);
         model.addAttribute("componentGroups", componentService.getComponentGroups(project));
         model.addAttribute("editMode", false);
-        // Components that can be extended (core components + existing ones)
-        // Use a LinkedHashSet to avoid duplicates while preserving order
-        Set<String> available = new LinkedHashSet<>();
-        try {
-            available.addAll(componentService.fetchComponentsFromGeneratedProjects(project).stream()
-                    .map(name -> "/apps/" + project + "/components/" + name)
-                    .toList());
-        } catch (Exception e) {
-            log.error("Error loading available components", e);
-        }
-        Map<String, String> compMap = new LinkedHashMap<>();
-        for (String path : available) {
-            int idx = path.lastIndexOf('/') + 1;
-            compMap.put(path, path.substring(idx));
-        }
+        Map<String, String> compMap= componentService.fetchComponentSuperTypes(project);
+
         model.addAttribute("availableComponents", compMap);
+        log.info("superTypessss...{}",compMap);
+
         return "create-component"; // Thymeleaf template
     }
 
@@ -119,21 +108,9 @@ public class ComponentController {
         model.addAttribute("componentGroups", componentService.getComponentGroups(projectName));
         model.addAttribute("editMode", true);
 
-        // available components
-        Set<String> available = new LinkedHashSet<>();
-        try {
-            available.addAll(componentService.fetchComponentsFromGeneratedProjects(projectName).stream()
-                    .map(name -> "/apps/" + projectName + "/components/" + name)
-                    .toList());
-            available.addAll(componentService.getAllComponents());
-        } catch (IOException e) {
-            log.error("Error loading available components", e);
-        }
-        Map<String, String> compMap = new LinkedHashMap<>();
-        for (String path : available) {
-            int idx = path.lastIndexOf('/') + 1;
-            compMap.put(path, path.substring(idx));
-        }
+        Map<String, String> compMap= componentService.fetchComponentSuperTypes(projectName);
+        log.info("superTypessss...{}",compMap);
+
         model.addAttribute("availableComponents", compMap);
         model.addAttribute("componentData", component);
         model.addAttribute("htmlCode", componentService.getComponentHtml(projectName, componentName));

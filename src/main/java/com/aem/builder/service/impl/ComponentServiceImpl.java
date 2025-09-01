@@ -9,7 +9,9 @@ import com.aem.builder.util.FileGenerationUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -1124,6 +1126,109 @@ Updating logic below
 
         return null; // not found in this branch
     }
+
+    @Override
+    public Map<String, String> fetchComponentSuperTypes(String projectName) {
+        Map<String, String> superTypeMap = new LinkedHashMap<>();
+
+        final String CONTENT_XML = ".content.xml";
+        final String SLING_RESOURCE_SUPER_TYPE = "sling:resourceSuperType";
+
+        try {
+            Map<String, String> components = fetchComponentsWithGroups(projectName);
+
+            for (String componentName : components.keySet()) {
+                String componentPath = findComponentPathExact(projectName, componentName);
+
+                File contentXml = new File(componentPath, CONTENT_XML);
+                String superType = null;
+
+                if (contentXml.exists()) {
+                    try (InputStream is = new FileInputStream(contentXml)) {
+                        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+                        factory.setNamespaceAware(true);
+                        DocumentBuilder builder = factory.newDocumentBuilder();
+                        Document doc = builder.parse(is);
+
+                        Element root = doc.getDocumentElement();
+                        if (root.hasAttribute(SLING_RESOURCE_SUPER_TYPE)) {
+                            superType = root.getAttribute(SLING_RESOURCE_SUPER_TYPE);
+                        }
+                    } catch (Exception e) {
+                        log.error("Error parsing .content.xml for component {}", componentName, e);
+                    }
+                } else {
+                    log.warn(".content.xml not found for component {}", componentName);
+                }
+
+                // normalize to repo path under /apps
+                String normalized = componentPath.replace(File.separatorChar, '/');
+                int idx = normalized.indexOf("/apps/");
+                String componentRepoPath = (idx != -1) ? normalized.substring(idx) : componentName;
+
+                String compLastName = componentRepoPath.substring(componentRepoPath.lastIndexOf('/') + 1);
+
+                if (superType != null && !superType.isBlank()) {
+                    String superLastName = superType.substring(superType.lastIndexOf('/') + 1);
+
+                    // build version-aware label
+                    String versionAwareName = extractVersionAwareName(superType);
+
+                    if (superLastName.equals(compLastName)) {
+                        putIfNotExists(superTypeMap, superType, versionAwareName);
+                    } else {
+                        putIfNotExists(superTypeMap, superType, versionAwareName);
+                        putIfNotExists(superTypeMap, componentRepoPath, compLastName);
+                    }
+                } else {
+                    putIfNotExists(superTypeMap, componentRepoPath, compLastName);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error fetching component supertypes for project {}", projectName, e);
+        }
+
+        // sort by value (component label) instead of key (path)
+        return superTypeMap.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue(String.CASE_INSENSITIVE_ORDER))
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (oldVal, newVal) -> oldVal,
+                        LinkedHashMap::new
+                ));
+    }
+
+    /**
+     * Insert into map only if key and value are not already present.
+     */
+    private void putIfNotExists(Map<String, String> map, String key, String value) {
+        if (!map.containsKey(key) && !map.containsValue(value)) {
+            map.put(key, value);
+        }
+    }
+
+    /**
+     * Extracts version-aware name from supertype path.
+     * Example:
+     *   core/wcm/components/button/v1/button → button (v1)
+     *   core/wcm/components/container/v2/container → container (v2)
+     *   custom/components/teaser → teaser
+     */
+    private String extractVersionAwareName(String superTypePath) {
+        String[] parts = superTypePath.split("/");
+        if (parts.length >= 2) {
+            String last = parts[parts.length - 1];
+            String secondLast = parts[parts.length - 2];
+
+            if (secondLast.matches("v\\d+")) {
+                return last + " (" + secondLast + ")";
+            }
+            return last;
+        }
+        return superTypePath;
+    }
+
 
 }
 

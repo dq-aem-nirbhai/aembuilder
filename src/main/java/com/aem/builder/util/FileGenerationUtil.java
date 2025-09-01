@@ -99,25 +99,29 @@ public class FileGenerationUtil {
      * Generates component folders, content.xml, HTL, dialog, and Sling model.
      */
     public static void generateComponent(String basePath, String modelBasePath, String packageName,
-            String componentName, String componentGroup, String superType, List<ComponentField> fields) throws Exception {
+                                         String componentName, String componentGroup, String superType, List<ComponentField> fields) throws Exception {
         logger.info("COMPONENT: Generating component '{}'", componentName);
 
         String componentFolder = basePath + "/" + componentName;
-        String dialogFolder = componentFolder + "/_cq_dialog";
-
-        new File(dialogFolder).mkdirs();
+        new File(componentFolder).mkdirs();
 
         boolean extendsComponent = superType != null && !superType.isBlank();
         boolean hasFields = fields != null && !fields.isEmpty();
 
+        // Always generate component .content.xml
         generateComponentContentXml(componentFolder, componentName, componentGroup, superType);
 
+        // Generate HTL
         generateHTL(componentFolder, fields, packageName, componentName, superType);
 
+        // Create dialog folder only if fields exist
         if (hasFields) {
+            String dialogFolder = componentFolder + "/_cq_dialog";
+            new File(dialogFolder).mkdirs();
             generateDialogContentXml(componentName, dialogFolder, superType, fields);
         }
 
+        // Generate Sling Model if it's a standalone component or has fields
         if (!extendsComponent || hasFields) {
             generateSlingModel(modelBasePath, packageName, componentName, fields);
         }
