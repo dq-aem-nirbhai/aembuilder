@@ -45,5 +45,6 @@ public interface ComponentService {
 
     public Map<String, List<String>> getComponentsByGroup(String projectName);
 
+    Map<String, String>fetchComponentSuperTypes(String projectName);
 
 }
