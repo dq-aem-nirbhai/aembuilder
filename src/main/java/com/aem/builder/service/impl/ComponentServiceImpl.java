@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.xml.parsers.DocumentBuilder;
@@ -195,15 +196,113 @@ public class ComponentServiceImpl implements ComponentService {
     }
 
     @Override
-    public void updateComponent(String projectName, ComponentRequest request) {
-        String compPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName
-                + "/components/" + request.getComponentName();
-        try {
-            FileUtils.deleteDirectory(new File(compPath));
-        } catch (IOException e) {
-            log.warn("Could not clean component folder before update", e);
+    public void updateComponent(String projectName, ComponentRequest request) throws IOException {
+        log.info("Updating component: {} in project: {}", request.getComponentName(), projectName);
+
+        // Component path
+        String compPath = Paths.get(PROJECTS_DIR, projectName,
+                "ui.apps", "src", "main", "content", "jcr_root", "apps", projectName,
+                "components", request.getComponentName()).toString();
+
+        File dialogXml = Paths.get(compPath, "_cq_dialog", ".content.xml").toFile();
+        List<ComponentField> existingFields = new ArrayList<>();
+        if (dialogXml.exists()) {
+            existingFields = parseDialogFields(dialogXml);
         }
-        FileGenerationUtil.generateAllFiles(projectName, request);
+
+        // Sync fields
+        List<ComponentField> newFields = request.getFields();
+        if (newFields == null) newFields = new ArrayList<>();
+
+        // Update dialog
+        FileGenerationUtil.updateDialogXml(dialogXml.getPath(), request);
+
+        // Update HTML
+        File htmlFile = Paths.get(compPath, request.getComponentName() + ".html").toFile();
+        FileGenerationUtil.updateHtml(htmlFile.getPath(), request);
+
+        // Update Sling Model
+        updateJavaModel(projectName, request, existingFields, newFields);
+
+        log.info("Component {} updated successfully with synced fields.", request.getComponentName());
+    }
+
+    private void updateJavaModel(String projectName,
+                                 ComponentRequest request,
+                                 List<ComponentField> oldFields,
+                                 List<ComponentField> newFields) throws IOException {
+
+        String modelDir = Paths.get(PROJECTS_DIR, projectName,
+                "core", "src", "main", "java", "com", "mycompany", projectName, "models").toString();
+        File modelFile = Paths.get(modelDir, request.getComponentName() + ".java").toFile();
+
+        if (!modelFile.exists()) {
+            log.warn("Sling Model not found for component: {}, skipping update", request.getComponentName());
+            return;
+        }
+
+        List<String> lines = Files.readAllLines(modelFile.toPath());
+        List<String> updatedLines = new ArrayList<>();
+
+        // Collect new field names (fix: use fieldName, not getName)
+        Set<String> newFieldNames = newFields.stream()
+                .map(ComponentField::getFieldName)   // ✅ use correct getter
+                .collect(Collectors.toSet());
+
+        for (String line : lines) {
+            boolean isFieldLine = line.trim().startsWith("@ValueMapValue")
+                    || line.trim().startsWith("private ");
+
+            if (isFieldLine) {
+                String fieldName = extractFieldName(line);
+                if (!newFieldNames.contains(fieldName)) {
+                    log.debug("Removing outdated field from model: {}", fieldName);
+                    continue;
+                }
+            }
+            updatedLines.add(line);
+        }
+
+        // Add missing fields
+        for (ComponentField f : newFields) {
+            String fname = f.getFieldName(); // ✅ corrected
+            if (oldFields.stream().noneMatch(of -> of.getFieldName().equals(fname))) {
+                updatedLines.add("    @ValueMapValue");
+                updatedLines.add("    private String " + fname + ";");
+            }
+        }
+
+        Files.write(modelFile.toPath(), updatedLines, StandardOpenOption.TRUNCATE_EXISTING);
+        log.info("Sling Model {} updated successfully.", modelFile.getName());
+    }
+
+    private List<ComponentField> parseDialogFields(File dialogXml) {
+        List<ComponentField> fields = new ArrayList<>();
+        try {
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            Document doc = dBuilder.parse(dialogXml);
+            doc.getDocumentElement().normalize();
+
+            NodeList items = doc.getElementsByTagName("field");
+            for (int i = 0; i < items.getLength(); i++) {
+                Element el = (Element) items.item(i);
+                ComponentField f = new ComponentField();
+                f.setFieldName(el.getAttribute("name")); // ✅ match DTO property
+                fields.add(f);
+            }
+        } catch (Exception e) {
+            log.error("Error parsing dialog fields from {}", dialogXml.getPath(), e);
+        }
+        return fields;
+    }
+
+    private String extractFieldName(String line) {
+        if (line.contains("private")) {
+            String[] parts = line.trim().split("\\s+");
+            return parts[parts.length - 1].replace(";", "");
+        }
+        return "";
     }
     @Override
     public void deleteComponent(String projectName, String componentName) {
@@ -693,28 +792,31 @@ public class ComponentServiceImpl implements ComponentService {
         if (selectedComponents == null || selectedComponents.isEmpty())
             return;
 
-        String slingModelsSourcePath = System.getProperty("user.dir") + "/src/main/java/com/aem/builder/slingModels";
+        Path slingModelsSourcePath = Paths.get(
+                System.getProperty("user.dir"),
+                "src", "main", "java", "com", "aem", "builder", "slingModels"
+        );
 
-        Path javaSourceRoot = Paths.get("generated-projects/" + projectName + "/core/src/main/java/");
+        Path javaSourceRoot = Paths.get("generated-projects", projectName, "core", "src", "main", "java");
 
         // Find models directory
         Path modelPath = findModelBasePath(javaSourceRoot);
-        log.info("ModelPath{}",modelPath);
+        log.info("ModelPath {}", modelPath);
 
         // Get full model base path
         String modelBasePath = modelPath.toString();
+        log.info("ModelBasePath {}", modelBasePath);
 
-        log.info("ModelBasePath{}",modelBasePath);
-
-        // 5. Convert to Java package name
+        // Convert to Java package name
         String packageName = javaSourceRoot.relativize(modelPath).toString().replace(File.separatorChar, '.');
 
         Set<String> copiedModels = new HashSet<>();
 
         for (String component : selectedComponents) {
             try {
-                File source = new File("src/main/resources/aem-components/" + component);
-                File destination = new File(targetPath + "/" + component);
+                File source = Paths.get("src", "main", "resources", "aem-components", component).toFile();
+                File destination = Paths.get(targetPath, component).toFile();
+
                 if (!source.exists()) {
                     System.err.println("Source component not found: " + source.getAbsolutePath());
                     continue;
@@ -738,11 +840,10 @@ public class ComponentServiceImpl implements ComponentService {
 
                 // Update HTML to use correct model reference
                 File html = new File(destination, component + ".html");
-                File parentModel = findMatchingModelFile(slingModelsSourcePath, component);
+                File parentModel = findMatchingModelFile(slingModelsSourcePath.toString(), component);
 
                 if (html.exists() && parentModel != null) {
                     String htmlContent = FileUtils.readFileToString(html, "UTF-8");
-                    //String fqcn = extractFullyQualifiedClassName(parentModel, "com." + projectName + ".core.models");
                     String fqcn = extractFullyQualifiedClassName(parentModel, packageName);
 
                     if (fqcn != null) {
@@ -754,8 +855,7 @@ public class ComponentServiceImpl implements ComponentService {
 
                 // Copy model and its dependencies
                 if (parentModel != null && parentModel.exists()) {
-                    copyModelAndDependencies(parentModel, slingModelsSourcePath, modelBasePath,packageName, copiedModels);
-
+                    copyModelAndDependencies(parentModel, slingModelsSourcePath.toString(), modelBasePath, packageName, copiedModels);
                 } else {
                     System.out.println("No matching Sling Model found for: " + component);
                 }
@@ -766,7 +866,7 @@ public class ComponentServiceImpl implements ComponentService {
         }
     }
 
-    private static Path findModelBasePath(Path javaSourceRoot)  {
+    private static Path findModelBasePath(Path javaSourceRoot) {
         try (Stream<Path> paths = Files.walk(javaSourceRoot)) {
             Optional<Path> modelPath = paths
                     .filter(Files::isDirectory)
@@ -808,7 +908,8 @@ public class ComponentServiceImpl implements ComponentService {
         return null;
     }
 
-    private void copyModelAndDependencies(File modelFile, String sourceBase, String targetBase,String targetPackageName,  Set<String> copiedModels) throws IOException {
+    private void copyModelAndDependencies(File modelFile, String sourceBase, String targetBase,
+                                          String targetPackageName, Set<String> copiedModels) throws IOException {
         if (modelFile == null || !modelFile.exists()) return;
 
         String modelName = modelFile.getName();
@@ -820,7 +921,6 @@ public class ComponentServiceImpl implements ComponentService {
                 "package\\s+com\\.aem\\.builder\\.[\\w.]+;",
                 "package " + targetPackageName + ";"
         );
-
 
         // Update import statements for internal model classes
         Pattern importPattern = Pattern.compile("import\\s+com\\.aem\\.builder\\.slingModels\\.(\\w+);");
@@ -835,21 +935,20 @@ public class ComponentServiceImpl implements ComponentService {
         content = updatedContent.toString();
 
         // Write to destination file
-        File destFile = new File(targetBase, modelFile.getName());
+        File destFile = Paths.get(targetBase, modelFile.getName()).toFile();
         destFile.getParentFile().mkdirs();
         FileUtils.writeStringToFile(destFile, content, "UTF-8");
         copiedModels.add(modelName);
         System.out.println("Sling Model copied: " + destFile.getAbsolutePath());
 
-// Recursively copy dependencies
+        // Recursively copy dependencies
         Set<String> dependentTypes = extractReferencedModelTypes(originalContent);
         for (String type : dependentTypes) {
-            File depFile = new File(sourceBase, type + ".java");
+            File depFile = Paths.get(sourceBase, type + ".java").toFile();
             if (depFile.exists()) {
                 copyModelAndDependencies(depFile, sourceBase, targetBase, targetPackageName, copiedModels);
             }
         }
-
     }
 
     private Set<String> extractReferencedModelTypes(String content) {
@@ -862,15 +961,14 @@ public class ComponentServiceImpl implements ComponentService {
             types.add(importMatcher.group(1));
         }
 
-
-        File modelsDir = new File(System.getProperty("user.dir") + "/src/main/java/com/aem/builder/slingModels");
+        File modelsDir = Paths.get(System.getProperty("user.dir"),
+                "src", "main", "java", "com", "aem", "builder", "slingModels").toFile();
 
         if (modelsDir.exists() && modelsDir.isDirectory()) {
             File[] modelFiles = modelsDir.listFiles((dir, name) -> name.endsWith(".java"));
             if (modelFiles != null) {
                 for (File modelFile : modelFiles) {
                     String className = modelFile.getName().replace(".java", "");
-                    // Look for direct usage of the class name
                     Pattern usagePattern = Pattern.compile("\\b" + className + "\\b");
                     Matcher usageMatcher = usagePattern.matcher(content);
                     if (usageMatcher.find()) {
@@ -882,6 +980,7 @@ public class ComponentServiceImpl implements ComponentService {
 
         return types;
     }
+
     private String extractFullyQualifiedClassName(File javaFile, String targetPackage) {
         try {
             String content = FileUtils.readFileToString(javaFile, "UTF-8");
@@ -892,7 +991,7 @@ public class ComponentServiceImpl implements ComponentService {
                 String className = matcher.group(1);
                 return targetPackage + "." + className;
             }
-        } catch(IOException e){
+        } catch (IOException e) {
             System.err.println("Failed to extract FQCN from model file.");
             e.printStackTrace();
         }
@@ -907,8 +1006,9 @@ public class ComponentServiceImpl implements ComponentService {
             appTitle = projectName;
         }
 
-        String path = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
-        File folder = new File(path);
+        File folder = Paths.get(PROJECTS_DIR, projectName,
+                "ui.apps", "src", "main", "content", "jcr_root", "apps", projectName, "components").toFile();
+
         Set<String> groups = new HashSet<>();
         groups.add(appTitle);
 
@@ -917,12 +1017,11 @@ public class ComponentServiceImpl implements ComponentService {
         }
 
         final String finalAppTitle = appTitle;
-        // Remove unwanted groups consistently
         groups.removeIf(g -> {
             String trimmed = g.trim();
-            return trimmed.equals(finalAppTitle + " - Structure") // exclude Structure
-                    || trimmed.equals(".hidden")                // exclude hidden
-                    || trimmed.contains(" - Form");               // exclude Form
+            return trimmed.equals(finalAppTitle + " - Structure")
+                    || trimmed.equals(".hidden")
+                    || trimmed.contains(" - Form");
         });
 
         return groups.isEmpty() ? List.of(appTitle) : new ArrayList<>(groups);
@@ -958,7 +1057,7 @@ public class ComponentServiceImpl implements ComponentService {
 
 
     public String readAppTitleFromPom(String projectName) {
-        File pom = new File(PROJECTS_DIR + "/" + projectName + "/pom.xml");
+        File pom = Paths.get(PROJECTS_DIR, projectName, "pom.xml").toFile();
 
         if (!pom.exists()) {
             return null;
@@ -1009,11 +1108,11 @@ public class ComponentServiceImpl implements ComponentService {
      * Fetch all components from local project structure.
      */
     public Map<String, List<String>> getComponentsByGroup(String projectName) {
-        String COMPONENTS_PATH =
-                "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
+        File componentsPath = Paths.get("generated-projects", projectName,
+                "ui.apps", "src", "main", "content", "jcr_root", "apps", projectName, "components").toFile();
 
         Map<String, List<String>> groupedComponents = new HashMap<>();
-        scanComponents(new File(COMPONENTS_PATH), groupedComponents, "/apps/" + projectName + "/components");
+        scanComponents(componentsPath, groupedComponents, "/apps/" + projectName + "/components");
         return groupedComponents;
     }
 
@@ -1095,13 +1194,12 @@ Updating logic below
      * @return Full path of the component if found, otherwise null
      */
     public String findComponentPathExact(String projectName, String componentName) {
-        File componentsRoot = new File(PROJECTS_DIR,
-                projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components");
+        File componentsRoot = Paths.get(PROJECTS_DIR, projectName,
+                "ui.apps", "src", "main", "content", "jcr_root", "apps", projectName, "components").toFile();
 
         if (componentsRoot.exists()) {
             return searchComponentRecursiveExact(componentsRoot, componentName);
         }
-
         return null;
     }
 
@@ -1231,16 +1329,3 @@ Updating logic below
 
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

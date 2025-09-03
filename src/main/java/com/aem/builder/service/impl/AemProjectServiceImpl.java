@@ -46,14 +46,11 @@ public class AemProjectServiceImpl implements AemProjectService {
 
     @Override
     public void generateAemProject(AemProjectModel aemProjectModel) throws IOException {
-        String baseDir = System.getProperty("user.dir") + "/generated-projects/";
-        File directory = new File(baseDir);
-        if (!directory.exists()) {
-            directory.mkdirs();
-        }
+        Path baseDir = Paths.get(System.getProperty("user.dir"), PROJECTS_DIR);
+        Files.createDirectories(baseDir);
 
         String appId = aemProjectModel.getProjectName().toLowerCase().replace(" ", "-");
-        Path projectPath = Paths.get(baseDir, appId);
+        Path projectPath = baseDir.resolve(appId);
         if (Files.exists(projectPath)) {
             throw new IOException("Project already exists: " + aemProjectModel.getProjectName());
         }
@@ -83,7 +80,8 @@ public class AemProjectServiceImpl implements AemProjectService {
                 aemProjectModel.getProjectName(),
                 appId,
                 aemProjectModel.getPackageName(),
-                aemProjectModel.getVersion());
+                aemProjectModel.getVersion()
+        );
 
         ProcessBuilder processBuilder;
         if (System.getProperty("os.name").toLowerCase().contains("win")) {
@@ -92,8 +90,9 @@ public class AemProjectServiceImpl implements AemProjectService {
             processBuilder = new ProcessBuilder("bash", "-c", command);
         }
 
-        processBuilder.directory(directory);
+        processBuilder.directory(baseDir.toFile());
         processBuilder.redirectErrorStream(true);
+
         try {
             Process process = processBuilder.start();
             process.getInputStream().transferTo(System.out);
@@ -101,15 +100,15 @@ public class AemProjectServiceImpl implements AemProjectService {
             if (exitCode != 0) {
                 throw new IOException("AEM project generation failed with exit code: " + exitCode);
             }
-            String pomPath = baseDir + appId + "/pom.xml";
-            File pomFile = new File(pomPath);
+
+            Path pomPath = projectPath.resolve("pom.xml");
+            File pomFile = pomPath.toFile();
             if (pomFile.exists()) {
                 try {
                     var builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
                     Document doc = builder.parse(pomFile);
                     Element projectEl = doc.getDocumentElement();
 
-                    // Locate or create <properties>
                     NodeList propsList = doc.getElementsByTagName("properties");
                     Element propsEl;
                     if (propsList.getLength() > 0) {
@@ -119,35 +118,41 @@ public class AemProjectServiceImpl implements AemProjectService {
                         projectEl.appendChild(propsEl);
                     }
 
-                    // Add createdDate if not already present
                     if (doc.getElementsByTagName("createdDate").getLength() == 0) {
                         Element createdDateEl = doc.createElement("createdDate");
                         createdDateEl.setTextContent(
-                                ZonedDateTime.now()
-                                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))                        );
+                                ZonedDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                        );
                         propsEl.appendChild(createdDateEl);
 
-                        // Save back to pom.xml
                         Transformer transformer = TransformerFactory.newInstance().newTransformer();
                         transformer.setOutputProperty(OutputKeys.INDENT, "yes");
                         transformer.transform(new DOMSource(doc), new StreamResult(pomFile));
                     }
                 } catch (Exception e) {
-                    System.err.println("⚠️ Failed to inject createdDate into pom.xml: " + e.getMessage());
+                    log.warn("⚠️ Failed to inject createdDate into pom.xml: {}", e.getMessage());
                 }
             }
-            updateConfFilterMode(baseDir,appId);
-            String componentsTargetPath = baseDir + appId + "/ui.apps/src/main/content/jcr_root/apps/" + appId + "/components/";
-            File contentFolder = new File(componentsTargetPath);
-            if (!contentFolder.exists()) {
-                contentFolder.mkdirs();
-            }
-            componentService.copySelectedComponents(aemProjectModel.getSelectedComponents(), componentsTargetPath, appId);
+
+            updateConfFilterMode(baseDir.toString(), appId);
+
+            Path componentsTargetPath = projectPath.resolve(
+                    Paths.get("ui.apps", "src", "main", "content", "jcr_root", "apps", appId, "components")
+            );
+            Files.createDirectories(componentsTargetPath);
+
+            componentService.copySelectedComponents(
+                    aemProjectModel.getSelectedComponents(),
+                    componentsTargetPath.toString(),
+                    appId
+            );
+
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("Project generation interrupted", e);
         }
     }
+
 
 
 

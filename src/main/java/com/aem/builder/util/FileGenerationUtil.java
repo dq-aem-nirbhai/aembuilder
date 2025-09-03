@@ -18,6 +18,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+
 
 /**
  * Utility class for generating AEM component files, dialogs, and models.
@@ -30,20 +44,135 @@ public class FileGenerationUtil {
     /**
      * Generates all files required for a component in the given project.
      */
+    public static void updateDialogXml(String dialogPath, ComponentRequest request) {
+        try {
+            Path path = Paths.get(dialogPath);
+            if (!Files.exists(path)) return;
+
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            Document doc = dBuilder.parse(path.toFile());
+            doc.getDocumentElement().normalize();
+
+            Node root = doc.getElementsByTagName("jcr:root").item(0);
+            Node itemsNode = getOrCreateChild(doc, root, "items");
+
+            for (ComponentField field : request.getFields()) {
+                if (fieldExists(doc, field.getFieldName())) {
+                    continue; // don’t overwrite existing fields
+                }
+
+                Element fieldNode = doc.createElement(field.getFieldName());
+                fieldNode.setAttribute("jcr:primaryType", "nt:unstructured");
+                fieldNode.setAttribute("fieldLabel", field.getFieldLabel());
+                fieldNode.setAttribute("name", "./" + field.getFieldName());
+
+                switch (field.getFieldType()) {
+                    case "text":
+                        fieldNode.setAttribute("sling:resourceType",
+                                "granite/ui/components/coral/foundation/form/textfield");
+                        break;
+
+                    case "textarea":
+                        fieldNode.setAttribute("sling:resourceType",
+                                "granite/ui/components/coral/foundation/form/textarea");
+                        break;
+
+                    case "checkbox":
+                        fieldNode.setAttribute("sling:resourceType",
+                                "granite/ui/components/coral/foundation/form/checkbox");
+                        break;
+
+                    case "dropdown":
+                        fieldNode.setAttribute("sling:resourceType",
+                                "granite/ui/components/coral/foundation/form/select");
+                        // add "items" child node for dropdown options
+                        Element dropdownItems = doc.createElement("items");
+                        fieldNode.appendChild(dropdownItems);
+                        break;
+
+                    case "multifield":
+                        fieldNode.setAttribute("sling:resourceType",
+                                "granite/ui/components/coral/foundation/form/multifield");
+
+                        Element multifieldItems = doc.createElement("field");
+                        multifieldItems.setAttribute("jcr:primaryType", "nt:unstructured");
+                        multifieldItems.setAttribute("sling:resourceType",
+                                "granite/ui/components/coral/foundation/form/textfield");
+                        multifieldItems.setAttribute("fieldLabel", field.getFieldLabel() + " Item");
+                        multifieldItems.setAttribute("name", "./" + field.getFieldName() + "Item");
+                        fieldNode.appendChild(multifieldItems);
+                        break;
+                }
+
+                itemsNode.appendChild(fieldNode);
+            }
+
+            Transformer transformer = TransformerFactory.newInstance().newTransformer();
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            transformer.transform(new DOMSource(doc), new StreamResult(path.toFile()));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static Node getOrCreateChild(Document doc, Node parent, String name) {
+        NodeList children = parent.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            if (name.equals(children.item(i).getNodeName())) {
+                return children.item(i);
+            }
+        }
+        Element newNode = doc.createElement(name);
+        parent.appendChild(newNode);
+        return newNode;
+    }
+
+    private static boolean fieldExists(Document doc, String fieldName) {
+        NodeList nodeList = doc.getElementsByTagName(fieldName);
+        return nodeList != null && nodeList.getLength() > 0;
+    }
+
+
+    public static void updateHtml(String htmlPath, ComponentRequest request) {
+        try {
+            Path path = Paths.get(htmlPath);
+            if (!Files.exists(path)) return;
+
+            String content = Files.readString(path);
+
+            StringBuilder sb = new StringBuilder(content);
+
+            // Ensure each field is present
+            for (ComponentField field : request.getFields()) {
+                String placeholder = "${model." + field.getFieldName() + "}";
+                if (!content.contains(placeholder)) {
+                    sb.append("\n<div class=\"" + field.getFieldName() + "\">" + placeholder + "</div>");
+                }
+            }
+
+            Files.writeString(path, sb.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void generateJavaFile(String projectName, ComponentRequest request, String className) {
+        // create fresh model if missing
+    }
     public static void generateAllFiles(String projectName, ComponentRequest request) {
         logger.info("FILEGEN: Starting file generation for project: {}", projectName);
         try {
             String appsRoot = "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps";
-            File appsDir = new File( "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps");
+            File appsDir = new File(appsRoot);
 
             String appName = projectName;
-
             File[] dirs = appsDir.listFiles(File::isDirectory);
 
             if (dirs != null) {
                 for (File dir : dirs) {
                     if (!"msm".equals(dir.getName())) {
-                        appName = dir.getName(); // Found a valid app folder, store its name
+                        appName = dir.getName(); // Found valid app folder
                         break;
                     }
                 }
@@ -51,31 +180,49 @@ public class FileGenerationUtil {
 
             String basePath = appsRoot + "/" + appName + "/components/";
 
-
             Path javaSourceRoot = Paths.get("generated-projects/" + projectName + "/core/src/main/java/");
-
-            // Find models directory
             Path modelPath = findModelBasePath(javaSourceRoot);
 
-            log.info("ModelPath{}",modelPath);
-
-
-            // Get full model base path
             String modelBasePath = modelPath.toString();
-
-            log.info("ModelBasePath{}",modelBasePath);
-
-            // 5. Convert to Java package name
             String packageName = javaSourceRoot.relativize(modelPath).toString().replace(File.separatorChar, '.');
 
-            log.info("PackageName {}",packageName);
+            logger.info("ModelPath: {}", modelPath);
+            logger.info("ModelBasePath: {}", modelBasePath);
+            logger.info("PackageName: {}", packageName);
 
-            generateComponent(basePath, modelBasePath, packageName, request.getComponentName(),
-                    request.getComponentGroup(), request.getSuperType(), request.getFields());
+            generateComponent(basePath, modelBasePath, packageName,
+                    request.getComponentName(),
+                    request.getComponentGroup(),
+                    request.getSuperType(),
+                    request.getFields());
+
             logger.info("FILEGEN: Successfully generated all files for project: {}", projectName);
         } catch (Exception e) {
-            logger.info("FILEGEN: Error generating files for project: {}", projectName, e);
-            e.printStackTrace();
+            logger.error("FILEGEN: Error generating files for project: {}", projectName, e);
+        }
+    }
+
+    public static void collectFields(File dialogFile, List<ComponentField> fields) throws Exception {
+        if (dialogFile == null || !dialogFile.exists()) return;
+
+        DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+        Document doc = dBuilder.parse(dialogFile);
+        doc.getDocumentElement().normalize();
+
+        NodeList nodeList = doc.getElementsByTagName("*");
+        for (int i = 0; i < nodeList.getLength(); i++) {
+            Node node = nodeList.item(i);
+            if (node.getNodeType() == Node.ELEMENT_NODE) {
+                Element element = (Element) node;
+                if (element.hasAttribute("name")) {
+                    String fieldName = element.getAttribute("name").replace("./", "");
+                    String fieldLabel = element.getAttribute("fieldLabel");
+                    String fieldType = element.getAttribute("sling:resourceType");
+
+                    fields.add(new ComponentField(fieldName, fieldLabel, fieldType, null, null));
+                }
+            }
         }
     }
 

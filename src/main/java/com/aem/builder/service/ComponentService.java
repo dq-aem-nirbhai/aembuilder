@@ -31,7 +31,7 @@ public interface ComponentService {
 
     ComponentRequest loadComponent(String projectName, String componentName);
 
-    void updateComponent(String projectName, ComponentRequest request);
+    void updateComponent(String projectName, ComponentRequest request) throws IOException;
 
     void deleteComponent(String projectName, String componentName);
 
