@@ -129,9 +129,33 @@ document.getElementById('policyTitle').addEventListener('input', function () {
 });
 
 // Show success/error message
-function showMessage(text, type) {
-    const box = document.getElementById('messageBox');
-    box.textContent = text;
-    box.className = `alert alert-${type}`;
-    box.classList.remove('d-none');
+// Show success/error message and scroll to top
+function showMessage(text, type, redirectUrl = null, redirectTime = 2000) {
+    // Remove existing message if any
+    let existingBox = document.getElementById('messageBox');
+    if (!existingBox) {
+        existingBox = document.createElement('div');
+        existingBox.id = 'messageBox';
+        document.body.prepend(existingBox); // add at top of page
+    }
+
+    existingBox.className = `alert alert-${type}`;
+    existingBox.innerHTML = `<span>${text}</span>`;
+    existingBox.style.setProperty('--duration', `${redirectTime}ms`);
+
+    // Scroll to top smoothly
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Auto remove after redirectTime + 500ms (optional)
+    setTimeout(() => {
+        existingBox.remove();
+    }, redirectTime + 500);
+
+    // Redirect if needed
+    if (redirectUrl) {
+        setTimeout(() => {
+            window.location.href = redirectUrl;
+        }, redirectTime);
+    }
 }
+

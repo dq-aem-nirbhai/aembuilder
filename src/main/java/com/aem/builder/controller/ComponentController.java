@@ -27,8 +27,8 @@ public class ComponentController {
     public Map<String, List<String>> getComponents(@PathVariable String projectname) throws IOException {
         List<String> allComponents = componentService.getAllComponents();
         List<String> projectComponents = componentService
-                .getProjectComponentsMap(List.of(projectname))
-                .getOrDefault(projectname, new ArrayList<>());
+                .getProjectComponentsMap(projectname);
+
 
         log.info(projectname);
 
@@ -61,7 +61,7 @@ public class ComponentController {
         }
     }
     //component creation
-    @GetMapping("/create/{project}")
+    @GetMapping("/createComponent/{project}")
     public String showComponentForm(@PathVariable String project, Model model) {
         model.addAttribute("projectName", project);
 
@@ -81,23 +81,11 @@ public class ComponentController {
         model.addAttribute("fieldTypes", sortedByKey);
         model.addAttribute("componentGroups", componentService.getComponentGroups(project));
         model.addAttribute("editMode", false);
-        // Components that can be extended (core components + existing ones)
-        // Use a LinkedHashSet to avoid duplicates while preserving order
-        Set<String> available = new LinkedHashSet<>();
-        try {
-            available.addAll(componentService.fetchComponentsFromGeneratedProjects(project).stream()
-                    .map(name -> "/apps/" + project + "/components/" + name)
-                    .toList());
-            available.addAll(componentService.getAllComponents());
-        } catch (IOException e) {
-            log.error("Error loading available components", e);
-        }
-        Map<String, String> compMap = new LinkedHashMap<>();
-        for (String path : available) {
-            int idx = path.lastIndexOf('/') + 1;
-            compMap.put(path, path.substring(idx));
-        }
+        Map<String, String> compMap= componentService.fetchComponentSuperTypes(project);
+
         model.addAttribute("availableComponents", compMap);
+        log.info("superTypessss...{}",compMap);
+
         return "create-component"; // Thymeleaf template
     }
 
@@ -120,21 +108,9 @@ public class ComponentController {
         model.addAttribute("componentGroups", componentService.getComponentGroups(projectName));
         model.addAttribute("editMode", true);
 
-        // available components
-        Set<String> available = new LinkedHashSet<>();
-        try {
-            available.addAll(componentService.fetchComponentsFromGeneratedProjects(projectName).stream()
-                    .map(name -> "/apps/" + projectName + "/components/" + name)
-                    .toList());
-            available.addAll(componentService.getAllComponents());
-        } catch (IOException e) {
-            log.error("Error loading available components", e);
-        }
-        Map<String, String> compMap = new LinkedHashMap<>();
-        for (String path : available) {
-            int idx = path.lastIndexOf('/') + 1;
-            compMap.put(path, path.substring(idx));
-        }
+        Map<String, String> compMap= componentService.fetchComponentSuperTypes(projectName);
+        log.info("superTypessss...{}",compMap);
+
         model.addAttribute("availableComponents", compMap);
         model.addAttribute("componentData", component);
         model.addAttribute("htmlCode", componentService.getComponentHtml(projectName, componentName));
@@ -142,18 +118,18 @@ public class ComponentController {
         return "create-component";
     }
 
-    @PostMapping("/component/create/{project}")
+    @PostMapping("/saveComponent/{project}")
     public String createComponent(@PathVariable String project,
                                   @ModelAttribute ComponentRequest request,
                                   RedirectAttributes redirectAttributes) {
         try {
             componentService.generateComponent(project, request);
-            redirectAttributes.addFlashAttribute("message", "Component created successfully!");
+            redirectAttributes.addFlashAttribute("message", request.getComponentName()+" Component created successfully!");
             return "redirect:/view/" + project;
         } catch (Exception e) {
             log.error("Error creating component", e);
             redirectAttributes.addFlashAttribute("error", "Failed to create component: " + e.getMessage());
-            return "redirect:/create/" + project;
+            return "redirect:/createcreateComponent/" + project;
         }
     }
 
@@ -163,7 +139,7 @@ public class ComponentController {
                                   RedirectAttributes redirectAttributes) {
         try {
             componentService.updateComponent(project, request);
-            redirectAttributes.addFlashAttribute("message", "Component updated successfully!");
+            redirectAttributes.addFlashAttribute("message", request.getComponentName()+" Component updated successfully!");
             return "redirect:/view/" + project;
         } catch (Exception e) {
             log.error("Error updating component", e);
@@ -178,7 +154,7 @@ public class ComponentController {
                                   RedirectAttributes redirectAttributes) {
         try {
             componentService.deleteComponent(project, componentName);
-            redirectAttributes.addFlashAttribute("message", "Component deleted successfully!");
+            redirectAttributes.addFlashAttribute("message", componentName+" Component deleted successfully!");
         } catch (Exception e) {
             log.error("Error deleting component", e);
             redirectAttributes.addFlashAttribute("error", "Failed to delete component: " + e.getMessage());
@@ -212,7 +188,7 @@ public class ComponentController {
     @ResponseBody
     public Map<String, List<Map<String, String>>> getGroupedComponents(@PathVariable String projectName) throws IOException {
         // Fetch grouped components from service
-        Map<String, List<String>> groupedComponents = componentService.getComponentsByGroup( projectName);
+        Map<String, List<String>> groupedComponents = componentService.getComponentsByGroup(projectName);
 
         Map<String, List<Map<String, String>>> response = new LinkedHashMap<>();
 
@@ -224,15 +200,18 @@ public class ComponentController {
 
             for (String comp : components) {
                 Map<String, String> compObj = new LinkedHashMap<>();
-                compObj.put("name", comp);  // component name
-                compObj.put("path", "/apps/"+projectName+"/components/" + comp); // component path
+
+                // comp is already a full path like /apps/accenture/components/form/options
+                compObj.put("name", comp.substring(comp.lastIndexOf("/") + 1)); // just the last folder
+                compObj.put("path", comp); // full path
                 componentList.add(compObj);
             }
-                response.put(groupName, componentList);
+            response.put(groupName, componentList);
         }
 
         return response;
     }
+
 
 }
 

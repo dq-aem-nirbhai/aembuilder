@@ -1,0 +1,80 @@
+#messageBox {
+    display: flex;
+    align-items: center;
+    max-width: 35%; /* reduced width */
+    padding: 14px 18px;
+    border-radius: 16px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    margin: 20px auto;
+    overflow: hidden;
+    position: relative;
+    background-clip: padding-box;
+    animation: fadeIn 0.6s ease-out;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+
+/* Gradient border wrapper */
+#messageBox::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 18px;
+    padding: 2px;
+    background: linear-gradient(135deg, var(--border-start), var(--border-end));
+    z-index: -1;
+}
+
+/* Text animation inside the box */
+#messageBox span {
+    display: inline-block;
+    white-space: nowrap;
+    transform: translateX(-100%);
+    animation: scrollIn var(--duration, 1.8s) ease-out forwards;
+}
+
+/* SUCCESS — Calm Blue */
+.alert-success {
+    --border-start: #38bdf8;
+    --border-end: #0ea5e9;
+    background: #eff6ff; /* very light blue inside */
+    color: #1e3a8a; /* deep blue text */
+}
+
+/* ERROR — Warm Red */
+.alert-danger {
+    --border-start: #f87171;
+    --border-end: #ef4444;
+    background: #fff1f2; /* soft rose inside */
+    color: #991b1b; /* deep red text */
+}
+
+/* INFO — Soft Purple */
+.alert-info {
+    --border-start: #a78bfa;
+    --border-end: #8b5cf6;
+    background: #f5f3ff; /* lavender inside */
+    color: #4c1d95; /* deep purple text */
+}
+
+/* WARNING — Sunny Orange */
+.alert-warning {
+    --border-start: #fbbf24;
+    --border-end: #f59e0b;
+    background: #fff7ed; /* pale amber inside */
+    color: #78350f; /* rich orange text */
+}
+
+@keyframes scrollIn {
+    from { transform: translateX(-120%); opacity: 0; }
+    to   { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}

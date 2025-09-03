@@ -136,6 +136,7 @@ public class AemProjectServiceImpl implements AemProjectService {
                     System.err.println("⚠️ Failed to inject createdDate into pom.xml: " + e.getMessage());
                 }
             }
+            updateConfFilterMode(baseDir,appId);
             String componentsTargetPath = baseDir + appId + "/ui.apps/src/main/content/jcr_root/apps/" + appId + "/components/";
             File contentFolder = new File(componentsTargetPath);
             if (!contentFolder.exists()) {
@@ -370,6 +371,8 @@ public class AemProjectServiceImpl implements AemProjectService {
             throw new IOException("Failed to update pom.xml with importDate.", e);
         }
 
+        updateConfFilterMode(PROJECTS_DIR, artifactId);
+
         // Cleanup temp extraction dir
         if (Files.exists(tempDir)) {
             org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
@@ -449,5 +452,38 @@ public class AemProjectServiceImpl implements AemProjectService {
         }
     }
 
+    private void updateConfFilterMode(String baseDir, String appId) throws IOException {
+        Path filterPath = Paths.get(baseDir, appId, "ui.content/src/main/content/META-INF/vault/filter.xml");
+
+        if (!Files.exists(filterPath)) {
+            log.warn("filter.xml not found at {}", filterPath);
+            return;
+        }
+
+        List<String> lines = Files.readAllLines(filterPath);
+        List<String> updatedLines = new ArrayList<>();
+
+        boolean updated = false;
+
+        for (String line : lines) {
+            String targetFilter = "<filter root=\"/conf/" + appId + "\"";
+            if (line.contains(targetFilter)) {
+                if (line.contains("mode=\"merge\"")) {
+                    // Replace merge → replace only if merge is found
+                    line = line.replace("mode=\"merge\"", "mode=\"replace\"");
+                    updated = true;
+                    log.info("Updated /conf/{} filter mode from merge → replace", appId);
+                } else if (line.contains("mode=\"replace\"")) {
+                    // Already correct → no change
+                    log.info("Filter for /conf/{} already set to mode=replace. Skipping.", appId);
+                }
+            }
+            updatedLines.add(line);
+        }
+
+        if (updated) {
+            Files.write(filterPath, updatedLines);
+        }
+    }
 
 }

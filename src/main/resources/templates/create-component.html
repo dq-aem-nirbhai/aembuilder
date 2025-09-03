@@ -54,7 +54,7 @@
 
   <!-- Component Form -->
   <form id="componentForm"
-        th:action="${editMode} ? @{'/component/update/' + ${projectName}} : @{'/component/create/' + ${projectName}}"
+        th:action="${editMode} ? @{'/component/update/' + ${projectName}} : @{'/saveComponent/' + ${projectName}}"
         method="post">
 
     <input type="hidden" id="projectName" name="projectName" th:value="${projectName}">

@@ -1,7 +1,16 @@
-
-
 package com.aem.builder.util;
 
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -256,7 +265,7 @@ public class TemplateUtil {
 
         Files.copy(source3, target3, StandardCopyOption.REPLACE_EXISTING);
     }
-public static String getIntialContentXf(String projectname,String templatename){
+    public static String getIntialContentXf(String projectname,String templatename){
         return """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0" xmlns:cq="http://www.day.com/jcr/cq/1.0" xmlns:jcr="http://www.jcp.org/jcr/1.0" xmlns:nt="http://www.jcp.org/jcr/nt/1.0"
@@ -275,30 +284,49 @@ public static String getIntialContentXf(String projectname,String templatename){
                 </jcr:root>
                 
                 """.formatted(projectname,templatename,projectname,projectname);
-}
-public static String policyForParticularTemplate(String policynode,String projectname){
-    System.out.println("policy   "+policynode);
-        return """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0" xmlns:cq="http://www.day.com/jcr/cq/1.0" xmlns:jcr="http://www.jcp.org/jcr/1.0" xmlns:nt="http://www.jcp.org/jcr/nt/1.0"
-                    jcr:primaryType="cq:Page">
-                    <jcr:content
-                        cq:lastModified="{Date}2025-08-06T11:26:05.255+05:30"
-                        cq:lastModifiedBy="admin"
-                        cq:policy="%s/components/page/policy"
-                        jcr:primaryType="nt:unstructured"
-                        sling:resourceType="wcm/core/components/policies/mappings">
-                        <root
-                            cq:policy="%s/components/container/policy_1574694950110"
-                            jcr:primaryType="nt:unstructured"
-                            sling:resourceType="wcm/core/components/policies/mapping">
-                            <container
-                                cq:policy="%s/components/container/%s"
-                                jcr:primaryType="nt:unstructured"
-                                sling:resourceType="wcm/core/components/policies/mapping"/>
-                        </root>
-                    </jcr:content>
-                </jcr:root>
-                """.formatted(projectname,projectname,projectname,policynode);
-}
+    }
+    public static void updatePolicyId(String filePath, String newPolicyId, String projectName, String templateType) {
+        try {
+            // Load XML
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document doc = builder.parse(new File(filePath));
+            doc.getDocumentElement().normalize();
+
+            String newPolicyPath = projectName + "/components/container/" + newPolicyId;
+
+            if ("page".equalsIgnoreCase(templateType)) {
+                // Find <container> node
+                NodeList containerNodes = doc.getElementsByTagName("container");
+                if (containerNodes.getLength() > 0) {
+                    Element containerElement = (Element) containerNodes.item(0);
+                    containerElement.setAttribute("cq:policy", newPolicyPath);
+                }
+            } else if ("xf".equalsIgnoreCase(templateType)) {
+                // Find <root> node
+                NodeList rootNodes = doc.getElementsByTagName("root");
+                if (rootNodes.getLength() > 0) {
+                    Element rootElement = (Element) rootNodes.item(0);
+                    rootElement.setAttribute("cq:policy", newPolicyPath);
+                }
+            }
+
+            // Write changes back to file
+            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+            Transformer transformer = transformerFactory.newTransformer();
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "1");
+
+            DOMSource source = new DOMSource(doc);
+            StreamResult result = new StreamResult(new File(filePath));
+            transformer.transform(source, result);
+
+            System.out.println("Policy updated successfully!");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 }

@@ -30,11 +30,14 @@
 <!-- Main -->
 <main class="container py-4 animate__animated animate__fadeIn flex-grow-1">
 
-  <!-- Success Alert -->
-  <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert" id="successAlert">
+  <div th:if="${message}"
+       id="flashMessage"
+       class="flash-message flash-message-purple">
+    <!-- Message text -->
     <span th:text="${message}"></span>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
+
+
 
   <!-- Error Alert -->
   <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert" id="errorAlert">
