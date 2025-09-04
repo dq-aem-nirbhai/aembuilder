@@ -25,6 +25,132 @@
       width: 3rem;
       height: 3rem;
     }
+
+    /* === Responsive Alerts === */
+    .alert {
+      border-radius: 0.75rem;
+      padding: 0.8rem 1rem;
+      font-size: 0.95rem;
+      max-width: 95%;
+      margin: 0 auto 1rem auto;
+      transition: all 0.3s ease;
+    }
+
+    /* Laptop screens */
+    @media (min-width: 992px) {
+      .alert {
+        max-width: 70%;
+        font-size: 1rem;
+        padding: 1rem 1.25rem;
+      }
+    }
+
+    /* Desktop / large monitors */
+    @media (min-width: 1200px) {
+      .alert {
+        max-width: 60%;
+        font-size: 1.05rem;
+        padding: 1.1rem 1.4rem;
+      }
+    }
+
+    body {
+      background: linear-gradient(to right, #f8fafc, #e2e8f0);
+      font-family: "Segoe UI", sans-serif;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.85);
+      border-radius: 1rem;
+      padding: 2rem;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(8px);
+      animation: fadeIn 0.8s ease;
+    }
+
+    h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(to right, #0d6efd, #6610f2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .btn-outline-secondary {
+      display: block;
+      width: fit-content;
+      font-weight: 500;
+      border-radius: 0.5rem;
+    }
+
+    .btn-outline-secondary:hover {
+      background-color: #f1f1f1;
+      color: rgb(108, 117, 125);
+      transform: scale(1.03);
+    }
+
+    .btn {
+      border-radius: 0.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+      background-color: #0d6efd;
+      border-color: #0d6efd;
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background-color: #0b5ed7;
+      transform: scale(1.05);
+    }
+
+    .form-label {
+      font-weight: 500;
+      margin-bottom: 0.3rem;
+    }
+
+    .form-control,
+    .form-select {
+      border-radius: 0.5rem;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+      border-color: #0d6efd;
+      box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    .field-row {
+      background-color: #ffffff;
+      border-radius: 0.75rem;
+      animation: fadeInUp 0.6s ease;
+    }
+
+    #fieldsContainer label {
+      font-weight: 600;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
   </style>
 </head>
 <body>
@@ -41,13 +167,13 @@
   <a th:href="@{'/view/' + ${projectName}}" class="btn btn-outline-secondary mb-3">← Back to Deploy Page</a>
 
   <!-- Success Message -->
-  <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert">
+  <div th:if="${message}" class="alert alert-success alert-dismissible fade show text-center shadow-sm" role="alert">
     <span th:text="${message}"></span>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 
   <!-- Error Message -->
-  <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+  <div th:if="${error}" class="alert alert-danger alert-dismissible fade show text-center shadow-sm" role="alert">
     <span th:text="${error}"></span>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
@@ -174,11 +300,6 @@
   window.editMode = /*[[${editMode}]]*/ false;
   window.componentData = /*[[${componentData}]]*/ {};
   /*]]>*/
-</script>
-<script src="/js/create-component.js"></script>
-
-<script>
-  // === Spinner Logic ===
   document.addEventListener("DOMContentLoaded", function () {
     const form = document.getElementById("componentForm");
     const overlay = document.getElementById("loadingOverlay");
@@ -190,11 +311,13 @@
         setTimeout(() => {
           overlay.style.display = "none"; // hide spinner after 5s
           form.submit(); // submit form after delay
-        }, 5000);
+        }, 2000);
       }
     });
   });
 </script>
+
+<script src="/js/create-component.js"></script>
 
 </body>
 </html>
