@@ -5,13 +5,16 @@ import com.aem.builder.model.ProjectDetails;
 import com.aem.builder.service.AemProjectService;
 import com.aem.builder.service.ComponentService;
 import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.eclipse.jgit.api.Git;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
@@ -26,6 +29,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -435,6 +439,91 @@ public class AemProjectServiceImpl implements AemProjectService {
         return artifactId;
     }
 
+    @SneakyThrows
+    @Override
+    public void cloneProject(String repoUrl) {
+        // 1) Clone into a brand new empty temp dir
+        Path tempDir = Files.createTempDirectory("aem-clone-");
+
+        try {
+            try (Git ignored = Git.cloneRepository()
+                    .setURI(repoUrl)
+                    .setDirectory(tempDir.toFile()) // clone directly here
+                    .call()) {
+                // closed automatically
+            }
+
+            // 2) Find pom.xml inside the cloned content
+            Path pom = findPom(tempDir);
+            if (pom == null) {
+                throw new IOException("Clone succeeded but pom.xml was not found in the repository.");
+            }
+
+            // 3) Read artifactId (to store exactly like import does)
+            String artifactId = readArtifactId(pom);
+            if (artifactId == null || artifactId.isBlank()) {
+                throw new IOException("pom.xml does not contain a valid <artifactId>.");
+            }
+
+            // 4) Compute target folder and guard against duplicates
+            Path projectsDir = Paths.get(PROJECTS_DIR);
+            Files.createDirectories(projectsDir);
+            Path target = projectsDir.resolve(artifactId);
+            if (Files.exists(target)) {
+                throw new IOException("Clone failed: project '" + artifactId + "' already exists.");
+            }
+
+            // 5) Move the WHOLE cloned repo (including .git) into target
+            //    Use move; if it fails across devices, fallback to copy+delete.
+            try {
+                Files.move(tempDir, target, StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException crossFs) {
+                // Different filesystem; do a copy then delete temp
+                org.apache.commons.io.FileUtils.copyDirectory(tempDir.toFile(), target.toFile());
+                org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
+            }
+
+            // NOTE: No extra validation and no pom mutation here — pure clone-and-store.
+
+        } catch (Exception e) {
+            // Cleanup temp if something went wrong and it still exists
+            try {
+                if (Files.exists(tempDir)) {
+                    org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
+                }
+            } catch (IOException ignore) {}
+            // Re-throw as IOException for the controller to surface
+            if (e instanceof IOException) throw (IOException) e;
+            throw new IOException("Failed to clone repository: " + e.getMessage(), e);
+        }
+    }
+
+    private Path findPom(Path root) throws IOException {
+        try (var stream = Files.walk(root)) {
+            return stream
+                    .filter(p -> p.getFileName().toString().equalsIgnoreCase("pom.xml"))
+                    .findFirst()
+                    .orElse(null);
+        }
+    }
+
+    private String readArtifactId(Path pomFile) throws IOException {
+        try {
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            // Avoid XXE
+            dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+
+            DocumentBuilder dBuilder = dbf.newDocumentBuilder();
+            Document doc = dBuilder.parse(pomFile.toFile());
+            doc.getDocumentElement().normalize();
+            NodeList nodes = doc.getElementsByTagName("artifactId");
+            return nodes.getLength() > 0 ? nodes.item(0).getTextContent() : null;
+        } catch (Exception e) {
+            throw new IOException("Failed to read artifactId from pom.xml.", e);
+        }
+    }
 
 
     private String parseArtifactIdFromPom(InputStream pomStream) {

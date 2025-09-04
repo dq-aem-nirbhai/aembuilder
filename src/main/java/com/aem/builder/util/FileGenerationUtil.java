@@ -814,8 +814,8 @@ public class FileGenerationUtil {
 
         sb.append("}");
 
-        FileUtils.writeStringToFile(new File(modelBasePath + "/" + className + ".java"), sb.toString(),
-                StandardCharsets.UTF_8);
+        File file = new File(modelBasePath + "/" + className + ".java");
+        FileUtils.writeStringToFile(file, sb.toString(), StandardCharsets.UTF_8);
         logger.info("MODEL: Child Model generated at {}/{}.java", modelBasePath, className);
     }
 

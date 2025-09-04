@@ -63,6 +63,19 @@ public class HomeController {
         return response;
     }
 
+    @PostMapping("/clone")
+    @ResponseBody
+    public Map<String, Object> cloneProjectAjax(@RequestBody Map<String, String> body) {
+        Map<String, Object> response = new HashMap<>();
+        String repoUrl = body.get("repoUrl");
+
+        aemProjectService.cloneProject(repoUrl);
+        response.put("success", true);
+        response.put("message", "Project cloned successfully!");
+        return response;
+    }
+
+
     @PostMapping("/validateImport")
     @ResponseBody
     public Map<String, Object> validateImport(@RequestParam("file") MultipartFile file) {
