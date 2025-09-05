@@ -136,6 +136,12 @@ public class UpdateComponentImpl implements UpdateComponent {
             el.setAttribute("autoStart","{Boolean}false");
             parent.appendChild(el);
         }
+        if ("tagfield".equalsIgnoreCase(field.getFieldType())) {
+            Element el = doc.createElement(field.getFieldName());
+            el.setAttribute("multiple", "{Boolean}true");
+            el.setAttribute("rootPath", "/content/cq:tags");
+            el.setAttribute("namespaces", "*");
+        }
         if ("multifield".equalsIgnoreCase(field.getFieldType())) {
             Element multifield = doc.createElement(field.getFieldName());
             multifield.setAttribute("jcr:primaryType", "nt:unstructured");
@@ -194,6 +200,8 @@ public class UpdateComponentImpl implements UpdateComponent {
         existing.setAttribute("fieldLabel", field.getFieldLabel());
         existing.setAttribute("name", "./" + field.getFieldName());
 
+        // 🔹 First clear type-specific attributes
+        clearTypeSpecificAttributes(existing);
         // Update type if changed
         existing.setAttribute("sling:resourceType", getResourceType(field.getFieldType()));
         if("fileupload".equalsIgnoreCase(field.getFieldType())){
@@ -233,10 +241,11 @@ public class UpdateComponentImpl implements UpdateComponent {
             }
         }
 
-
-
-
-
+        if ("tagfield".equalsIgnoreCase(field.getFieldType())) {
+            existing.setAttribute("multiple", "{Boolean}true");
+            existing.setAttribute("rootPath", "/content/cq:tags");
+            existing.setAttribute("namespaces", "*");
+        }
         // Handle select/multiselect options
         if ("select".equalsIgnoreCase(field.getFieldType()) ||
                 "multiselect".equalsIgnoreCase(field.getFieldType())) {
@@ -265,6 +274,18 @@ public class UpdateComponentImpl implements UpdateComponent {
                 existing.removeAttribute("multiple");
                 existing.setAttribute("emptyText","Select...");
             }
+        }
+    }
+    private void clearTypeSpecificAttributes(Element existing) {
+        String[] attrs = {
+                "fileReferenceParameter", "class", "mimeTypes", "multiple",
+                "uploadUrl", "fileNameParameter", "autoStart",
+                "text", "value", "uncheckedValue",
+                "useFixedInlineToolbar", "enableSourceEdit",
+                "emptyText", "namespaces", "rootPath"
+        };
+        for (String a : attrs) {
+            existing.removeAttribute(a);
         }
     }
 
@@ -309,7 +330,7 @@ public class UpdateComponentImpl implements UpdateComponent {
             case "numberfield"  -> "granite/ui/components/coral/foundation/form/numberfield";
             case "pathfield"    -> "granite/ui/components/coral/foundation/form/pathfield";
             case "datepicker"   -> "granite/ui/components/coral/foundation/form/datepicker";
-            case "tagfield"     -> "granite/ui/components/coral/foundation/form/tagfield";
+            case "tagfield"     -> "cq/gui/components/coral/common/form/tagfield";
             case "richtext"     -> "cq/gui/components/authoring/dialog/richtext";
             case "switch"       -> "granite/ui/components/coral/foundation/form/switch";
             case "colorfield"   -> "granite/ui/components/coral/foundation/form/colorfield";
@@ -319,6 +340,7 @@ public class UpdateComponentImpl implements UpdateComponent {
             case "checkbox"    -> "granite/ui/components/coral/foundation/form/checkbox";
             case "tabs"        -> "granite/ui/components/coral/foundation/tabs";
             case "radiogroup"  ->"granite/ui/components/coral/foundation/form/radiogroup";
+            case "multifield" ->"granite/ui/components/coral/foundation/form/multifield";
             default -> "granite/ui/components/coral/foundation/form/textfield"; // fallback
         };
     }
@@ -788,140 +810,5 @@ public class UpdateComponentImpl implements UpdateComponent {
     }
 
 
-
-
-
-
-    //update htl
-    @Override
-    public void updateHTLTextOnly(ComponentRequest request, ComponentRequest oldRequest) throws IOException {
-        Path htlPath = Path.of("generated-projects", request.getProjectName(),
-                "ui.apps/src/main/content/jcr_root/apps",
-                request.getProjectName(), "components", request.getComponentName(),
-                request.getComponentName() + ".html");
-
-        if (!Files.exists(htlPath)) {
-            throw new IllegalStateException("HTL file not found: " + htlPath);
-        }
-
-        String htlContent = Files.readString(htlPath);
-
-        // 1️⃣ Remove deleted fields
-        for (ComponentField oldField : oldRequest.getFields()) {
-            boolean stillExists = request.getFields().stream()
-                    .anyMatch(f -> f.getFieldName().equals(oldField.getFieldName()));
-            if (!stillExists) {
-                htlContent = htlContent.replaceAll(
-                        "(?s)<.*?\\$\\{model\\." + Pattern.quote(oldField.getFieldName()) + ".*?>.*?</.*?>",
-                        ""
-                );
-            }
-        }
-
-        // 2️⃣ Rename fields if the name changed
-        for (ComponentField oldField : oldRequest.getFields()) {
-            for (ComponentField newField : request.getFields()) {
-                if (!oldField.getFieldName().equals(newField.getFieldName()) &&
-                        oldField.getFieldLabel().equals(newField.getFieldLabel())) {
-                    htlContent = htlContent.replaceAll(
-                            "\\$\\{model\\." + Pattern.quote(oldField.getFieldName()) + "\\}",
-                            "\\${model." + newField.getFieldName() + "}"
-                    );
-                }
-            }
-        }
-
-        // 3️⃣ Generate snippets for new fields
-        StringBuilder newFieldsSnippets = new StringBuilder();
-        for (ComponentField newField : request.getFields()) {
-            boolean alreadyExists = oldRequest.getFields().stream()
-                    .anyMatch(f -> f.getFieldName().equals(newField.getFieldName()));
-            if (!alreadyExists) {
-                newFieldsSnippets.append(generateHTLSnippet(newField));
-            }
-        }
-
-        // 4️⃣ Insert new fields inside the hasContent sly block (pure string manipulation)
-        if (newFieldsSnippets.length() > 0) {
-            Pattern slyBlockPattern = Pattern.compile(
-                    "(<sly[^>]*data-sly-test\\.hasContent[^>]*>)(.*?)(</sly>)",
-                    Pattern.DOTALL | Pattern.CASE_INSENSITIVE
-            );
-            Matcher matcher = slyBlockPattern.matcher(htlContent);
-            if (matcher.find()) {
-                String openingTag = matcher.group(1);
-                String innerContent = matcher.group(2);
-                String closingTag = matcher.group(3);
-
-                // Append new fields inside the block
-                innerContent += newFieldsSnippets.toString();
-
-                // Rebuild the sly block
-                htlContent = htlContent.substring(0, matcher.start()) +
-                        openingTag + innerContent + closingTag +
-                        htlContent.substring(matcher.end());
-            } else {
-                // fallback: append at the end before closing </sly> if block not found
-                int lastSlyIndex = htlContent.lastIndexOf("</sly>");
-                if (lastSlyIndex != -1) {
-                    htlContent = htlContent.substring(0, lastSlyIndex)
-                            + newFieldsSnippets.toString()
-                            + htlContent.substring(lastSlyIndex);
-                } else {
-                    // fallback: append at the very end
-                    htlContent += newFieldsSnippets.toString();
-                }
-            }
-        }
-
-        // 5️⃣ Save back
-        Files.writeString(htlPath, htlContent);
-    }
-
-
-    // Helper to generate HTML snippet based on field type
-    private String generateHTLSnippet(ComponentField field) {
-        if ("multifield".equalsIgnoreCase(field.getFieldType()) || "child".equalsIgnoreCase(field.getFieldType())) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("<div class=\"multifield\" data-sly-list.item=\"${model.")
-                    .append(field.getFieldName()).append("}\">\n");
-
-            if (field.getNestedFields() != null) {
-                for (ComponentField nested : field.getNestedFields()) {
-                    sb.append(generateHTLSnippetNested(nested, "item"));
-                }
-            }
-
-            sb.append("</div>\n");
-            return sb.toString();
-        } else {
-            return generateHTLSnippetNested(field, "model");
-        }
-    }
-
-    private String generateHTLSnippetNested(ComponentField field, String modelRef) {
-        return switch (field.getFieldType().toLowerCase()) {
-            case "textfield", "numberfield", "pathfield" ->
-                    "<input type=\"text\" data-sly-value=\"${" + modelRef + "." + field.getFieldName() + "}\" />\n";
-            case "textarea" ->
-                    "<textarea data-sly-text=\"${" + modelRef + "." + field.getFieldName() + "}\"></textarea>\n";
-            case "checkbox" ->
-                    "<input type=\"checkbox\" data-sly-checked=\"${" + modelRef + "." + field.getFieldName() + "}\" />\n";
-            case "select", "multiselect" -> {
-                StringBuilder sb = new StringBuilder("<select data-sly-list.option=\"${" +
-                        modelRef + "." + field.getFieldName() + "}\">\n");
-                if (field.getOptions() != null) {
-                    for (OptionItem option : field.getOptions()) {
-                        sb.append("  <option value=\"").append(option.getValue()).append("\">")
-                                .append(option.getText()).append("</option>\n");
-                    }
-                }
-                sb.append("</select>\n");
-                yield sb.toString();
-            }
-            default ->
-                    "<p data-sly-text=\"${" + modelRef + "." + field.getFieldName() + "}\"></p>\n";
-        };
-    }
 
 }
