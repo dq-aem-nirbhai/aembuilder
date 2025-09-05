@@ -296,7 +296,7 @@ public class TemplateServiceImpl implements TemplateService {
     @Override
     public void updateTemplate(TemplateModel updatedModel, String projectName, String oldTemplateName)
             throws ParserConfigurationException, IOException, SAXException, TransformerException {
-
+        System.out.println("Updated model ^^^^^^^^^^^^^^B   "+updatedModel);
         String basePath = "generated-projects/" + projectName + "/ui.content/src/main/content/jcr_root/conf/" +
                 projectName + "/settings/wcm/templates/";
         String targetpath=basePath+updatedModel.getName();
@@ -422,9 +422,8 @@ public class TemplateServiceImpl implements TemplateService {
             transformer.transform(new DOMSource(doc), new StreamResult(parentContentFile));
             System.out.println("Updated parent .content.xml successfully");
         }
-
+        System.out.println(updatedModel+" updated model &&&&&&&&&&&&&&&&");
     }
-
 
 
 }

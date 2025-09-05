@@ -16,39 +16,39 @@
           th:action="@{'/' + ${projectName} + '/updatetemplate/'+${tempname}}"
           th:object="${template}" method="post" class="card p-4 shadow-sm rounded-4">
 
-        <input type="hidden" id="projectname" th:value="${projectName}"/>
+        <input type="hidden" id="projectName" name="projectName" th:value="${projectName}"/>
 
         <div class="form-group mb-3">
             <h2 class="mb-4 animate__animated animate__fadeInDown" th:text="${editMode} ? 'Edit Template' : 'Create Template'"></h2>
-            <label for="templatetype" class="form-label">Template Type:</label>
-            <select id="templatetype"
-                    name="templatetype"
+            <label for="templateType" class="form-label">Template Type:</label>
+            <select id="templateType"
                     class="form-control"
                     th:field="*{templateType}"
                     th:attr="data-selected=${template.templateType}">
                 <option value="">--Select Type--</option>
             </select>
+
         </div>
 
         <div class="mb-3">
             <label for="templateName" class="form-label">Name</label>
-            <input type="text" class="form-control" th:field="*{name}" id="name" required/>
+            <input type="text" class="form-control" th:field="*{name}" id="templateName" name="templateName" required/>
             <div id="name-error" class="text-danger"></div>
         </div>
 
         <div class="mb-3">
             <label for="templateTitle" class="form-label">Title</label>
-            <input type="text" class="form-control" th:field="*{title}" id="title" required/>
+            <input type="text" class="form-control" th:field="*{title}" id="templateTitle" required/>
         </div>
 
         <div class="mb-3">
             <label for="templateDescription" class="form-label">Description</label>
-            <input type="text" class="form-control" th:field="*{description}" id="description"/>
+            <input type="text" class="form-control" th:field="*{description}" id="templateDescription"/>
         </div>
 
         <div class="mb-4">
             <label for="templateStatus" class="form-label">Status</label>
-            <select class="form-control" th:field="*{status}" id="status">
+            <select class="form-control" th:field="*{status}" id="templateStatus">
                 <option value="enabled">Enabled</option>
                 <option value="draft">Draft</option>
             </select>
@@ -71,7 +71,6 @@
 <footer>
     <div th:replace="fragments/navbar :: footer"></div>
 </footer>
-<script src="/js/template-script.js" defer></script>
-
+<script src="/js/update-template.js" defer></script>
 </body>
 </html>

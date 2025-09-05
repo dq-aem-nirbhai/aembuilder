@@ -1,22 +1,19 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const projectnameInput = document.getElementById("projectname");
-    if (!projectnameInput) return; // Safety check
+    const projectnameInput = document.getElementById("projectName");
+    if (!projectnameInput) return;
 
     const projectName = projectnameInput.value;
-    const templatetypeSelect = document.getElementById("templatetype");
+    const templatetypeSelect = document.getElementById("templateType");
     const selectedTemplateType = templatetypeSelect.getAttribute("data-selected");
 
     fetch(`/template-types/${projectName}`)
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
             data.forEach(type => {
                 const option = document.createElement("option");
                 option.value = type;
                 option.textContent = type;
-                if (type === selectedTemplateType) {
+                if (selectedTemplateType && type.trim() === selectedTemplateType.trim()) {
                     option.selected = true;
                 }
                 templatetypeSelect.appendChild(option);

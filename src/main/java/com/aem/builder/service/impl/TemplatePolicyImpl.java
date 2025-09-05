@@ -293,6 +293,7 @@ public class TemplatePolicyImpl implements TemplatePolicy {
                     }
 
                     request.setStyles(styleGroups);
+                    System.out.println(request.toString());
                     return request;
                 }
             }

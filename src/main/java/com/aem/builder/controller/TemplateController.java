@@ -89,7 +89,7 @@ public class TemplateController {
     @GetMapping("/template-types/{projectName}")
     public ResponseEntity<List<String>> getTemplateTypes(@PathVariable String projectName) {
         List<String> templateTypes = templateService.getTemplateTypesFromDestination(projectName);
-        System.out.println(templateTypes);
+        System.out.println(templateTypes+"  ********&&&&&&&&&&&&&&&&&&&&");
         if (templateTypes.isEmpty()) {
             return ResponseEntity.noContent().build(); // or return empty list with 200
         }
