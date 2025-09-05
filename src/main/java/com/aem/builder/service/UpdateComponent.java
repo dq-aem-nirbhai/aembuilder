@@ -15,4 +15,7 @@ public interface UpdateComponent {
     public void updateSlingModel(ComponentRequest request) throws IOException;
 
     public void updateHTLTextOnly(ComponentRequest request, ComponentRequest oldRequest)throws IOException;
+
+
+
 }

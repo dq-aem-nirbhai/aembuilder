@@ -209,6 +209,9 @@ public class ComponentController {
 
 
 
+
+
+
     @GetMapping("/component/edit/{projectName}")
     public String editComponentPage(@PathVariable String projectName,
                                     @RequestParam String componentName,

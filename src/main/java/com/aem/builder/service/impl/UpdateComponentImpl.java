@@ -235,6 +235,8 @@ public class UpdateComponentImpl implements UpdateComponent {
 
 
 
+
+
         // Handle select/multiselect options
         if ("select".equalsIgnoreCase(field.getFieldType()) ||
                 "multiselect".equalsIgnoreCase(field.getFieldType())) {
