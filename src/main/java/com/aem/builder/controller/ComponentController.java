@@ -30,6 +30,7 @@ public class ComponentController {
 
     private final ComponentService componentService;
 
+    private final UpdateHTL updatehtl;
     @GetMapping("/fetch-components/{projectname}")
     @ResponseBody
     public Map<String, List<String>> getComponents(@PathVariable String projectname) throws IOException {
@@ -199,15 +200,19 @@ public class ComponentController {
         //sling model update
         updateComponent.updateSlingModel(componentRequest);
 
-        //htl update
+//htl update
+        List<ComponentField> fields = componentRequest.getFields();
+        log.info("fields from the new request, {}",fields);
+        Path htlFile = Paths.get("generated-projects", projectName,
+                "ui.apps/src/main/content/jcr_root/apps",
+                projectName, "components", componentRequest.getComponentName(),
+                componentRequest.getComponentName() + ".html");
+          log.info("htl path to update {}",htlFile);
 
-      //  updateComponent.updateHTLTextOnly(componentRequest, oldRequest);
+        updatehtl.updateHTLFile(htlFile, fields);
         redirectAttributes.addFlashAttribute("message", "Dialog updated successfully!");
         return "redirect:/view/" + projectName;
     }
-
-
-
 
 
 

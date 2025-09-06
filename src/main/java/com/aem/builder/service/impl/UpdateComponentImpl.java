@@ -110,24 +110,32 @@ public class UpdateComponentImpl implements UpdateComponent {
         if ("richtext".equalsIgnoreCase(field.getFieldType())) {
             Element el = doc.createElement(field.getFieldName());
             el.setAttribute("jcr:primaryType", "nt:unstructured");
-            el.setAttribute("sling:resourceType", "cq/gui/components/authoring/dialog/richtext");
+            el.setAttribute("sling:resourceType",getResourceType(field.getFieldType()));
             el.setAttribute("fieldLabel", field.getFieldLabel());
             el.setAttribute("name", "./" + field.getFieldName());
             el.setAttribute("useFixedInlineToolbar", "true");
             el.setAttribute("enableSourceEdit", "true");
 
             parent.appendChild(el);
+            return;
         }
-        if("checkbox".equalsIgnoreCase(field.getFieldType())){
+       else if("checkbox".equalsIgnoreCase(field.getFieldType())){
             Element el = doc.createElement(field.getFieldName());
+            el.setAttribute("jcr:primaryType", "nt:unstructured");
+            el.setAttribute("sling:resourceType", getResourceType(field.getFieldType()));
+            el.setAttribute("fieldLabel", field.getFieldLabel());
             el.setAttribute("text", field.getFieldName());
             el.setAttribute("value","true");
             el.setAttribute("uncheckedValue","false");
             parent.appendChild(el);
         }
-        if("fileupload".equalsIgnoreCase(field.getFieldType())){
+       else if("fileupload".equalsIgnoreCase(field.getFieldType())){
             Element el = doc.createElement(field.getFieldName());
-            el.setAttribute("fileReferenceParameter", field.getFieldName());
+            el.setAttribute("sling:resourceType",getResourceType(field.getFieldType()));
+            el.setAttribute("jcr:primaryType", "nt:unstructured");
+            el.setAttribute("fieldLabel", field.getFieldLabel());
+            el.setAttribute("name", "./" + field.getFieldName());
+            el.setAttribute("fileReferenceParameter", "./"+field.getFieldName());
             el.setAttribute("class","cq-droptarget");
             el.setAttribute("mimeTypes","[image/gif,image/jpeg,image/png,image/tiff,image/svg+xml]");
             el.setAttribute("multiple","{Boolean}false");
@@ -136,13 +144,18 @@ public class UpdateComponentImpl implements UpdateComponent {
             el.setAttribute("autoStart","{Boolean}false");
             parent.appendChild(el);
         }
-        if ("tagfield".equalsIgnoreCase(field.getFieldType())) {
+        else if ("tagfield".equalsIgnoreCase(field.getFieldType())) {
             Element el = doc.createElement(field.getFieldName());
+            el.setAttribute("jcr:primaryType", "nt:unstructured");
+            el.setAttribute("sling:resourceType", getResourceType(field.getFieldType()));
+            el.setAttribute("fieldLabel", field.getFieldLabel());
+            el.setAttribute("name", "./" + field.getFieldName());
             el.setAttribute("multiple", "{Boolean}true");
             el.setAttribute("rootPath", "/content/cq:tags");
-            el.setAttribute("namespaces", "*");
+            parent.appendChild(el);
         }
-        if ("multifield".equalsIgnoreCase(field.getFieldType())) {
+
+        else  if ("multifield".equalsIgnoreCase(field.getFieldType())) {
             Element multifield = doc.createElement(field.getFieldName());
             multifield.setAttribute("jcr:primaryType", "nt:unstructured");
             multifield.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/" +
@@ -205,7 +218,9 @@ public class UpdateComponentImpl implements UpdateComponent {
         // Update type if changed
         existing.setAttribute("sling:resourceType", getResourceType(field.getFieldType()));
         if("fileupload".equalsIgnoreCase(field.getFieldType())){
-            existing.setAttribute("fileReferenceParameter", field.getFieldName());
+            existing.setAttribute("fieldLabel", field.getFieldLabel());
+            existing.setAttribute("name", "./" + field.getFieldName());
+            existing.setAttribute("fileReferenceParameter", "./"+field.getFieldName());
             existing.setAttribute("class","cq-droptarget");
             existing.setAttribute("mimeTypes","[image/gif,image/jpeg,image/png,image/tiff,image/svg+xml]");
             existing.setAttribute("multiple","{Boolean}false");
@@ -214,12 +229,15 @@ public class UpdateComponentImpl implements UpdateComponent {
             existing.setAttribute("autoStart","{Boolean}false");
         }
         if("checkbox".equalsIgnoreCase(field.getFieldType())){
-
+            existing.setAttribute("jcr:primaryType", "nt:unstructured");
+            existing.setAttribute("sling:resourceType", getResourceType(field.getFieldType()));
+            existing.setAttribute("fieldLabel", field.getFieldLabel());
             existing.setAttribute("text", field.getFieldName());
             existing.setAttribute("value","true");
             existing.setAttribute("uncheckedValue","false");
         }
         if("richtext".equalsIgnoreCase(field.getFieldType())){
+
             existing.setAttribute("useFixedInlineToolbar","true");
             existing.setAttribute("enableSourceEdit","true");
         }
@@ -242,10 +260,13 @@ public class UpdateComponentImpl implements UpdateComponent {
         }
 
         if ("tagfield".equalsIgnoreCase(field.getFieldType())) {
+            existing.setAttribute("fieldLabel", field.getFieldLabel());
+            existing.setAttribute("name", "./" + field.getFieldName());
             existing.setAttribute("multiple", "{Boolean}true");
             existing.setAttribute("rootPath", "/content/cq:tags");
-            existing.setAttribute("namespaces", "*");
+            log.info("is tag root path added {}","tagfield");
         }
+
         // Handle select/multiselect options
         if ("select".equalsIgnoreCase(field.getFieldType()) ||
                 "multiselect".equalsIgnoreCase(field.getFieldType())) {
