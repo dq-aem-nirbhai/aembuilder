@@ -69,9 +69,14 @@ public class HomeController {
         Map<String, Object> response = new HashMap<>();
         String repoUrl = body.get("repoUrl");
 
-        aemProjectService.cloneProject(repoUrl);
-        response.put("success", true);
-        response.put("message", "Project cloned successfully!");
+        try {
+            aemProjectService.cloneProject(repoUrl);
+            response.put("success", true);
+            response.put("message", "Project cloned successfully!");
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("error", "Unexpected error: " + e.getMessage());
+        }
         return response;
     }
 

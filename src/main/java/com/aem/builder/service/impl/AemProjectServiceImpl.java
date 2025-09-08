@@ -7,6 +7,7 @@ import com.aem.builder.service.ComponentService;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
 import org.eclipse.jgit.api.Git;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,7 +31,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -445,27 +445,24 @@ public class AemProjectServiceImpl implements AemProjectService {
         // 1) Clone into a brand new empty temp dir
         Path tempDir = Files.createTempDirectory("aem-clone-");
 
-        try {
-            try (Git ignored = Git.cloneRepository()
-                    .setURI(repoUrl)
-                    .setDirectory(tempDir.toFile()) // clone directly here
-                    .call()) {
-                // closed automatically
+        try (Git ignored = Git.cloneRepository()
+                .setURI(repoUrl)
+                .setDirectory(tempDir.toFile()) // clone directly here
+                .call()) {
+
+            // 1) Validate if it’s an AEM project
+            if (!isAemProject(tempDir)) {
+                throw new IOException("The given repository has no valid AEM project.");
             }
 
-            // 2) Find pom.xml inside the cloned content
-            Path pom = findPom(tempDir);
-            if (pom == null) {
-                throw new IOException("Clone succeeded but pom.xml was not found in the repository.");
-            }
-
-            // 3) Read artifactId (to store exactly like import does)
-            String artifactId = readArtifactId(pom);
+            // 2) Read artifactId from root pom.xml
+            Path rootPom = tempDir.resolve("pom.xml");
+            String artifactId = readArtifactId(rootPom);
             if (artifactId == null || artifactId.isBlank()) {
                 throw new IOException("pom.xml does not contain a valid <artifactId>.");
             }
 
-            // 4) Compute target folder and guard against duplicates
+            // 3) Guard against duplicates
             Path projectsDir = Paths.get(PROJECTS_DIR);
             Files.createDirectories(projectsDir);
             Path target = projectsDir.resolve(artifactId);
@@ -473,29 +470,83 @@ public class AemProjectServiceImpl implements AemProjectService {
                 throw new IOException("Clone failed: project '" + artifactId + "' already exists.");
             }
 
-            // 5) Move the WHOLE cloned repo (including .git) into target
-            //    Use move; if it fails across devices, fallback to copy+delete.
+            // 4) Move or copy directory
             try {
                 Files.move(tempDir, target, StandardCopyOption.ATOMIC_MOVE);
             } catch (IOException crossFs) {
-                // Different filesystem; do a copy then delete temp
-                org.apache.commons.io.FileUtils.copyDirectory(tempDir.toFile(), target.toFile());
-                org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
+                FileUtils.copyDirectory(tempDir.toFile(), target.toFile());
+                FileUtils.deleteDirectory(tempDir.toFile());
             }
-
-            // NOTE: No extra validation and no pom mutation here — pure clone-and-store.
-
         } catch (Exception e) {
-            // Cleanup temp if something went wrong and it still exists
-            try {
-                if (Files.exists(tempDir)) {
-                    org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
-                }
-            } catch (IOException ignore) {}
-            // Re-throw as IOException for the controller to surface
+            cleanupTemp(tempDir);
             if (e instanceof IOException) throw (IOException) e;
             throw new IOException("Failed to clone repository: " + e.getMessage(), e);
         }
+    }
+
+    public boolean isAemProject(Path repoRoot) {
+        Path rootPom = repoRoot.resolve("pom.xml");
+        if (Files.notExists(rootPom)) {
+            return false;
+        }
+
+        try {
+            boolean foundPom = Files.walk(repoRoot, 6)
+                    .filter(p -> p.getFileName().toString().equalsIgnoreCase("pom.xml"))
+                    .filter(this::isNotJunk)
+                    .anyMatch(this::isAemModulePom);
+
+            return foundPom || hasAemStructure(repoRoot);
+
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private boolean isAemModulePom(Path pomPath) {
+        try {
+            String xml = Files.readString(pomPath);
+
+            // Packaging types unique to AEM
+            if (xml.contains("<packaging>bundle</packaging>")
+                    || xml.contains("<packaging>content-package</packaging>")
+                    || xml.contains("<packaging>all</packaging>")) {
+                return true;
+            }
+
+            // Maven plugins used by AEM
+            if (xml.contains("filevault-package-maven-plugin")
+                    || xml.contains("content-package-maven-plugin")) {
+                return true;
+            }
+
+            // Typical dependencies
+            if (xml.contains("com.day.jcr.vault")
+                    || xml.contains("com.adobe.cq")) {
+                return true;
+            }
+
+        } catch (IOException ignore) {}
+        return false;
+    }
+
+    private boolean hasAemStructure(Path repoRoot) {
+        return Files.isDirectory(repoRoot.resolve("core"))
+                && Files.isDirectory(repoRoot.resolve("ui.apps"))
+                && Files.isDirectory(repoRoot.resolve("ui.content"));
+    }
+
+    private boolean isNotJunk(Path path) {
+        String p = path.toString().toLowerCase();
+        return !(p.contains(".git") || p.contains("target") || p.contains("node_modules"));
+    }
+
+    private void cleanupTemp(Path tempDir) {
+        try {
+            if (Files.exists(tempDir)) {
+                FileUtils.deleteDirectory(tempDir.toFile());
+            }
+        } catch (IOException ignore) {}
     }
 
     private Path findPom(Path root) throws IOException {
