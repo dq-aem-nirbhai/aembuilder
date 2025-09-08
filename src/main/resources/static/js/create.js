@@ -23,6 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Project name availability check ---
   async function checkProjectAvailability(projectName) {
+    if (!projectName) return;
     try {
       const response = await fetch(`/checkProjectName?name=${encodeURIComponent(projectName)}`);
       const result = await response.json();
@@ -47,10 +48,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function updateComponentList() {
     selectedList.innerHTML = "";
     if (selectedComponents.length === 0) {
-      const placeholder = document.createElement("li");
-      placeholder.id = "noComponentText";
-      placeholder.textContent = "No component selected";
-      selectedList.appendChild(placeholder);
+      selectedList.innerHTML = `<li id="noComponentText">No component selected</li>`;
     } else {
       selectedComponents.forEach(c => {
         const li = document.createElement("li");
@@ -59,12 +57,38 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedList.appendChild(li);
       });
     }
-    hiddenInput.value = selectedComponents.join(",");
+    hiddenInput.value = JSON.stringify(selectedComponents); // ✅ safer than CSV
   }
 
   function getProjectName() {
     return projectInput.value.trim();
   }
+
+  function updateComponentList() {
+  selectedList.innerHTML = "";
+  if (selectedComponents.length === 0) {
+    const placeholder = document.createElement("li");
+    placeholder.id = "noComponentText";
+    placeholder.textContent = "No component selected";
+    selectedList.appendChild(placeholder);
+  } else {
+    selectedComponents.forEach(c => {
+      const li = document.createElement("li");
+      li.className = "component-item animate__animated animate__fadeIn";
+      li.innerHTML = `
+        ${c} 
+        <button type="button" class="btn btn-sm btn-danger ms-2 remove-btn">×</button>
+      `;
+      li.querySelector(".remove-btn").addEventListener("click", () => {
+        selectedComponents = selectedComponents.filter(item => item !== c);
+        updateComponentList();
+      });
+      selectedList.appendChild(li);
+    });
+  }
+  hiddenInput.value = selectedComponents.join(",");
+}
+
 
   // --- Render component list in modal ---
   function renderList(containerId, dataList, selectedListArray) {
@@ -106,6 +130,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- Open component modal ---
   window.openComponentModal = function() {
     const projectName = getProjectName();
+    if (!projectName) {
+      alert("⚠️ Please enter a Project Name first.");
+      return;
+    }
+
     fetch(`/fetch-components/${projectName}`)
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch components');
@@ -113,7 +142,11 @@ document.addEventListener("DOMContentLoaded", () => {
       })
       .then(data => renderList('componentList', data, selectedComponents))
       .then(() => new bootstrap.Modal(document.getElementById('componentModal')).show())
-      .catch(err => alert('Unable to load components. Please try again.'));
+      .catch(err => {
+        console.error(err);
+        document.getElementById("componentList").innerHTML =
+          `<div class="text-danger">❌ Unable to load components.</div>`;
+      });
   };
 
   // --- Add selected components from modal ---
