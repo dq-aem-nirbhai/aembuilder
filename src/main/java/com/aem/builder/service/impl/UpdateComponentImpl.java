@@ -210,94 +210,103 @@ public class UpdateComponentImpl implements UpdateComponent {
 
     /** Update existing field without removing */
     private void updateField(Element existing, ComponentField field) {
+        String currentType = existing.getAttribute("sling:resourceType");
+        String newType = getResourceType(field.getFieldType());
+
+        if (!currentType.equals(newType)) {
+            clearOldFieldContent(existing); // clean everything!
+        }
+
+        existing.setAttribute("jcr:primaryType", "nt:unstructured");
         existing.setAttribute("fieldLabel", field.getFieldLabel());
         existing.setAttribute("name", "./" + field.getFieldName());
+        existing.setAttribute("sling:resourceType", newType);
 
-        // 🔹 First clear type-specific attributes
-        clearTypeSpecificAttributes(existing);
-        // Update type if changed
-        existing.setAttribute("sling:resourceType", getResourceType(field.getFieldType()));
-        if("fileupload".equalsIgnoreCase(field.getFieldType())){
-            existing.setAttribute("fieldLabel", field.getFieldLabel());
-            existing.setAttribute("name", "./" + field.getFieldName());
-            existing.setAttribute("fileReferenceParameter", "./"+field.getFieldName());
-            existing.setAttribute("class","cq-droptarget");
-            existing.setAttribute("mimeTypes","[image/gif,image/jpeg,image/png,image/tiff,image/svg+xml]");
-            existing.setAttribute("multiple","{Boolean}false");
-            existing.setAttribute("uploadUrl","/content/dam");
-            existing.setAttribute("fileNameParameter","./"+field.getFieldName());
-            existing.setAttribute("autoStart","{Boolean}false");
-        }
-        if("checkbox".equalsIgnoreCase(field.getFieldType())){
-            existing.setAttribute("jcr:primaryType", "nt:unstructured");
-            existing.setAttribute("sling:resourceType", getResourceType(field.getFieldType()));
-            existing.setAttribute("fieldLabel", field.getFieldLabel());
-            existing.setAttribute("text", field.getFieldName());
-            existing.setAttribute("value","true");
-            existing.setAttribute("uncheckedValue","false");
-        }
-        if("richtext".equalsIgnoreCase(field.getFieldType())){
+        handleTypeSpecificAttributes(existing, field);
+    }
 
-            existing.setAttribute("useFixedInlineToolbar","true");
-            existing.setAttribute("enableSourceEdit","true");
-        }
-        // Handle multifield recursion
-        if ("multifield".equalsIgnoreCase(field.getFieldType())) {
-            Element fieldNode = getOrCreateChild(existing, "field",
-                    "granite/ui/components/coral/foundation/form/fieldset");
-            Element items = getOrCreateChild(fieldNode, "items", null);
 
-            if (field.getNestedFields() != null) {
-                for (ComponentField nested : field.getNestedFields()) {
-                    Element child = findChildByFieldName(items, nested.getFieldName());
-                    if (child != null) {
-                        updateField(child, nested);   // update existing
-                    } else {
-                        insertField(items, nested);   // add new
+    private void handleTypeSpecificAttributes(Element existing, ComponentField field) {
+        Document doc = existing.getOwnerDocument();
+        String type = field.getFieldType().toLowerCase();
+
+        switch (type) {
+            case "richtext":
+                existing.setAttribute("useFixedInlineToolbar", "true");
+                existing.setAttribute("enableSourceEdit", "true");
+                break;
+
+            case "checkbox":
+                existing.setAttribute("text", field.getFieldName());
+                existing.setAttribute("value", "true");
+                existing.setAttribute("uncheckedValue", "false");
+                break;
+
+            case "fileupload":
+                existing.setAttribute("fileReferenceParameter", "./" + field.getFieldName());
+                existing.setAttribute("class", "cq-droptarget");
+                existing.setAttribute("mimeTypes", "[image/gif,image/jpeg,image/png,image/tiff,image/svg+xml]");
+                existing.setAttribute("multiple", "{Boolean}false");
+                existing.setAttribute("uploadUrl", "/content/dam");
+                existing.setAttribute("fileNameParameter", "./" + field.getFieldName());
+                existing.setAttribute("autoStart", "{Boolean}false");
+                break;
+
+            case "tagfield":
+                existing.setAttribute("multiple", "{Boolean}true");
+                existing.setAttribute("rootPath", "/content/cq:tags");
+                break;
+
+            case "select":
+            case "multiselect":
+                Element items = doc.createElement("items");
+                items.setAttribute("jcr:primaryType", "nt:unstructured");
+                existing.appendChild(items);
+                if (field.getOptions() != null) {
+                    for (int i = 0; i < field.getOptions().size(); i++) {
+                        OptionItem opt = field.getOptions().get(i);
+                        Element option = doc.createElement("option" + (i + 1));
+                        option.setAttribute("jcr:primaryType", "nt:unstructured");
+                        option.setAttribute("text", opt.getText());
+                        option.setAttribute("value", opt.getValue());
+                        items.appendChild(option);
                     }
                 }
-            }
-        }
-
-        if ("tagfield".equalsIgnoreCase(field.getFieldType())) {
-            existing.setAttribute("fieldLabel", field.getFieldLabel());
-            existing.setAttribute("name", "./" + field.getFieldName());
-            existing.setAttribute("multiple", "{Boolean}true");
-            existing.setAttribute("rootPath", "/content/cq:tags");
-            log.info("is tag root path added {}","tagfield");
-        }
-
-        // Handle select/multiselect options
-        if ("select".equalsIgnoreCase(field.getFieldType()) ||
-                "multiselect".equalsIgnoreCase(field.getFieldType())) {
-            Element items = getOrCreateChild(existing, "items", null);
-            // Clear old
-            while (items.hasChildNodes()) {
-                items.removeChild(items.getFirstChild());
-            }
-            if (field.getOptions() != null) {
-                items.setAttribute("jcr:primaryType", "nt:unstructured");
-                Document doc = existing.getOwnerDocument();
-                for (int i = 0; i < field.getOptions().size(); i++) {
-                    OptionItem opt = field.getOptions().get(i);
-                    Element option = doc.createElement("option" + (i + 1));
-                    option.setAttribute("jcr:primaryType", "nt:unstructured");
-                    option.setAttribute("text", opt.getText());
-                    option.setAttribute("value", opt.getValue());
-                    items.appendChild(option);
+                if ("multiselect".equals(type)) {
+                    existing.setAttribute("multiple", "true");
+                } else {
+                    existing.removeAttribute("multiple");
+                    existing.setAttribute("emptyText", "Select...");
                 }
-            }
-            // Special case: multiselect needs attribute multiple="true"
-            if ("multiselect".equalsIgnoreCase(field.getFieldType())) {
-                existing.setAttribute("multiple", "true");
-            } else {
-                // ensure single select doesn’t accidentally keep the attribute
-                existing.removeAttribute("multiple");
-                existing.setAttribute("emptyText","Select...");
-            }
+                break;
+
+            case "multifield":
+                Element fieldNode = doc.createElement("field");
+                fieldNode.setAttribute("jcr:primaryType", "nt:unstructured");
+                fieldNode.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/form/fieldset");
+                existing.appendChild(fieldNode);
+
+                Element items1 = doc.createElement("items");
+                items1.setAttribute("jcr:primaryType", "nt:unstructured");
+                fieldNode.appendChild(items1);
+
+                if (field.getNestedFields() != null) {
+                    for (ComponentField nested : field.getNestedFields()) {
+                        insertField(items1, nested);
+                    }
+                }
+                break;
+
+            // Handle other field types here if necessary
+
+            default:
+                // For fields like textfield, numberfield, etc.
+                break;
         }
     }
+
     private void clearTypeSpecificAttributes(Element existing) {
+        // Remove known attributes
         String[] attrs = {
                 "fileReferenceParameter", "class", "mimeTypes", "multiple",
                 "uploadUrl", "fileNameParameter", "autoStart",
@@ -305,8 +314,46 @@ public class UpdateComponentImpl implements UpdateComponent {
                 "useFixedInlineToolbar", "enableSourceEdit",
                 "emptyText", "namespaces", "rootPath"
         };
-        for (String a : attrs) {
-            existing.removeAttribute(a);
+        for (String attr : attrs) {
+            existing.removeAttribute(attr);
+        }
+    }
+
+    private void clearOldFieldContent(Element existing) {
+        // 1️⃣ Remove all type-specific attributes
+        clearTypeSpecificAttributes(existing);
+
+        // 2️⃣ Remove all child elements regardless of type or name
+        NodeList children = existing.getChildNodes();
+        for (int i = children.getLength() - 1; i >= 0; i--) {
+            Node child = children.item(i);
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                existing.removeChild(child);
+            }
+        }
+    }
+
+
+    private void clearOldFieldContent(Element existing, String newType) {
+        // Remove old type-specific attributes
+        clearTypeSpecificAttributes(existing);
+
+        // Determine which child nodes to remove based on type change
+        NodeList children = existing.getChildNodes();
+        for (int i = children.getLength() - 1; i >= 0; i--) {
+            Node child = children.item(i);
+
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                Element el = (Element) child;
+
+                // Remove all old children if the type is changing away from multifield
+                if ("multifield".equalsIgnoreCase(el.getAttribute("sling:resourceType")) ||
+                        "fieldset".equalsIgnoreCase(el.getNodeName()) ||
+                        "items".equalsIgnoreCase(el.getNodeName()) ||
+                        el.getNodeName().startsWith("option")) {
+                    existing.removeChild(child);
+                }
+            }
         }
     }
 
@@ -405,7 +452,7 @@ public class UpdateComponentImpl implements UpdateComponent {
     }
 
 
-    private String extractSlingModelClass(String htlContent) {
+    public static String extractSlingModelClass(String htlContent) {
         Pattern p = Pattern.compile("data-sly-use\\.\\w+\\s*=\\s*\"([^\"]+)\"");
         Matcher m = p.matcher(htlContent);
         while (m.find()) {
@@ -625,20 +672,21 @@ public class UpdateComponentImpl implements UpdateComponent {
             annotation = "@ValueMapValue";
         }
 
-        // 1️⃣ Update field declaration including annotation
+        // Replace field declaration
         content = content.replaceAll(
                 "(?s)@(?:ValueMapValue|ChildResource)\\s+private[^{;]+\\s+" + fieldName + "\\s*;",
                 annotation + " private " + type + " " + fieldName + ";"
         );
 
-        // 2️⃣ Update getter return type
+        // Replace getter return type
         content = content.replaceAll(
-                "(?s)public\\s+[\\w<>\\[\\]]+\\s+get" + capName + "\\s*\\(\\)",
-                "public " + type + " get" + capName + "()"
+                "(?s)public\\s+[\\w<>\\[\\]]+\\s+(get|is)" + capName + "\\s*\\(",
+                "public " + type + " get" + capName + "("
         );
 
         return content;
     }
+
 
 
 
@@ -771,6 +819,8 @@ public class UpdateComponentImpl implements UpdateComponent {
             case "numberfield" -> "double";
             case "checkbox" -> "boolean";
             case "textfield", "textarea", "password", "fileupload", "pathfield" -> "String";
+            case "tagfield" -> "List<String>";
+
             default -> "String"; // fallback
         };
     }
@@ -781,6 +831,7 @@ public class UpdateComponentImpl implements UpdateComponent {
         return switch (fieldType.toLowerCase()) {
             case "numberfield" -> "double";
             case "textfield", "textarea", "password", "pathfield" -> "String";
+            case "tagfield" -> "List<String>";
             default -> "String"; // fallback
         };
     }
@@ -798,14 +849,24 @@ public class UpdateComponentImpl implements UpdateComponent {
                         "DefaultInjectionStrategy.OPTIONAL)\n")
                 .append("public class ").append(className).append(" {\n");
 
+//        for (ComponentField nested : nestedFields) {
+//            sb.append("    @ValueMapValue\n")
+//                    .append("    private String ").append(nested.getFieldName()).append(";\n\n");
+//
+//            sb.append("    public String get").append(capitalize(nested.getFieldName())).append("() {\n")
+//                    .append("        return ").append(nested.getFieldName()).append(";\n")
+//                    .append("    }\n\n");
+//        }
         for (ComponentField nested : nestedFields) {
+            String type = mapFieldTypeToJavaType(nested.getFieldType());
             sb.append("    @ValueMapValue\n")
-                    .append("    private String ").append(nested.getFieldName()).append(";\n\n");
+                    .append("    private ").append(type).append(" ").append(nested.getFieldName()).append(";\n\n");
 
-            sb.append("    public String get").append(capitalize(nested.getFieldName())).append("() {\n")
+            sb.append("    public ").append(type).append(" get").append(capitalize(nested.getFieldName())).append("() {\n")
                     .append("        return ").append(nested.getFieldName()).append(";\n")
                     .append("    }\n\n");
         }
+
 
         sb.append("}\n");
         Files.writeString(classFile, sb.toString());
@@ -830,6 +891,23 @@ public class UpdateComponentImpl implements UpdateComponent {
         Files.writeString(classFile, updated);
     }
 
+    private String removeField(String content, String fieldName, Path projectDir) throws IOException {
+        // Remove the field declaration
+        content = content.replaceAll(
+                "(?s)@(ValueMapValue|ChildResource)\\s+private[^{;]+\\s+" + fieldName + "\\s*;\\s*", ""
+        );
+
+        // Remove getter(s)
+        content = content.replaceAll(
+                "(?s)public\\s+[\\w<>\\[\\]]+\\s+(get|is)" + capitalize(fieldName) + "\\s*\\(\\)\\s*\\{.*?\\}", ""
+        );
+
+        // Delete nested multifield class if exists
+        Path nestedClass = projectDir.resolve(capitalize(fieldName) + ".java");
+        if (Files.exists(nestedClass)) Files.delete(nestedClass);
+
+        return content;
+    }
 
 
 }
