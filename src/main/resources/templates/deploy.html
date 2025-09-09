@@ -18,6 +18,35 @@
 
 
 <main class="flex-grow-1">
+    <div class="d-flex align-items-center mb-3">
+        <span class="me-2 fw-bold">Current Branch:</span>
+        <span id="branchName" th:text="${branch}" class="badge bg-info me-3"></span>
+
+        <!-- Switch Branch -->
+        <form th:action="@{'/' + ${projectName} + '/switchBranch'}" method="post" class="d-flex">
+            <select name="branchName" class="form-select form-select-sm me-2">
+                <option th:each="b : ${branches}" th:value="${b}" th:text="${b}"
+                        th:selected="${b == branch}"></option>
+            </select>
+            <button type="submit" class="btn btn-sm btn-outline-primary">Switch</button>
+        </form>
+
+
+        <!-- Create Branch -->
+        <form th:action="@{'/' + ${projectName} + '/createBranch'}" method="post" class="ms-3 d-flex">
+            <input type="text" name="newBranch" placeholder="new-branch-name" class="form-control form-control-sm me-2" />
+            <button type="submit" class="btn btn-sm btn-outline-success">Create & Switch</button>
+        </form>
+
+<!--        Checking if anything there in stash-->
+<!--        <div th:if="${hasStash}">-->
+<!--            <form th:action="@{'/' + ${projectName} + '/unstash'}" method="post">-->
+<!--                <button type="submit" class="btn btn-info">Unstash Changes</button>-->
+<!--            </form>-->
+<!--        </div>-->
+
+    </div>
+
     <div class="container mt-4">
         <h2 class="mb-4 text-primary" th:text="'Project: ' + ${projectName}"></h2>
         <a href="/dashboard" class="btn btn-outline-secondary mb-3">← Back to Dashboard</a>
@@ -26,6 +55,23 @@
         <div th:if="${message}" id="flashMessage" class="flash-message">
             <i class="bi bi-check-circle-fill me-2"></i>
             <span th:text="${message}"></span>
+        </div>
+
+        <!-- Conflict Resolution Section -->
+        <div th:if="${conflicts}" class="alert alert-warning mt-3">
+            <h5>Checkout Conflicts Detected</h5>
+            <p>You have uncommitted changes in these files:</p>
+            <ul>
+                <li th:each="file : ${conflicts}" th:text="${file}"></li>
+            </ul>
+
+            <form th:action="@{'/' + ${projectName} + '/resolveConflicts'}" method="post">
+                <input type="hidden" name="targetBranch" th:value="${targetBranch}"/>
+                <button type="submit" name="action" value="stash" class="btn btn-warning">Stash & Switch</button>
+                <button type="submit" name="action" value="discard" class="btn btn-danger">Discard Changes</button>
+                <button type="submit" name="action" value="merge" class="btn btn-success">Merge & Switch</button>
+            </form>
+
         </div>
 
         <!-- Action buttons -->
