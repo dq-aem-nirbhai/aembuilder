@@ -12,6 +12,18 @@
 <!-- Navbar -->
 <div th:replace="fragments/navbar :: navbar"></div>
 
+<script>
+    // Function to prevent actions on main branch
+    function checkMainBranch(actionName) {
+        const branchName = document.getElementById('branchName').innerText.trim();
+        if (branchName === 'main') {
+            alert(`Hey! You are in the main branch. Switch to a specific branch to ${actionName}.`);
+            return false;
+        }
+        return true;
+    }
+</script>
+
 <main class="flex-grow-1">
     <div class="container mt-4">
 
@@ -105,8 +117,10 @@
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h4>Components</h4>
                     <div class="d-flex gap-2">
-                        <a th:href="@{'/createComponent/' + ${projectName}}" class="btn btn-sm btn-outline-primary">+ Create Component</a>
-                        <a href="#" class="btn btn-sm btn-outline-primary" onclick="openComponentModal()">+ Component Library</a>
+                        <a th:href="@{'/createComponent/' + ${projectName}}" class="btn btn-sm btn-outline-primary"
+                           onclick="return checkMainBranch('create a component')">+ Create Component</a>
+                        <a href="#" class="btn btn-sm btn-outline-primary"
+                           onclick="return checkMainBranch('open component library') && openComponentModal()">+ Component Library</a>
                     </div>
                 </div>
                 <div id="componentsList" class="row row-cols-1 row-cols-sm-2 g-2">
@@ -115,7 +129,8 @@
                             <span th:text="${component}"></span>
                             <a th:if="${#lists.contains(editableComponents, component)}"
                                th:href="@{/{projectName}/editcomponent(componentName=${component}, projectName=${projectName})}"
-                               class="btn btn-sm btn-outline-secondary ms-2">Edit</a>
+                               class="btn btn-sm btn-outline-secondary ms-2"
+                               onclick="return checkMainBranch('edit this component')">Edit</a>
                         </div>
                     </div>
                 </div>
@@ -130,7 +145,8 @@
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h4>Templates</h4>
                     <div class="d-flex gap-2">
-                        <a th:href="@{/{projectName}/createtemplate(projectName=${projectName})}" class="btn btn-sm btn-outline-primary">Create Template</a>
+                        <a th:href="@{/{projectName}/createtemplate(projectName=${projectName})}" class="btn btn-sm btn-outline-primary"
+                           onclick="return checkMainBranch('create a template')">Create Template</a>
                     </div>
                 </div>
                 <div id="templatesList" class="row row-cols-1 row-cols-sm-2 g-2">
@@ -140,10 +156,12 @@
                             <div class="d-flex">
                                 <a th:if="${template != 'page-content' and template != 'xf-web-variation'}"
                                    th:href="@{/{projectName}/edittemplate(templateName=${template}, projectName=${projectName})}"
-                                   class="btn btn-sm btn-outline-secondary ms-2">Edit</a>
+                                   class="btn btn-sm btn-outline-secondary ms-2"
+                                   onclick="return checkMainBranch('edit this template')">Edit</a>
                                 <a th:if="${template != 'page-content' and template != 'xf-web-variation'}"
                                    th:href="@{/{projectName}/addpolicy(templateName=${template}, projectName=${projectName})}"
-                                   class="btn btn-sm btn-outline-primary ms-2">Add Policy</a>
+                                   class="btn btn-sm btn-outline-primary ms-2"
+                                   onclick="return checkMainBranch('add policy')">Add Policy</a>
                             </div>
                         </div>
                     </div>
