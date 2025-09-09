@@ -203,13 +203,13 @@ public class ComponentController {
 //htl update
         List<ComponentField> fields = componentRequest.getFields();
         log.info("fields from the new request, {}",fields);
-        Path htlFile = Paths.get("generated-projects", projectName,
-                "ui.apps/src/main/content/jcr_root/apps",
-                projectName, "components", componentRequest.getComponentName(),
-                componentRequest.getComponentName() + ".html");
+        String htlFile = "generated-projects/"+ projectName+
+                "/ui.apps/src/main/content/jcr_root/apps/"+
+                projectName+ "/components/"+ componentRequest.getComponentName()+
+                "/"+componentRequest.getComponentName() + ".html";
           log.info("htl path to update {}",htlFile);
 
-        updatehtl.updateHTLFile(htlFile, fields);
+        updatehtl.updateHTLFromRequest(componentRequest,htlFile);
         redirectAttributes.addFlashAttribute("message", "Dialog updated successfully!");
         return "redirect:/view/" + projectName;
     }

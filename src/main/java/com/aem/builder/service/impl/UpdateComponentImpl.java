@@ -124,6 +124,7 @@ public class UpdateComponentImpl implements UpdateComponent {
             el.setAttribute("jcr:primaryType", "nt:unstructured");
             el.setAttribute("sling:resourceType", getResourceType(field.getFieldType()));
             el.setAttribute("fieldLabel", field.getFieldLabel());
+            el.setAttribute("name", "./" + field.getFieldName());
             el.setAttribute("text", field.getFieldName());
             el.setAttribute("value","true");
             el.setAttribute("uncheckedValue","false");
@@ -134,7 +135,7 @@ public class UpdateComponentImpl implements UpdateComponent {
             el.setAttribute("sling:resourceType",getResourceType(field.getFieldType()));
             el.setAttribute("jcr:primaryType", "nt:unstructured");
             el.setAttribute("fieldLabel", field.getFieldLabel());
-            el.setAttribute("name", "./" + field.getFieldName());
+            el.setAttribute("name", "./file");
             el.setAttribute("fileReferenceParameter", "./"+field.getFieldName());
             el.setAttribute("class","cq-droptarget");
             el.setAttribute("mimeTypes","[image/gif,image/jpeg,image/png,image/tiff,image/svg+xml]");
@@ -182,6 +183,33 @@ public class UpdateComponentImpl implements UpdateComponent {
                 }
             }
         }
+
+        else if("multiselect".equalsIgnoreCase(field.getFieldType())){
+            Element el = doc.createElement(field.getFieldName());
+            el.setAttribute("jcr:primaryType", "nt:unstructured");
+
+            el.setAttribute("sling:resourceType", getResourceType(field.getFieldType()));
+            el.setAttribute("fieldLabel", field.getFieldLabel());
+            el.setAttribute("name", "./" + field.getFieldName());
+            el.setAttribute("multiple", "{Boolean}true");
+            // Options support
+            if (field.getOptions() != null && !field.getOptions().isEmpty()) {
+                Element items = doc.createElement("items");
+                items.setAttribute("jcr:primaryType", "nt:unstructured");
+                for (int i = 0; i < field.getOptions().size(); i++) {
+                    OptionItem opt = field.getOptions().get(i);
+                    Element option = doc.createElement("option" + (i + 1));
+                    option.setAttribute("jcr:primaryType", "nt:unstructured");
+                    option.setAttribute("text", opt.getText());
+                    option.setAttribute("value", opt.getValue());
+                    items.appendChild(option);
+                }
+
+                el.appendChild(items);
+            }
+
+            parent.appendChild(el);
+        }
         else {
             Element el = doc.createElement(field.getFieldName());
             el.setAttribute("jcr:primaryType", "nt:unstructured");
@@ -201,6 +229,7 @@ public class UpdateComponentImpl implements UpdateComponent {
                     option.setAttribute("value", opt.getValue());
                     items.appendChild(option);
                 }
+
                 el.appendChild(items);
             }
 
@@ -258,10 +287,32 @@ public class UpdateComponentImpl implements UpdateComponent {
                 break;
 
             case "select":
+                existing.setAttribute("emptyText", "Select...");
+                existing.removeAttribute("multiple");
+
+                // Find or create <items>
+                Element items1 = findOrCreateItems(existing, doc);
+                clearChildElements(items1);
+
+                if (field.getOptions() != null) {
+                    for (int i = 0; i < field.getOptions().size(); i++) {
+                        OptionItem opt = field.getOptions().get(i);
+                        Element option = doc.createElement("option" + (i + 1));
+                        option.setAttribute("jcr:primaryType", "nt:unstructured");
+                        option.setAttribute("text", opt.getText());
+                        option.setAttribute("value", opt.getValue());
+                        items1.appendChild(option);
+                    }
+                }
+                break;
+
             case "multiselect":
-                Element items = doc.createElement("items");
-                items.setAttribute("jcr:primaryType", "nt:unstructured");
-                existing.appendChild(items);
+                existing.setAttribute("multiple", "{Boolean}true");
+
+                // Find or create <items>
+                Element items = findOrCreateItems(existing, doc);
+                clearChildElements(items);
+
                 if (field.getOptions() != null) {
                     for (int i = 0; i < field.getOptions().size(); i++) {
                         OptionItem opt = field.getOptions().get(i);
@@ -272,12 +323,6 @@ public class UpdateComponentImpl implements UpdateComponent {
                         items.appendChild(option);
                     }
                 }
-                if ("multiselect".equals(type)) {
-                    existing.setAttribute("multiple", "true");
-                } else {
-                    existing.removeAttribute("multiple");
-                    existing.setAttribute("emptyText", "Select...");
-                }
                 break;
 
             case "multifield":
@@ -286,13 +331,13 @@ public class UpdateComponentImpl implements UpdateComponent {
                 fieldNode.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/form/fieldset");
                 existing.appendChild(fieldNode);
 
-                Element items1 = doc.createElement("items");
-                items1.setAttribute("jcr:primaryType", "nt:unstructured");
-                fieldNode.appendChild(items1);
+                Element items2 = doc.createElement("items");
+                items2.setAttribute("jcr:primaryType", "nt:unstructured");
+                fieldNode.appendChild(items2);
 
                 if (field.getNestedFields() != null) {
                     for (ComponentField nested : field.getNestedFields()) {
-                        insertField(items1, nested);
+                        insertField(items2, nested);
                     }
                 }
                 break;
@@ -305,6 +350,29 @@ public class UpdateComponentImpl implements UpdateComponent {
         }
     }
 
+    /** Utility to find or create <items> element */
+    private Element findOrCreateItems(Element parent, Document doc) {
+        NodeList children = parent.getElementsByTagName("items");
+        if (children.getLength() > 0) {
+            return (Element) children.item(0);
+        } else {
+            Element items = doc.createElement("items");
+            items.setAttribute("jcr:primaryType", "nt:unstructured");
+            parent.appendChild(items);
+            return items;
+        }
+    }
+
+    /** Utility to clear all child elements */
+    private void clearChildElements(Element element) {
+        NodeList children = element.getChildNodes();
+        for (int i = children.getLength() - 1; i >= 0; i--) {
+            Node child = children.item(i);
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                element.removeChild(child);
+            }
+        }
+    }
     private void clearTypeSpecificAttributes(Element existing) {
         // Remove known attributes
         String[] attrs = {
@@ -819,7 +887,7 @@ public class UpdateComponentImpl implements UpdateComponent {
             case "numberfield" -> "double";
             case "checkbox" -> "boolean";
             case "textfield", "textarea", "password", "fileupload", "pathfield" -> "String";
-            case "tagfield" -> "List<String>";
+            case "tagfield","multiselect" -> "List<String>";
 
             default -> "String"; // fallback
         };
@@ -831,7 +899,7 @@ public class UpdateComponentImpl implements UpdateComponent {
         return switch (fieldType.toLowerCase()) {
             case "numberfield" -> "double";
             case "textfield", "textarea", "password", "pathfield" -> "String";
-            case "tagfield" -> "List<String>";
+            case "tagfield","multiselect" -> "List<String>";
             default -> "String"; // fallback
         };
     }
