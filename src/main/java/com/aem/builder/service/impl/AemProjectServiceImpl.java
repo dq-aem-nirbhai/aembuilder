@@ -8,7 +8,10 @@ import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
+import org.eclipse.jgit.api.CreateBranchCommand;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ListBranchCommand;
+import org.eclipse.jgit.lib.Ref;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.w3c.dom.Document;
@@ -445,10 +448,39 @@ public class AemProjectServiceImpl implements AemProjectService {
         // 1) Clone into a brand new empty temp dir
         Path tempDir = Files.createTempDirectory("aem-clone-");
 
-        try (Git ignored = Git.cloneRepository()
+        try (Git git = Git.cloneRepository()
                 .setURI(repoUrl)
-                .setDirectory(tempDir.toFile()) // clone directly here
+                .setDirectory(tempDir.toFile())
+                .setCloneAllBranches(true)
+                .setBranch("refs/heads/main")
                 .call()) {
+
+            // Create local branches for all remotes
+            List<Ref> remoteBranches = git.branchList()
+                    .setListMode(ListBranchCommand.ListMode.REMOTE)
+                    .call();
+
+            for (Ref remoteRef : remoteBranches) {
+                String fullName = remoteRef.getName(); // refs/remotes/origin/feature-x
+                if (fullName.startsWith("refs/remotes/origin/")) {
+                    String branchName = fullName.replace("refs/remotes/origin/", "");
+
+                    // Skip HEAD reference
+                    if ("HEAD".equals(branchName)) continue;
+
+                    // Check if already exists locally
+                    boolean exists = git.branchList().call().stream()
+                            .anyMatch(ref -> ref.getName().equals("refs/heads/" + branchName));
+
+                    if (!exists) {
+                        git.branchCreate()
+                                .setName(branchName)
+                                .setStartPoint(fullName)
+                                .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.TRACK)
+                                .call();
+                    }
+                }
+            }
 
             // 1) Validate if it’s an AEM project
             if (!isAemProject(tempDir)) {
