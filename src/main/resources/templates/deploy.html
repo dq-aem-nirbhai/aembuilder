@@ -14,10 +14,10 @@
 
 <script>
     // Function to prevent actions on main branch
-    function checkMainBranch(actionName) {
+    function checkRestrictedBranch(actionName) {
         const branchName = document.getElementById('branchName').innerText.trim();
-        if (branchName === 'main') {
-            alert(`Hey! You are in the main branch. Switch to a specific branch to ${actionName}.`);
+        if (branchName === 'main' || branchName === 'dev') {
+            alert(`Hey! You are in the restricted branch. Switch to a specific branch to ${actionName}.`);
             return false;
         }
         return true;
@@ -115,9 +115,9 @@
                     <h4>Components</h4>
                     <div class="d-flex gap-2">
                         <a th:href="@{'/createComponent/' + ${projectName}}" class="btn btn-sm btn-outline-primary"
-                           onclick="return checkMainBranch('create a component')">+ Create Component</a>
+                           onclick="return checkRestrictedBranch('create a component')">+ Create Component</a>
                         <a href="#" class="btn btn-sm btn-outline-primary"
-                           onclick="return checkMainBranch('open component library') && openComponentModal()">+ Component Library</a>
+                           onclick="return checkRestrictedBranch('open component library') && openComponentModal()">+ Component Library</a>
                     </div>
                 </div>
                 <div id="componentsList" class="row row-cols-1 row-cols-sm-2 g-2">
@@ -127,7 +127,7 @@
                             <a th:if="${#lists.contains(editableComponents, component)}"
                                th:href="@{/{projectName}/editcomponent(componentName=${component}, projectName=${projectName})}"
                                class="btn btn-sm btn-outline-secondary ms-2"
-                               onclick="return checkMainBranch('edit this component')">Edit</a>
+                               onclick="return checkRestrictedBranch('edit this component')">Edit</a>
                         </div>
                     </div>
                 </div>
@@ -143,7 +143,7 @@
                     <h4>Templates</h4>
                     <div class="d-flex gap-2">
                         <a th:href="@{/{projectName}/createtemplate(projectName=${projectName})}" class="btn btn-sm btn-outline-primary"
-                           onclick="return checkMainBranch('create a template')">Create Template</a>
+                           onclick="return checkRestrictedBranch('create a template')">Create Template</a>
                     </div>
                 </div>
                 <div id="templatesList" class="row row-cols-1 row-cols-sm-2 g-2">
@@ -154,11 +154,11 @@
                                 <a th:if="${template != 'page-content' and template != 'xf-web-variation'}"
                                    th:href="@{/{projectName}/edittemplate(templateName=${template}, projectName=${projectName})}"
                                    class="btn btn-sm btn-outline-secondary ms-2"
-                                   onclick="return checkMainBranch('edit this template')">Edit</a>
+                                   onclick="return checkRestrictedBranch('edit this template')">Edit</a>
                                 <a th:if="${template != 'page-content' and template != 'xf-web-variation'}"
                                    th:href="@{/{projectName}/addpolicy(templateName=${template}, projectName=${projectName})}"
                                    class="btn btn-sm btn-outline-primary ms-2"
-                                   onclick="return checkMainBranch('add policy')">Add Policy</a>
+                                   onclick="return checkRestrictedBranch('add policy')">Add Policy</a>
                             </div>
                         </div>
                     </div>
