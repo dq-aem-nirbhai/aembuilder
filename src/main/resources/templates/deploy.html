@@ -64,12 +64,9 @@
         <a href="/dashboard" class="btn btn-outline-secondary mb-3">← Back to Dashboard</a>
 
         <!-- Flash Messages -->
-        <div th:if="${message}"
-             class="alert alert-success alert-dismissible fade show"
-             role="alert"
-             id="flashMessage">
+        <div th:if="${message}" id="flashMessage" class="flash-message">
+            <i class="bi bi-check-circle-fill me-2"></i>
             <span th:text="${message}"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
 
         <!-- Conflict Resolution Section -->
