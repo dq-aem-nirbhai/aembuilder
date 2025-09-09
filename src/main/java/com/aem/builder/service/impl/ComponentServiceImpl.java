@@ -23,10 +23,8 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FileUtils;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
+import org.w3c.dom.*;
+
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -598,12 +596,12 @@ public class ComponentServiceImpl implements ComponentService {
                 }
             }
 
-            result.add(new ComponentField(fieldLabel, tabName, "tabs", nested, null));
+            result.add(new ComponentField(fieldLabel, tabName, "tabs", false,nested, null));
             return result;
         }
 
         // --- Default: simple field
-        result.add(new ComponentField(fieldLabel, fieldName, fieldType, nested, options));
+        result.add(new ComponentField(fieldLabel, fieldName, fieldType, false,nested, options));
         return result;
     }
 
@@ -1229,7 +1227,210 @@ Updating logic below
         return superTypePath;
     }
 
+    @Override
+    public Map<String, Object> getParentTabs(String projectName, String superType) {
+        Map<String, Object> result = new HashMap<>();
+        Set<String> tabs = new LinkedHashSet<>(); // preserve order, avoid duplicates
 
+        try {
+            collectTabsRecursively(projectName, superType, tabs);
+
+            result.put("hasTabs", !tabs.isEmpty());
+            result.put("tabs", new ArrayList<>(tabs));
+            log.info("✅ Final merged tabs for {} -> {}", superType, tabs);
+
+        } catch (Exception e) {
+            log.error("❌ Error while fetching parent tabs for {}", superType, e);
+            result.put("hasTabs", false);
+            result.put("tabs", new ArrayList<>());
+        }
+
+        return result;
+    }
+
+    /**
+     * Recursively collects tabs from current component and its superTypes.
+     */
+    private void collectTabsRecursively(String projectName, String superType, Set<String> tabs) throws Exception {
+        boolean isCore = superType.startsWith("core/");
+        String basePath = System.getProperty("user.dir") +
+                (isCore
+                        ? "/src/main/resources/" + superType
+                        : "/generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root" + superType);
+
+        // Step 1: parse dialog
+        File dialogFile = new File(basePath + "/_cq_dialog/.content.xml");
+        if (dialogFile.exists()) {
+            List<String> currentTabs = isCore
+                    ? parseCoreTabsFromDialog(dialogFile)
+                    : parseProjectTabsFromDialog(dialogFile);
+            tabs.addAll(currentTabs);
+            log.info("➡️ Tabs collected from {}: {}", superType, currentTabs);
+        }
+
+        // Step 2: check superType in .content.xml
+        File compContentFile = new File(basePath + "/.content.xml");
+        if (compContentFile.exists()) {
+            log.info("componentFile for supertype,{}",compContentFile);
+            String parentSuperType = readSuperType(compContentFile);
+            log.info("parent,{}",parentSuperType);
+            if (parentSuperType != null && !parentSuperType.isEmpty()) {
+                if (parentSuperType.startsWith("core/")) {
+                    // Only collect core tabs once
+                    String corePath = System.getProperty("user.dir") + "/src/main/resources/" + parentSuperType;
+                    File coreDialog = new File(corePath + "/_cq_dialog/.content.xml");
+                    if (coreDialog.exists()) {
+                        List<String> coreTabs = parseCoreTabsFromDialog(coreDialog);
+                        tabs.addAll(coreTabs);
+                        log.info("➡️ Core Tabs collected from {}: {}", parentSuperType, coreTabs);
+                    } else {
+                        log.warn("⚠️ Core dialog not found at {}", coreDialog.getAbsolutePath());
+                    }
+                } else {
+                    // Recurse for project parent
+                    collectTabsRecursively(projectName, parentSuperType, tabs);
+                }
+            }
+        }
+    }
+
+    /**
+     * Parse dialog file and extract tab names for project (normal) components.
+     */
+    private List<String> parseProjectTabsFromDialog(File dialogFile) throws Exception {
+        List<String> tabs = new ArrayList<>();
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document doc = builder.parse(dialogFile);
+
+        NodeList nodes = doc.getElementsByTagName("*");
+        for (int i = 0; i < nodes.getLength(); i++) {
+            org.w3c.dom.Node node = nodes.item(i);
+            NamedNodeMap attrs = node.getAttributes();
+            if (attrs == null) continue;
+
+            org.w3c.dom.Node resType = attrs.getNamedItem("sling:resourceType");
+            if (resType != null && "granite/ui/components/coral/foundation/tabs".equals(resType.getNodeValue())) {
+                NodeList itemsNodes = node.getChildNodes();
+                for (int j = 0; j < itemsNodes.getLength(); j++) {
+                    org.w3c.dom.Node itemsNode = itemsNodes.item(j);
+                    if (!"items".equals(itemsNode.getNodeName())) continue;
+
+                    NodeList tabNodes = itemsNode.getChildNodes();
+                    for (int k = 0; k < tabNodes.getLength(); k++) {
+                        org.w3c.dom.Node tabNode = tabNodes.item(k);
+                        if (tabNode.getNodeType() != org.w3c.dom.Node.ELEMENT_NODE) continue;
+
+                        NamedNodeMap tabAttrs = tabNode.getAttributes();
+                        if (tabAttrs == null) continue;
+
+                        org.w3c.dom.Node tabResType = tabAttrs.getNamedItem("sling:resourceType");
+                        if (tabResType != null && "granite/ui/components/coral/foundation/container".equals(tabResType.getNodeValue())) {
+                            String tabTitle = tabAttrs.getNamedItem("jcr:title") != null
+                                    ? tabAttrs.getNamedItem("jcr:title").getNodeValue()
+                                    : tabNode.getNodeName();
+                            tabs.add(tabTitle);
+                            log.info("   ➕ Project Tab detected: {}", tabTitle);
+                        }
+                    }
+                }
+            }
+        }
+        return tabs;
+    }
+
+
+    /**
+     * Parse dialog file and extract tab names for Core components.
+     * Stops at first <tabs> found.
+     */
+    private List<String> parseCoreTabsFromDialog(File dialogFile) throws Exception {
+        List<String> tabs = new ArrayList<>();
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document doc = builder.parse(dialogFile);
+
+        org.w3c.dom.Node root = doc.getDocumentElement();
+        parseTabsRecursive(root, tabs);
+        return tabs;
+    }
+
+    private void parseTabsRecursive(org.w3c.dom.Node node, List<String> tabs) {
+        if (node.getNodeType() != org.w3c.dom.Node.ELEMENT_NODE) return;
+
+        NamedNodeMap attrs = node.getAttributes();
+
+        // Case 1: Node is <tabs>
+        if ("tabs".equals(node.getNodeName()) ||
+                (attrs != null && attrs.getNamedItem("sling:resourceType") != null &&
+                        "granite/ui/components/coral/foundation/tabs".equals(attrs.getNamedItem("sling:resourceType").getNodeValue()))) {
+
+            NodeList itemsNodes = node.getChildNodes();
+            for (int i = 0; i < itemsNodes.getLength(); i++) {
+                org.w3c.dom.Node itemsNode = itemsNodes.item(i);
+                if (!"items".equals(itemsNode.getNodeName())) continue;
+
+                NodeList tabNodes = itemsNode.getChildNodes();
+                for (int j = 0; j < tabNodes.getLength(); j++) {
+                    org.w3c.dom.Node tabNode = tabNodes.item(j);
+                    if (tabNode.getNodeType() != org.w3c.dom.Node.ELEMENT_NODE) continue;
+
+                    NamedNodeMap tabAttrs = tabNode.getAttributes();
+                    if (tabAttrs == null) continue;
+
+                    org.w3c.dom.Node resTypeAttr = tabAttrs.getNamedItem("sling:resourceType");
+                    if (resTypeAttr != null &&
+                            "granite/ui/components/coral/foundation/container".equals(resTypeAttr.getNodeValue())) {
+
+                        org.w3c.dom.Node titleAttr = tabAttrs.getNamedItem("jcr:title");
+                        if (titleAttr != null) {
+                            tabs.add(titleAttr.getNodeValue());
+                            log.info("   ➕ Core Tab detected: {}", titleAttr.getNodeValue());
+                        }
+                    }
+
+                    // Recurse into nested <tabs> inside this tab node
+                    parseTabsRecursive(tabNode, tabs);
+                }
+            }
+        } else {
+            // Recurse into child nodes
+            NodeList children = node.getChildNodes();
+            for (int i = 0; i < children.getLength(); i++) {
+                parseTabsRecursive(children.item(i), tabs);
+            }
+        }
+    }
+
+
+
+    /**
+     * Reads sling:resourceSuperType from .content.xml.
+     */
+    private String readSuperType(File compContentFile) throws Exception {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true); // important
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document doc = builder.parse(compContentFile);
+
+        NodeList rootNodes = doc.getElementsByTagName("*");
+        for (int i = 0; i < rootNodes.getLength(); i++) {
+            org.w3c.dom.Node node = rootNodes.item(i);
+            NamedNodeMap attrs = node.getAttributes();
+            if (attrs != null) {
+                for (int j = 0; j < attrs.getLength(); j++) {
+                    org.w3c.dom.Node attr = attrs.item(j);
+                    String name = attr.getNodeName();
+                    if ("sling:resourceSuperType".equals(name) || name.endsWith(":resourceSuperType")) {
+                        log.info("Super Type....,{}", attr.getNodeValue());
+                        return attr.getNodeValue();
+                    }
+                }
+            }
+        }
+        return null;
+    }
 }
 
 

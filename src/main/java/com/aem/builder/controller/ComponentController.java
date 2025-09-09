@@ -3,9 +3,11 @@ package com.aem.builder.controller;
 import com.aem.builder.model.DTO.ComponentRequest;
 import com.aem.builder.model.Enum.FieldType;
 import com.aem.builder.service.ComponentService;
+import com.aem.builder.util.FileGenerationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -60,6 +62,7 @@ public class ComponentController {
             return "create";
         }
     }
+
     //component creation
     @GetMapping("/createComponent/{project}")
     public String showComponentForm(@PathVariable String project, Model model) {
@@ -81,10 +84,10 @@ public class ComponentController {
         model.addAttribute("fieldTypes", sortedByKey);
         model.addAttribute("componentGroups", componentService.getComponentGroups(project));
         model.addAttribute("editMode", false);
-        Map<String, String> compMap= componentService.fetchComponentSuperTypes(project);
+        Map<String, String> compMap = componentService.fetchComponentSuperTypes(project);
 
         model.addAttribute("availableComponents", compMap);
-        log.info("superTypessss...{}",compMap);
+        log.info("superTypessss...{}", compMap);
 
         return "create-component"; // Thymeleaf template
     }
@@ -108,8 +111,8 @@ public class ComponentController {
         model.addAttribute("componentGroups", componentService.getComponentGroups(projectName));
         model.addAttribute("editMode", true);
 
-        Map<String, String> compMap= componentService.fetchComponentSuperTypes(projectName);
-        log.info("superTypessss...{}",compMap);
+        Map<String, String> compMap = componentService.fetchComponentSuperTypes(projectName);
+        log.info("superTypessss...{}", compMap);
 
         model.addAttribute("availableComponents", compMap);
         model.addAttribute("componentData", component);
@@ -122,9 +125,10 @@ public class ComponentController {
     public String createComponent(@PathVariable String project,
                                   @ModelAttribute ComponentRequest request,
                                   RedirectAttributes redirectAttributes) {
+        log.info("Request Details,{}",request);
         try {
             componentService.generateComponent(project, request);
-            redirectAttributes.addFlashAttribute("message", request.getComponentName()+" Component created successfully!");
+            redirectAttributes.addFlashAttribute("message", request.getComponentName() + " Component created successfully!");
             return "redirect:/view/" + project;
         } catch (Exception e) {
             log.error("Error creating component", e);
@@ -139,7 +143,7 @@ public class ComponentController {
                                   RedirectAttributes redirectAttributes) {
         try {
             componentService.updateComponent(project, request);
-            redirectAttributes.addFlashAttribute("message", request.getComponentName()+" Component updated successfully!");
+            redirectAttributes.addFlashAttribute("message", request.getComponentName() + " Component updated successfully!");
             return "redirect:/view/" + project;
         } catch (Exception e) {
             log.error("Error updating component", e);
@@ -154,7 +158,7 @@ public class ComponentController {
                                   RedirectAttributes redirectAttributes) {
         try {
             componentService.deleteComponent(project, componentName);
-            redirectAttributes.addFlashAttribute("message", componentName+" Component deleted successfully!");
+            redirectAttributes.addFlashAttribute("message", componentName + " Component deleted successfully!");
         } catch (Exception e) {
             log.error("Error deleting component", e);
             redirectAttributes.addFlashAttribute("error", "Failed to delete component: " + e.getMessage());
@@ -162,19 +166,18 @@ public class ComponentController {
         return "redirect:/view/" + project;
     }
 
-//component checking
+    //component checking
     @GetMapping("/check-componentName/{projectName}")
     public ResponseEntity<Boolean> checkComponentNameExists(
             @PathVariable String projectName,
             @RequestParam String componentName) {
 
-        log.info("{}",componentName);
+        log.info("{}", componentName);
         log.info("check-component");
         boolean isAvailable = componentService.isComponentNameAvailable(projectName, componentName);
-        log.info("{}",isAvailable);
+        log.info("{}", isAvailable);
         return ResponseEntity.ok(isAvailable); // true means name is available
     }
-
 
 
     @GetMapping("/grouped-components/{projectName}")
@@ -184,6 +187,7 @@ public class ComponentController {
 
         return componentService.getComponentsByGroup(projectName);
     }
+
     @GetMapping("/policies-components/{projectName}")
     @ResponseBody
     public Map<String, List<Map<String, String>>> getGroupedComponents(@PathVariable String projectName) throws IOException {
@@ -211,6 +215,31 @@ public class ComponentController {
 
         return response;
     }
+
+
+    /*
+    Multifield java class name check
+     */
+    @GetMapping("/checkChildJavaClassName")
+    public ResponseEntity<Boolean> checkChildJavaClassName(
+            @RequestParam String projectName,
+            @RequestParam String fieldName) throws IOException {
+
+        boolean exists = FileGenerationUtil.checkModelFileExists(projectName, fieldName);
+        return ResponseEntity.ok(exists); // returns true or false
+    }
+
+
+//    logic for Check Parent Having tabs
+@PostMapping("/checkTabs")
+public Map<String, Object> checkIfParentHasTabs(@RequestBody Map<String, String> request) throws Exception {
+    String projectName = request.get("projectName");
+    String superType = request.get("superType");
+
+    log.info("Parent Tabs........., {}", componentService.getParentTabs(projectName, superType));
+    return componentService.getParentTabs(projectName, superType);
+}
+
 
 
 }

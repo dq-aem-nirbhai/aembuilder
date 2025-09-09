@@ -47,4 +47,8 @@ public interface ComponentService {
 
     Map<String, String>fetchComponentSuperTypes(String projectName);
 
+    /*
+check parent having tabs or not
+ */
+    Map<String, Object> getParentTabs(String projectName, String superType);
 }
