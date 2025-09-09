@@ -108,21 +108,30 @@ public class GitBranchServiceImpl implements GitBranchService {
     }
 
     @Override
-    public void createAndSwitchBranch(Path repoPath, String branchName) throws Exception {
+    public void createAndSwitchBranch(Path repoPath, String branchName, String fromBranch) throws Exception {
         try (Git git = Git.open(repoPath.toFile())) {
             boolean branchExists = git.branchList().call().stream()
                     .anyMatch(ref -> ref.getName().endsWith("/" + branchName));
 
             if (branchExists) {
+                // branch already exists, just switch
                 git.checkout().setName(branchName).call();
-            } else {
-                git.checkout()
-                        .setCreateBranch(true)
-                        .setName(branchName)
-                        .call();
+                return;
             }
-        } catch (Exception e) {
-            System.out.println("Error creating branch:");
+
+            // validate fromBranch exists
+            boolean fromExists = git.branchList().call().stream()
+                    .anyMatch(ref -> ref.getName().endsWith("/" + fromBranch));
+
+            String startPoint = fromExists ? ("refs/heads/" + fromBranch) : fromBranch;
+
+            // create a new branch from the startPoint and switch to it
+            // This may throw CheckoutConflictException if the working tree has conflicting changes
+            git.checkout()
+                    .setCreateBranch(true)
+                    .setName(branchName)
+                    .setStartPoint(startPoint)
+                    .call();
         }
     }
 

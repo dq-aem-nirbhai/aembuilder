@@ -12,7 +12,7 @@ public interface GitBranchService {
 
     public void switchBranch(Path projectPath, String branchName) throws Exception;
 
-    public void createAndSwitchBranch(Path projectPath, String branchName) throws Exception;
+    public void createAndSwitchBranch(Path repoPath, String branchName, String fromBranch) throws Exception;
 
     public void stashAndSwitch(Path repoPath, String branchName) throws Exception;
 

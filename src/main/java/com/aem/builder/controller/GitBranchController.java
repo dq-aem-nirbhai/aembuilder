@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 
@@ -89,17 +90,26 @@ public class GitBranchController {
         return "redirect:/view/" + projectName;
     }
 
+    // ----- CREATE BRANCH (choose from which branch to create) -----
     @PostMapping("/{projectName}/createBranch")
     public String createBranch(@PathVariable String projectName,
                                @RequestParam String newBranch,
+                               @RequestParam String fromBranch,
                                RedirectAttributes redirectAttributes) {
+        Path repoPath = Paths.get(PROJECTS_DIR, projectName);
         try {
-            gitBranchService.createAndSwitchBranch(Paths.get(PROJECTS_DIR, projectName), newBranch);
+            gitBranchService.createAndSwitchBranch(repoPath, newBranch, fromBranch);
             redirectAttributes.addFlashAttribute("message", "Created and switched to branch: " + newBranch);
+        } catch (CheckoutConflictException e) {
+            // send conflicts back to UI and indicate this was a create action
+            redirectAttributes.addFlashAttribute("conflicts", e.getConflictingPaths());
+            redirectAttributes.addFlashAttribute("targetBranch", newBranch);
+            redirectAttributes.addFlashAttribute("branchAction", "create");
+            redirectAttributes.addFlashAttribute("fromBranch", fromBranch);
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("message", "Failed to create branch: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "Failed to create branch: " + e.getMessage());
         }
-        return "redirect:/" + projectName + "/details";
+        return "redirect:/view/" + projectName;
     }
 
 }
