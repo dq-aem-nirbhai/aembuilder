@@ -87,6 +87,9 @@
           <p th:if="${project.importDate != 'Unknown'}">
             <strong>Imported:</strong> <span th:text="${project.importDate}"></span>
           </p>
+          <p th:if="${project.cloneDate != 'Unknown'}">
+            <strong>Cloned:</strong> <span th:text="${project.cloneDate}"></span>
+          </p>
           <p><strong>Path:</strong> <span th:text="${project.path}"></span></p>
 
 

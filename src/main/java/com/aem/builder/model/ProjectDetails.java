@@ -14,5 +14,6 @@ public class ProjectDetails {
     private String groupId;
     private String createdDate;
     private String importDate;
+    private String cloneDate;
     private String path;
 }

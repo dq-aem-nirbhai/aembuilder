@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import javax.xml.XMLConstants;
@@ -108,40 +109,9 @@ public class AemProjectServiceImpl implements AemProjectService {
             if (exitCode != 0) {
                 throw new IOException("AEM project generation failed with exit code: " + exitCode);
             }
-            String pomPath = baseDir + appId + "/pom.xml";
-            File pomFile = new File(pomPath);
-            if (pomFile.exists()) {
-                try {
-                    var builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-                    Document doc = builder.parse(pomFile);
-                    Element projectEl = doc.getDocumentElement();
-
-                    // Locate or create <properties>
-                    NodeList propsList = doc.getElementsByTagName("properties");
-                    Element propsEl;
-                    if (propsList.getLength() > 0) {
-                        propsEl = (Element) propsList.item(0);
-                    } else {
-                        propsEl = doc.createElement("properties");
-                        projectEl.appendChild(propsEl);
-                    }
-
-                    // Add createdDate if not already present
-                    if (doc.getElementsByTagName("createdDate").getLength() == 0) {
-                        Element createdDateEl = doc.createElement("createdDate");
-                        createdDateEl.setTextContent(
-                                ZonedDateTime.now()
-                                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))                        );
-                        propsEl.appendChild(createdDateEl);
-
-                        // Save back to pom.xml
-                        Transformer transformer = TransformerFactory.newInstance().newTransformer();
-                        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-                        transformer.transform(new DOMSource(doc), new StreamResult(pomFile));
-                    }
-                } catch (Exception e) {
-                    System.err.println("⚠️ Failed to inject createdDate into pom.xml: " + e.getMessage());
-                }
+            Path pomFile = projectPath.resolve("pom.xml");
+            if (Files.exists(pomFile)) {
+                updatePomProperty(pomFile, "createdDate", List.of("importDate", "cloneDate"));
             }
             updateConfFilterMode(baseDir,appId);
             String componentsTargetPath = baseDir + appId + "/ui.apps/src/main/content/jcr_root/apps/" + appId + "/components/";
@@ -171,6 +141,7 @@ public class AemProjectServiceImpl implements AemProjectService {
                 String groupId = "Unknown";
                 String createdDate = "Unknown";
                 String importDate = "Unknown";
+                String cloneDate = "Unknown";
                 String displayName="Unknown";
                 String path = new File(projectsFolder, name).getPath();
 
@@ -200,11 +171,14 @@ public class AemProjectServiceImpl implements AemProjectService {
 
                         NodeList createdDateNodes = doc.getElementsByTagName("createdDate");
                         NodeList importDateNodes = doc.getElementsByTagName("importDate");
+                        NodeList cloneDateNodes = doc.getElementsByTagName("cloneDate");
 
                         if (createdDateNodes.getLength() > 0) {
                             createdDate = createdDateNodes.item(0).getTextContent();
                         } else if (importDateNodes.getLength() > 0) {
                             importDate = importDateNodes.item(0).getTextContent();
+                        } else if (cloneDateNodes.getLength() > 0) {
+                            cloneDate = cloneDateNodes.item(0).getTextContent();
                         }
 
                     }
@@ -212,9 +186,8 @@ public class AemProjectServiceImpl implements AemProjectService {
                 } catch (Exception ignored) {
                 }
 
-
-
-                projects.add(new ProjectDetails(displayName,name, version, groupId, createdDate,importDate, path));
+                projects.add(new ProjectDetails(displayName,name, version, groupId, createdDate, importDate, cloneDate,
+                        path));
             }
         }
         return projects;
@@ -333,50 +306,8 @@ public class AemProjectServiceImpl implements AemProjectService {
         }
 
         Path pomFile = target.resolve("pom.xml");
-        try {
-            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-            org.w3c.dom.Document doc = dBuilder.parse(pomFile.toFile());
-            doc.getDocumentElement().normalize();
 
-            org.w3c.dom.NodeList propsList = doc.getElementsByTagName("properties");
-            org.w3c.dom.Element propertiesElement;
-            if (propsList.getLength() > 0) {
-                propertiesElement = (org.w3c.dom.Element) propsList.item(0);
-            } else {
-                propertiesElement = doc.createElement("properties");
-                doc.getDocumentElement().appendChild(propertiesElement);
-            }
-
-            // Remove <createdDate> if exists
-            NodeList createdNodes = doc.getElementsByTagName("createdDate");
-            if (createdNodes.getLength() > 0) {
-                org.w3c.dom.Node toRemove = createdNodes.item(0);
-                propertiesElement.removeChild(toRemove);
-            }
-
-            // Add or update <importDate>
-            NodeList importNodes = doc.getElementsByTagName("importDate");
-            String now = ZonedDateTime.now()
-                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-            // yyyy-MM-dd
-
-            if (importNodes.getLength() > 0) {
-                importNodes.item(0).setTextContent(now);
-            } else {
-                org.w3c.dom.Element importDateEl = doc.createElement("importDate");
-                importDateEl.setTextContent(now);
-                propertiesElement.appendChild(importDateEl);
-            }
-
-            // Save pom.xml back
-            Transformer transformer = TransformerFactory.newInstance().newTransformer();
-            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-            transformer.transform(new DOMSource(doc), new StreamResult(pomFile.toFile()));
-
-        } catch (Exception e) {
-            throw new IOException("Failed to update pom.xml with importDate.", e);
-        }
+        updatePomProperty(pomFile, "importDate", List.of("createdDate", "cloneDate"));
 
         updateConfFilterMode(PROJECTS_DIR, artifactId);
 
@@ -508,6 +439,10 @@ public class AemProjectServiceImpl implements AemProjectService {
             } catch (IOException crossFs) {
                 FileUtils.copyDirectory(tempDir.toFile(), target.toFile());
                 FileUtils.deleteDirectory(tempDir.toFile());
+            }
+            Path pomFile = target.resolve("pom.xml");
+            if (Files.exists(pomFile)) {
+                updatePomProperty(pomFile, "cloneDate", List.of("importDate", "createdDate"));
             }
         } catch (Exception e) {
             cleanupTemp(tempDir);
@@ -658,4 +593,63 @@ public class AemProjectServiceImpl implements AemProjectService {
         }
     }
 
+    private void updatePomProperty(Path pomFile, String propertyName, List<String> toRemove) throws IOException {
+        try {
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            org.w3c.dom.Document doc = dBuilder.parse(pomFile.toFile());
+            doc.getDocumentElement().normalize();
+
+            // Get or create <properties>
+            NodeList propsList = doc.getElementsByTagName("properties");
+            org.w3c.dom.Element propertiesElement;
+            if (propsList.getLength() > 0) {
+                propertiesElement = (org.w3c.dom.Element) propsList.item(0);
+            } else {
+                propertiesElement = doc.createElement("properties");
+                doc.getDocumentElement().appendChild(propertiesElement);
+            }
+
+            // Remove only requested properties from <properties>
+            if (toRemove != null && !toRemove.isEmpty()) {
+                for (int i = propertiesElement.getChildNodes().getLength() - 1; i >= 0; i--) {
+                    Node child = propertiesElement.getChildNodes().item(i);
+                    if (child.getNodeType() == Node.ELEMENT_NODE
+                            && toRemove.contains(child.getNodeName())) {
+                        propertiesElement.removeChild(child);
+                    }
+                }
+            }
+
+            // Find existing property inside <properties>
+            org.w3c.dom.Element existing = null;
+            NodeList children = propertiesElement.getChildNodes();
+            for (int i = 0; i < children.getLength(); i++) {
+                Node n = children.item(i);
+                if (n.getNodeType() == Node.ELEMENT_NODE && propertyName.equals(n.getNodeName())) {
+                    existing = (org.w3c.dom.Element) n;
+                    break;
+                }
+            }
+
+            // Current timestamp
+            String now = ZonedDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+
+            if (existing != null) {
+                existing.setTextContent(now); // update
+            } else {
+                org.w3c.dom.Element newEl = doc.createElement(propertyName);
+                newEl.setTextContent(now);
+                propertiesElement.appendChild(newEl);
+            }
+
+            // Save pom.xml back
+            Transformer transformer = TransformerFactory.newInstance().newTransformer();
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            transformer.transform(new DOMSource(doc), new StreamResult(pomFile.toFile()));
+
+        } catch (Exception e) {
+            throw new IOException("Failed to update pom.xml with property: " + propertyName, e);
+        }
+    }
 }
