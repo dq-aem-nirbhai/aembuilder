@@ -1103,7 +1103,7 @@ Updating logic below
         return null;
     }
 
-    private String searchComponentRecursiveExact(File dir, String componentName) {
+    public String searchComponentRecursiveExact(File dir, String componentName) {
         if (!dir.isDirectory()) return null;
 
         // Exact case-sensitive match

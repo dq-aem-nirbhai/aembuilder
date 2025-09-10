@@ -17,15 +17,16 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import static org.springframework.util.xml.DomUtils.getChildElements;
 
@@ -317,8 +318,40 @@ public class PolicyServiceImpl implements PolicyService {
             File file = new File(path);
             result.add(new ComponentInfo(component, file.exists()));
         }
+        List<ComponentInfo> listComponents = result.stream()
+                .filter(c -> !c.isHasDesignDialog())
+                .toList();
 
-        return result;
+        List<ComponentInfo> componentsCore = checkDesignDialogsForCore(listComponents);
+        Map<String, ComponentInfo> merged = new LinkedHashMap<>();
+        result.forEach(ci -> merged.put(ci.getName(), ci));
+        componentsCore.forEach(ci -> {
+            if (ci.isHasDesignDialog()) {
+                merged.put(ci.getName(), ci);
+            }
+        });
+
+        return new ArrayList<>(merged.values());
+    }
+
+
+    /**
+     * Checks if design dialogs exist for a list of proxy components.
+     */
+    public List<ComponentInfo> checkDesignDialogsForCore(List<ComponentInfo> components) {
+
+        Path projectDir = Paths.get(System.getProperty("user.dir"));
+        File resourcesDir = projectDir.resolve("src/main/resources").toAbsolutePath().toFile();
+
+        componentService.searchComponentRecursiveExact(resourcesDir ,"dsc");
+
+        return components.stream()
+                .map(ci -> {
+                    String found = componentService.searchComponentRecursiveExact(resourcesDir, ci.getName());
+                    boolean hasDesignDialog = (found != null);
+                    return new ComponentInfo(ci.getName(), hasDesignDialog);
+                })
+                .collect(Collectors.toList());
     }
 
     /**
