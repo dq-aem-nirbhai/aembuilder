@@ -17,4 +17,5 @@ public interface AemProjectService {
     boolean projectExists(String projectName);
     String extractArtifactId(MultipartFile file) throws IOException;
 
+    void cloneProject(String repoUrl);
 }
