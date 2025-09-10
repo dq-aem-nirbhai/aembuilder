@@ -33,6 +33,7 @@ import java.util.stream.Stream;
 @Service
 public class UpdateComponentImpl implements UpdateComponent {
 
+
     @Override
     public void updateDialog(File xmlFile, List<ComponentField> newFields) throws Exception {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -248,7 +249,15 @@ public class UpdateComponentImpl implements UpdateComponent {
 
         existing.setAttribute("jcr:primaryType", "nt:unstructured");
         existing.setAttribute("fieldLabel", field.getFieldLabel());
-        existing.setAttribute("name", "./" + field.getFieldName());
+
+        log.info("fieldTYpe..................,{}",field.getFieldType());
+        if (!field.getFieldType().equals("fileupload"))
+        {
+            existing.setAttribute("name", "./" + field.getFieldName());
+        }
+        else {
+            existing.setAttribute("name", "./file" );
+        }
         existing.setAttribute("sling:resourceType", newType);
 
         handleTypeSpecificAttributes(existing, field);
@@ -328,7 +337,8 @@ public class UpdateComponentImpl implements UpdateComponent {
             case "multifield":
                 Element fieldNode = doc.createElement("field");
                 fieldNode.setAttribute("jcr:primaryType", "nt:unstructured");
-                fieldNode.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/form/fieldset");
+                fieldNode.setAttribute("sling:resourceType",
+                        "granite/ui/components/coral/foundation/form/fieldset");
                 existing.appendChild(fieldNode);
 
                 Element items2 = doc.createElement("items");
@@ -482,6 +492,48 @@ public class UpdateComponentImpl implements UpdateComponent {
     }
 
 
+      @Override
+    public  void updateComponentGroup(File xmlFile, String newGroup) {
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document doc = builder.parse(xmlFile);
+
+            Element root = doc.getDocumentElement();
+
+            String currentGroup = root.getAttribute("componentGroup");
+
+            if (!newGroup.equals(currentGroup)) {
+                root.setAttribute("componentGroup", newGroup);
+
+                // Write changes back to file
+                TransformerFactory transformerFactory = TransformerFactory.newInstance();
+                Transformer transformer = transformerFactory.newTransformer();
+                transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+                transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+
+                DOMSource source = new DOMSource(doc);
+                StreamResult result = new StreamResult(xmlFile);
+                transformer.transform(source, result);
+
+                System.out.println("Component group updated successfully.");
+            } else {
+                System.out.println("Component group is already up to date.");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
+    }
+
+
+
+
+
+
+
 
 
 
@@ -503,13 +555,13 @@ public class UpdateComponentImpl implements UpdateComponent {
         String htlContent = Files.readString(htlPath);
         String slingModelClass = extractSlingModelClass(htlContent);
         if (slingModelClass == null) {
-            throw new RuntimeException("❌ No Sling Model found in HTL: " + htlPath);
+            throw new RuntimeException("No Sling Model found in HTL: " + htlPath);
         }
 
         // 3. Locate Sling Model .java file
         Path javaFilePath = locateJavaFile(request.getProjectName(), slingModelClass);
         if (javaFilePath == null) {
-            throw new RuntimeException("❌ Could not find Java file for model: " + slingModelClass);
+            throw new RuntimeException("Could not find Java file for model: " + slingModelClass);
         }
 
         // 4. Determine base package for generating nested multifield classes
@@ -781,7 +833,8 @@ public class UpdateComponentImpl implements UpdateComponent {
                     "import org.apache.sling.models.annotations.Model;\n" +
                     "import org.apache.sling.models.annotations.injectorspecific.ValueMapValue;\n" +
                     "import org.apache.sling.models.annotations.injectorspecific.ChildResource;\n\n" +
-                    "@Model(adaptables = Resource.class, defaultInjectionStrategy = DefaultInjectionStrategy.OPTIONAL)\n" +
+                    "@Model(adaptables = Resource.class, defaultInjectionStrategy " +
+                    "= DefaultInjectionStrategy.OPTIONAL)\n" +
                     "public class " + className + " {\n\n}\n";
             Files.writeString(javaFile, header);
         }

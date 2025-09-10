@@ -29,8 +29,10 @@ import java.util.stream.Collectors;
 public class ComponentController {
 
     private final ComponentService componentService;
-
+    @Autowired
     private final UpdateHTL updatehtl;
+    @Autowired
+    private final UpdateComponent updateComponent;
     @GetMapping("/fetch-components/{projectname}")
     @ResponseBody
     public Map<String, List<String>> getComponents(@PathVariable String projectname) throws IOException {
@@ -166,8 +168,7 @@ public class ComponentController {
         }
     }
 
-@Autowired
-    UpdateComponent updateComponent;
+
     @PostMapping("/component/update/{projectName}")
     public String updateComponent(
             @PathVariable String projectName,
@@ -179,7 +180,19 @@ public class ComponentController {
         // Load old component state
         ComponentRequest oldRequest = componentService.loadComponent(projectName, componentRequest.getComponentName());
         System.out.println("Old request: " + oldRequest);
+        String contentXmlPath = "generated-projects/" + projectName
+                + "/ui.apps/src/main/content/jcr_root/apps/"
+                + projectName + "/components/"
+                + componentRequest.getComponentName()
+                + "/.content.xml";
 
+        File contentXmlFile = new File(contentXmlPath);
+        if (contentXmlFile.exists()) {
+            String newGroup = componentRequest.getComponentGroup();
+            updateComponent.updateComponentGroup(contentXmlFile, newGroup);
+        } else {
+            System.out.println("Warning: .content.xml not found at " + contentXmlPath);
+        }
         // Locate dialog.xml
         String dialogPath = "generated-projects/" + projectName
                 + "/ui.apps/src/main/content/jcr_root/apps/"
@@ -200,7 +213,7 @@ public class ComponentController {
         //sling model update
         updateComponent.updateSlingModel(componentRequest);
 
-//htl update
+        //htl update
         List<ComponentField> fields = componentRequest.getFields();
         log.info("fields from the new request, {}",fields);
         String htlFile = "generated-projects/"+ projectName+
