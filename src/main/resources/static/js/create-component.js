@@ -21,6 +21,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
   toggleSuperType();
 
+  // ===== Base Row Creation =====
   function createBaseRow(isNested, level = 0) {
     const template = document.getElementById('fieldRowTemplate');
     const div = template.cloneNode(true);
@@ -39,6 +40,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return div;
   }
 
+  // ===== Auto-fill camelCase fieldName =====
   window.autoFillFieldName = function (labelInput) {
     const row = labelInput.closest('.field-row, .nested-row');
     let labelValue = labelInput.value.trim();
@@ -61,6 +63,7 @@ document.addEventListener("DOMContentLoaded", function () {
     validateFormFields();
   };
 
+  // ===== Field Type Handling =====
   window.handleFieldTypeChange = function (select) {
     const row = select.closest('.field-row, .nested-row');
     const type = select.value;
@@ -69,16 +72,15 @@ document.addEventListener("DOMContentLoaded", function () {
     opt.innerHTML = '';
     nested.innerHTML = '';
 
-    if (
-      ["select", "multiselect", "checkboxgroup", "radiogroup"].includes(type)
-    ) {
+    if (["select", "multiselect", "checkboxgroup", "radiogroup"].includes(type)) {
+      // ✅ Now treat as nested fields (text + value only)
       const addBtn = document.createElement('button');
       addBtn.type = 'button';
       addBtn.className = 'btn btn-sm btn-secondary mb-2';
-      addBtn.textContent = 'Add Option';
-      addBtn.onclick = () => addOptionRow(addBtn);
-      opt.appendChild(addBtn);
-      addOptionRow(addBtn);
+      addBtn.textContent = 'Add Field';
+      addBtn.onclick = () => addTextValueRow(addBtn);
+      nested.appendChild(addBtn);
+      addTextValueRow(addBtn);
     } else if (type === 'multifield' || type === 'tabs') {
       const addBtn = document.createElement('button');
       addBtn.type = 'button';
@@ -91,6 +93,7 @@ document.addEventListener("DOMContentLoaded", function () {
     updateIndexes();
   };
 
+  // ===== Add/Remove Main Field =====
   window.addFieldRow = function () {
     const container = document.getElementById('fieldsContainer');
     const row = createBaseRow(false);
@@ -110,6 +113,7 @@ document.addEventListener("DOMContentLoaded", function () {
     updateMandatoryButtons();
   };
 
+  // ===== Add/Remove Nested Field =====
   function addNestedFieldRow(btn) {
     const container = btn.closest('.nested-container');
     const parent = container.closest('.field-row, .nested-row');
@@ -126,13 +130,19 @@ document.addEventListener("DOMContentLoaded", function () {
     validateFormFields();
   };
 
-  function addOptionRow(btn) {
-    const container = btn.closest('.options-container');
+  // ===== Special: Add Text/Value row for select/multiselect/radiogroup/checkboxgroup =====
+  function addTextValueRow(btn) {
+    const container = btn.closest('.nested-container');
+    const parent = container.closest('.field-row, .nested-row');
+    const level = parseInt(parent.dataset.level || 0) + 1;
     const div = document.createElement('div');
-    div.className = 'option-row input-group mb-2';
-    div.innerHTML = `<input type="text" class="form-control optionText" placeholder="Text" required>
+    div.className = 'nested-row input-group mb-2';
+    div.style.marginLeft = `${level * 20}px`;
+    div.innerHTML = `
+      <input type="text" class="form-control optionText" placeholder="Text" required>
       <input type="text" class="form-control optionValue" placeholder="Value" required>
-      <button type="button" class="btn btn-danger" onclick="removeOptionRow(this)">-</button>`;
+      <button type="button" class="btn btn-danger" onclick="removeOptionRow(this)">-</button>
+    `;
     container.insertBefore(div, btn);
     updateIndexes();
     validateFormFields();
@@ -144,6 +154,7 @@ document.addEventListener("DOMContentLoaded", function () {
     validateFormFields();
   };
 
+  // ===== Index Management =====
   function updateIndexes() {
     const fieldRows = document.querySelectorAll('#fieldsContainer > .field-row');
     fieldRows.forEach((row, i) => {
@@ -156,24 +167,23 @@ document.addEventListener("DOMContentLoaded", function () {
     row.querySelector('.fieldLabel').name = `${prefix}.fieldLabel`;
     row.querySelector('.fieldName').name = `${prefix}.fieldName`;
     row.querySelector('.fieldType').name = `${prefix}.fieldType`;
-    updateOptionIndexes(row, prefix);
+
+    // Handle nested for select/multiselect/radio/checkbox (text + value)
     const nestedContainer = row.querySelector(':scope > .nested-container');
     if (nestedContainer) {
       const nestedRows = nestedContainer.querySelectorAll(':scope > .nested-row');
       nestedRows.forEach((nrow, idx) => {
-        setRowNames(nrow, `${prefix}.nestedFields[${idx}]`);
+        const text = nrow.querySelector('.optionText');
+        const value = nrow.querySelector('.optionValue');
+        if (text && value) {
+          text.name = `${prefix}.options[${idx}].text`;
+          value.name = `${prefix}.options[${idx}].value`;
+        } else {
+          // fallback for multifield/tabs nested
+          setRowNames(nrow, `${prefix}.nestedFields[${idx}]`);
+        }
       });
     }
-  }
-
-  function updateOptionIndexes(row, prefix) {
-    const container = row.querySelector(':scope > .options-container');
-    if (!container) return;
-    const options = container.querySelectorAll(':scope > .option-row');
-    options.forEach((opt, k) => {
-      opt.querySelector('.optionText').name = `${prefix}.options[${k}].text`;
-      opt.querySelector('.optionValue').name = `${prefix}.options[${k}].value`;
-    });
   }
 
   function updateMandatoryButtons() {
@@ -191,6 +201,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  // ===== Validation, Debounce, Availability Check =====
   const componentNameInput = document.getElementById('componentName');
   const errorDiv = document.getElementById('nameError');
   const createButton = document.getElementById('createButton');
@@ -266,14 +277,22 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
     for (let row of rows) {
-      const label = row.querySelector('.fieldLabel').value.trim();
-      const fname = row.querySelector('.fieldName').value.trim();
-      const type = row.querySelector('.fieldType').value;
-      if (!label || !fname || !type) {
+      const label = row.querySelector('.fieldLabel');
+      const fname = row.querySelector('.fieldName');
+      const type = row.querySelector('.fieldType');
+      if (label && !label.value.trim()) {
         createButton.disabled = true;
         return;
       }
-      const optionInputs = row.querySelectorAll('.option-row input');
+      if (fname && !fname.value.trim()) {
+        createButton.disabled = true;
+        return;
+      }
+      if (type && !type.value) {
+        createButton.disabled = true;
+        return;
+      }
+      const optionInputs = row.querySelectorAll('.optionText, .optionValue');
       for (let inp of optionInputs) {
         if (!inp.value.trim()) {
           createButton.disabled = true;
@@ -288,6 +307,7 @@ document.addEventListener("DOMContentLoaded", function () {
   document.addEventListener('change', validateFormFields);
   updateIndexes();
 
+  // ===== Load Component Data (Edit Mode) =====
   if (window.editMode) {
     loadComponentData(window.componentData || {});
   }
@@ -327,26 +347,34 @@ document.addEventListener("DOMContentLoaded", function () {
     row.querySelector('.fieldType').value = field.fieldType || '';
     handleFieldTypeChange(row.querySelector('.fieldType'));
 
-    // === Handle Options ===
-    if (field.options && field.options.length > 0) {
-      const container = row.querySelector('.options-container');
-      const addBtn = container.querySelector('button');
+    // === Handle Options as Nested Text/Value ===
+    if (
+      ["select", "multiselect", "checkboxgroup", "radiogroup"].includes(field.fieldType) &&
+      field.options &&
+      Array.isArray(field.options)
+    ) {
+      const container = row.querySelector('.nested-container');
       container.innerHTML = '';
       field.options.forEach((opt) => {
         const div = document.createElement('div');
-        div.className = 'option-row input-group mb-2';
+        div.className = 'nested-row input-group mb-2';
         div.innerHTML = `
           <input type="text" class="form-control optionText" placeholder="Text" value="${opt.text || ''}" required>
           <input type="text" class="form-control optionValue" placeholder="Value" value="${opt.value || ''}" required>
           <button type="button" class="btn btn-danger" onclick="removeOptionRow(this)">-</button>`;
         container.appendChild(div);
       });
-      if (addBtn) {
-        container.appendChild(addBtn);
-      }
+      const newAddBtn = document.createElement('button');
+      newAddBtn.type = 'button';
+      newAddBtn.className = 'btn btn-sm btn-secondary mb-2';
+      newAddBtn.textContent = 'Add Field';
+      newAddBtn.onclick = () => addTextValueRow(newAddBtn);
+      container.appendChild(newAddBtn);
     }
 
-    // === Handle Nested Fields ===
+    
+
+    // === Handle Multifield/Tabs Nested Fields ===
     if (
       (field.fieldType === 'multifield' || field.fieldType === 'tabs') &&
       field.nestedFields &&
@@ -359,7 +387,6 @@ document.addEventListener("DOMContentLoaded", function () {
         container.appendChild(nestedRow);
         populateFieldRow(nestedRow, nestedField, level + 1);
       });
-      // ✅ Always ensure "Add Field" button exists for nested fields
       const newAddBtn = document.createElement('button');
       newAddBtn.type = 'button';
       newAddBtn.className = 'btn btn-sm btn-secondary mb-2';

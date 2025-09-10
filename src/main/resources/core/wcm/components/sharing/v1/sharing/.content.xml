@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jcr:root xmlns:cq="http://www.day.com/jcr/cq/1.0" xmlns:jcr="http://www.jcp.org/jcr/1.0"
+    cq:deprecated="Core Components 2.18.0"
+    cq:deprecatedReason="Should not be used in new projects"
+    cq:icon="share"
+    jcr:description="Core WCM Social Media Sharing Component (v1)"
+    jcr:primaryType="cq:Component"
+    jcr:title="Social Media Sharing (v1)"
+    componentGroup=".core-wcm"/>

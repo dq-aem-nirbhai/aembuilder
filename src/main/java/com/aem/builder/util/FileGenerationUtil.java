@@ -8,15 +8,27 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -321,7 +333,7 @@ public class FileGenerationUtil {
             return;
         }
 
-        logger.info("DIALOG: Generating dialog .content.xml for component '{}'", componentName);
+        logger.info("DIALOG: Starting dialog generation for component '{}'", componentName);
 
         String dialogTitle = componentName + " Dialog";
         StringBuilder sb = new StringBuilder();
@@ -335,45 +347,48 @@ public class FileGenerationUtil {
         for (ComponentField f : fields) {
             if ("tabs".equalsIgnoreCase(f.getFieldType())) {
                 tabFields.add(f);
+                logger.info("DIALOG: Found tab field '{}'", f.getFieldName());
             } else {
                 nonTabFields.add(f);
+                logger.info("DIALOG: Found non-tab field '{}'", f.getFieldName());
             }
         }
 
-        // If no tabs at all => flat dialog (better structure with fixedcolumns + column)
         if (tabFields.isEmpty()) {
+            logger.info("DIALOG: No tabs found. Generating flat dialog for '{}'", componentName);
             sb.append(String.format("""
-            <?xml version="1.0" encoding="UTF-8"?>
-            <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
-                      xmlns:cq="http://www.day.com/jcr/cq/1.0"
-                      xmlns:jcr="http://www.jcp.org/jcr/1.0"
-                      jcr:primaryType="nt:unstructured"
-                      jcr:title="%s"
-                      sling:resourceType="cq/gui/components/authoring/dialog"%s>
-                <content jcr:primaryType="nt:unstructured"
-                         sling:resourceType="granite/ui/components/coral/foundation/container">
-                    <layout jcr:primaryType="nt:unstructured"
-                            sling:resourceType="granite/ui/components/coral/foundation/layouts/fixedcolumns"/>
-                    <items jcr:primaryType="nt:unstructured">
-                        <column jcr:primaryType="nt:unstructured"
-                                sling:resourceType="granite/ui/components/coral/foundation/container">
-                            <items jcr:primaryType="nt:unstructured">
-            """, dialogTitle, superTypeAttr));
+        <?xml version="1.0" encoding="UTF-8"?>
+        <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
+                  xmlns:cq="http://www.day.com/jcr/cq/1.0"
+                  xmlns:jcr="http://www.jcp.org/jcr/1.0"
+                  jcr:primaryType="nt:unstructured"
+                  jcr:title="%s"
+                  sling:resourceType="cq/gui/components/authoring/dialog"%s>
+            <content jcr:primaryType="nt:unstructured"
+                     sling:resourceType="granite/ui/components/coral/foundation/container">
+                <layout jcr:primaryType="nt:unstructured"
+                        sling:resourceType="granite/ui/components/coral/foundation/layouts/fixedcolumns"/>
+                <items jcr:primaryType="nt:unstructured">
+                    <column jcr:primaryType="nt:unstructured"
+                            sling:resourceType="granite/ui/components/coral/foundation/container">
+                        <items jcr:primaryType="nt:unstructured">
+        """, dialogTitle, superTypeAttr));
 
             for (ComponentField f : nonTabFields) {
+                logger.info("DIALOG: Generating field '{}' in flat dialog", f.getFieldName());
                 sb.append(generateFieldXml(safeNodeName(f.getFieldName(), "field"), f));
             }
 
             sb.append("""
-                            </items>
-                        </column>
-                    </items>
-                </content>
-            </jcr:root>
-            """);
-
+                        </items>
+                    </column>
+                </items>
+            </content>
+        </jcr:root>
+        """);
         } else {
-            // Tabs exist. Try to find an EXPLICIT "Main" tab among them.
+            logger.info("DIALOG: Tabs detected. Generating tabbed dialog for '{}'", componentName);
+
             ComponentField explicitMainTab = null;
             for (ComponentField tf : tabFields) {
                 String nodeName = safeNodeName(tf.getFieldName(), "tab");
@@ -381,44 +396,96 @@ public class FileGenerationUtil {
                 if ("main".equalsIgnoreCase(nodeName) ||
                         (title != null && title.trim().equalsIgnoreCase("Main"))) {
                     explicitMainTab = tf;
-                    break; // first match wins
+                    logger.info("DIALOG: Explicit main tab detected: '{}'", nodeName);
+                    break;
                 }
             }
 
             boolean willAutoCreateMain = explicitMainTab == null && !nonTabFields.isEmpty();
 
             sb.append(String.format("""
-            <?xml version="1.0" encoding="UTF-8"?>
-            <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
-                      xmlns:cq="http://www.day.com/jcr/cq/1.0"
-                      xmlns:jcr="http://www.jcp.org/jcr/1.0"
-                      jcr:primaryType="nt:unstructured"
-                      jcr:title="%s"
-                      sling:resourceType="cq/gui/components/authoring/dialog"%s>
-                <content jcr:primaryType="nt:unstructured"
-                         sling:resourceType="granite/ui/components/coral/foundation/container">
-                    <layout jcr:primaryType="nt:unstructured"
-                            sling:resourceType="granite/ui/components/coral/foundation/layouts/tabs"/>
-                    <items jcr:primaryType="nt:unstructured">
-                        <tabs jcr:primaryType="nt:unstructured"
-                              sling:resourceType="granite/ui/components/coral/foundation/tabs">
-                            <items jcr:primaryType="nt:unstructured">
-            """, dialogTitle, superTypeAttr));
+        <?xml version="1.0" encoding="UTF-8"?>
+        <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
+                  xmlns:cq="http://www.day.com/jcr/cq/1.0"
+                  xmlns:jcr="http://www.jcp.org/jcr/1.0"
+                  jcr:primaryType="nt:unstructured"
+                  jcr:title="%s"
+                  sling:resourceType="cq/gui/components/authoring/dialog"%s>
+            <content jcr:primaryType="nt:unstructured"
+                     sling:resourceType="granite/ui/components/coral/foundation/container">
+                <layout jcr:primaryType="nt:unstructured"
+                        sling:resourceType="granite/ui/components/coral/foundation/layouts/tabs"/>
+                <items jcr:primaryType="nt:unstructured">
+                    <tabs jcr:primaryType="nt:unstructured"
+                          sling:resourceType="granite/ui/components/coral/foundation/tabs">
+                        <items jcr:primaryType="nt:unstructured">
+        """, dialogTitle, superTypeAttr));
 
-            // Safety: avoid duplicate tab node names
-            java.util.Set<String> writtenTabNodeNames = new java.util.HashSet<>();
+            Set<String> writtenTabNodeNames = new HashSet<>();
 
             for (ComponentField field : tabFields) {
                 String tabNodeName = safeNodeName(field.getFieldName(), "tab");
-                String tabTitle = (field.getFieldLabel() != null && !field.getFieldLabel().isBlank())
-                        ? field.getFieldLabel() : tabNodeName;
-                String resourceType = getResourceType(field.getFieldType());
+                String tabTitle = (field.getFieldName() != null && !field.getFieldName().isBlank())
+                        ? field.getFieldName()
+                        : tabNodeName;
+
+
 
                 if (!writtenTabNodeNames.add(tabNodeName.toLowerCase())) {
                     logger.warn("DIALOG: Duplicate tab node name '{}' detected. Skipping duplicate.", tabNodeName);
                     continue;
                 }
+                log.info("tabtitle,{}",tabTitle);
+                log.info("parent....,{}",field.isParentTab());
+                if (field.isParentTab()) {
+                    logger.info("DIALOG: Processing parent tab '{}'", tabNodeName);
+                    String parentTabXml = null;
+                    try {
+                        log.info("extractTabsOnly,{},{}.{}",superType, "shell", List.of(tabTitle));
+                        parentTabXml = extractTabsOnly(superType, "shell", List.of(tabTitle));
+                        logger.info("DIALOG: Extracted parent tab XML for '{}':\n{}", tabNodeName, parentTabXml);
+                    } catch (Exception e) {
+                        logger.warn("DIALOG: Could not extract parent tab '{}' from superType '{}': {}", tabTitle, superType, e.getMessage());
+                    }
+                    if (parentTabXml != null && !parentTabXml.isBlank()) {
+                        StringBuilder tabBuilder = new StringBuilder(parentTabXml);
 
+                        // Find innermost <items> position
+                        int insertPos = findInnermostItems(tabBuilder, 0);
+
+                        StringBuilder fieldsBuilder = new StringBuilder();
+
+                        // Add nested fields inside the tab
+                        if (field.getNestedFields() != null) {
+                            for (ComponentField nf : field.getNestedFields()) {
+                                logger.info("DIALOG: Adding nested field '{}' to parent tab '{}'", nf.getFieldName(), tabNodeName);
+                                fieldsBuilder.append(generateFieldXml(safeNodeName(nf.getFieldName(), "field"), nf));
+                            }
+                        }
+
+                        // Add non-tab fields to the main tab
+                        if (explicitMainTab == field && !nonTabFields.isEmpty()) {
+                            for (ComponentField f : nonTabFields) {
+                                logger.info("DIALOG: Adding non-tab field '{}' to main parent tab '{}'", f.getFieldName(), tabNodeName);
+                                fieldsBuilder.append(generateFieldXml(safeNodeName(f.getFieldName(), "field"), f));
+                            }
+                        }
+
+                        // Inject fields at the innermost <items>
+                        tabBuilder.insert(insertPos, fieldsBuilder.toString());
+
+                        sb.append(tabBuilder);
+                        continue;
+                    }
+
+
+                    else {
+                        logger.info("DIALOG: Parent tab '{}' has no XML structure. Generating fresh tab", tabNodeName);
+                    }
+                }
+
+                logger.info("DIALOG: Generating normal tab '{}'", tabNodeName);
+                String resourceType = getResourceType(field.getFieldType());
                 sb.append("        <").append(tabNodeName).append("\n")
                         .append("            jcr:primaryType=\"nt:unstructured\"\n")
                         .append("            jcr:title=\"").append(tabTitle).append("\"\n")
@@ -427,12 +494,14 @@ public class FileGenerationUtil {
 
                 if (field.getNestedFields() != null) {
                     for (ComponentField nf : field.getNestedFields()) {
+                        logger.info("DIALOG: Adding nested field '{}' to tab '{}'", nf.getFieldName(), tabNodeName);
                         sb.append(generateFieldXml(safeNodeName(nf.getFieldName(), "field"), nf));
                     }
                 }
 
                 if (explicitMainTab == field && !nonTabFields.isEmpty()) {
                     for (ComponentField f : nonTabFields) {
+                        logger.info("DIALOG: Adding non-tab field '{}' to explicit main tab '{}'", f.getFieldName(), tabNodeName);
                         sb.append(generateFieldXml(safeNodeName(f.getFieldName(), "field"), f));
                     }
                 }
@@ -442,6 +511,7 @@ public class FileGenerationUtil {
             }
 
             if (willAutoCreateMain) {
+                logger.info("DIALOG: Auto-creating 'Main' tab for non-tab fields");
                 String resourceType = getResourceType("tabs");
                 String autoMainNodeName = "main";
                 if (!writtenTabNodeNames.add(autoMainNodeName)) {
@@ -456,6 +526,7 @@ public class FileGenerationUtil {
                         .append("            <items jcr:primaryType=\"nt:unstructured\">\n");
 
                 for (ComponentField f : nonTabFields) {
+                    logger.info("DIALOG: Adding non-tab field '{}' to auto-created Main tab", f.getFieldName());
                     sb.append(generateFieldXml(safeNodeName(f.getFieldName(), "field"), f));
                 }
 
@@ -464,19 +535,18 @@ public class FileGenerationUtil {
             }
 
             sb.append("""
-                            </items>
-                        </tabs>
-                    </items>
-                </content>
-            </jcr:root>
-            """);
+                        </items>
+                    </tabs>
+                </items>
+            </content>
+        </jcr:root>
+        """);
         }
 
-        // Write to file
         FileUtils.writeStringToFile(new File(dialogFolder + "/.content.xml"),
                 sb.toString(), StandardCharsets.UTF_8);
 
-        logger.info("DIALOG: Dialog .content.xml generated at {}/.content.xml", dialogFolder);
+        logger.info("DIALOG: Dialog .content.xml successfully generated at {}.content.xml", dialogFolder);
     }
 
     /** Utility: safe XML node name */
@@ -864,4 +934,233 @@ public class FileGenerationUtil {
             return "";
         }
     }
+
+
+    /*
+    checkMultifieldJavaClassNames
+     */
+    public static boolean checkModelFileExists(String projectName, String multifieldName) throws IOException {
+        // Build java source root
+        Path javaSourceRoot = Paths.get("generated-projects/" + projectName + "/core/src/main/java/");
+
+        // Resolve model path (your existing utility)
+        Path modelPath = findModelBasePath(javaSourceRoot);
+
+        // Capitalize field name -> class name
+        String className = capitalize(multifieldName);
+        String expectedFileName = className + ".java";
+
+        // Get list of all files under modelPath
+        List<String> fileNames = Files.list(modelPath)
+                .filter(Files::isRegularFile)
+                .map(path -> path.getFileName().toString())
+                .collect(Collectors.toList());
+
+        // Compare
+        return fileNames.contains(expectedFileName);
+    }
+
+    /*
+    tabs
+     */
+    public static String extractTabsOnly(String superType, String projectName, List<String> filterTabs) throws Exception {
+        log.info("extractTabsOnly called with superType='{}', projectName='{}', filterTabs={}", superType, projectName, filterTabs);
+        StringBuilder sb = new StringBuilder();
+        Set<String> visitedSuperTypes = new HashSet<>();
+
+        collectTabsRecursive(superType, projectName, sb, 0, superType.startsWith("core/"), filterTabs, visitedSuperTypes);
+
+        log.info("Final extracted tabs structure:\n{}", sb.toString());
+        return sb.toString().trim();
+    }
+
+    private static void collectTabsRecursive(String superType, String projectName,
+                                             StringBuilder sb, int indent,
+                                             boolean stopAtCore,
+                                             List<String> filterTabs,
+                                             Set<String> visitedSuperTypes) throws Exception {
+
+        if (visitedSuperTypes.contains(superType)) {
+            log.info("Already visited superType '{}', skipping recursion.", superType);
+            return;
+        }
+        visitedSuperTypes.add(superType);
+
+        boolean isCore = superType.startsWith("core");
+        String basePath = System.getProperty("user.dir") +
+                (isCore
+                        ? "/src/main/resources/" + superType
+                        : "/generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root" + superType);
+
+        File dialogFile = new File(basePath + "/_cq_dialog/.content.xml");
+        log.info("Looking for dialog file at '{}'", dialogFile.getAbsolutePath());
+
+        if (!dialogFile.exists()) {
+            log.warn("Dialog file does not exist at '{}'", dialogFile.getAbsolutePath());
+            return;
+        }
+
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document doc = builder.parse(dialogFile);
+        Node root = doc.getDocumentElement();
+
+        log.info("Processing root node '{}' for superType '{}'", root.getNodeName(), superType);
+
+        extractRequestedTabs(root, sb, indent, filterTabs);
+
+        if (root.getAttributes() != null && root.getAttributes().getNamedItem("sling:resourceSuperType") != null) {
+            String parentSuperType = root.getAttributes().getNamedItem("sling:resourceSuperType").getNodeValue();
+            if (parentSuperType != null && !parentSuperType.isBlank()) {
+                boolean parentIsCore = parentSuperType.startsWith("core/");
+                log.info("Recursing to parent superType '{}', parentIsCore={}, stopAtCore={}", parentSuperType, parentIsCore, stopAtCore);
+                if (!parentIsCore || !stopAtCore) {
+                    collectTabsRecursive(parentSuperType, projectName, sb, indent, parentIsCore, filterTabs, visitedSuperTypes);
+                }
+            }
+        }
+    }
+
+    private static void extractRequestedTabs(Node node, StringBuilder sb, int indent, List<String> filterTabs) {
+        if (node.getNodeType() != Node.ELEMENT_NODE) return;
+
+        NamedNodeMap attrs = node.getAttributes();
+        String nodeName = node.getNodeName();
+        String tabTitle = (attrs != null && attrs.getNamedItem("jcr:title") != null) ? attrs.getNamedItem("jcr:title").getNodeValue() : null;
+
+
+        boolean isTabCandidate = tabTitle != null;
+
+        if (isTabCandidate) {
+            boolean isRequested = filterTabs == null || filterTabs.isEmpty() ||
+                    filterTabs.stream().anyMatch(f -> f.equalsIgnoreCase(tabTitle));
+
+            log.info("Node '{}' is a tab candidate, isRequested={}", tabTitle, isRequested);
+
+            if (isRequested) {
+                String skeleton = buildTabSkeleton(node);
+                log.info("Built tab skeleton for '{}':\n{}", tabTitle, skeleton);
+                sb.append(skeleton).append("\n");
+                return;
+            }
+        }
+
+        NodeList children = node.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            extractRequestedTabs(children.item(i), sb, indent, filterTabs);
+        }
+    }
+
+    private static String buildTabSkeleton(Node tabNode) {
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document newDoc = builder.newDocument();
+
+            Node copied = copyWithoutFields(tabNode, newDoc);
+            newDoc.appendChild(copied);
+
+            TransformerFactory tf = TransformerFactory.newInstance();
+            Transformer transformer = tf.newTransformer();
+            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+
+            StringWriter writer = new StringWriter();
+            transformer.transform(new DOMSource(newDoc), new StreamResult(writer));
+            return writer.getBuffer().toString();
+
+        } catch (Exception e) {
+            log.error("Failed to build tab skeleton", e);
+            return "<error>Failed to build tab skeleton: " + e.getMessage() + "</error>";
+        }
+    }
+
+    private static Node copyWithoutFields(Node node, Document targetDoc) {
+        if (isFieldNode(node)) {
+            log.debug("Skipping field node '{}'", node.getNodeName());
+            return null;
+        }
+
+        Node newNode = targetDoc.importNode(node, false);
+        NodeList children = node.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node childCopy = copyWithoutFields(children.item(i), targetDoc);
+            if (childCopy != null) {
+                newNode.appendChild(childCopy);
+            }
+        }
+        return newNode;
+    }
+
+    private static boolean isFieldNode(Node node) {
+        if (node.getNodeType() != Node.ELEMENT_NODE) return false;
+
+        NamedNodeMap attrs = node.getAttributes();
+        if (attrs == null) return false;
+
+        Node resTypeNode = attrs.getNamedItem("sling:resourceType");
+        if (resTypeNode == null) return false;
+
+        String type = resTypeNode.getNodeValue();
+
+        // Exclude TABS container explicitly
+        if (FieldType.TABS.getResourceType().equals(type)) {
+            log.debug("Node '{}' is a TABS container, skipping", node.getNodeName());
+            return false;
+        }
+
+        // Get all FieldType resource types except TABS
+        Map<String, String> fieldMap = FieldType.getTypeResourceMap();
+
+        // Check if type matches any field type or is a WELL
+        boolean isField = fieldMap.values().stream()
+                .filter(rt -> !rt.equals(FieldType.TABS.getResourceType()))
+                .anyMatch(rt -> type.contains(rt)) ||
+                type.contains("granite/ui/components/coral/foundation/well")||type.contains("granite/ui/components/coral/foundation/text")||type.contains("granite/ui/components/coral/foundation/include"); // directly check WELL
+
+        if (isField) {
+            log.debug("Node '{}' detected as field type '{}'", node.getNodeName(), type);
+        }
+
+        return isField;
+    }
+
+    private static int findInnermostItems(StringBuilder xml, int startPos) {
+        int pos = startPos;
+        int deepestPos = -1;
+
+        while (true) {
+            int openTag = xml.indexOf("<items jcr:primaryType=\"nt:unstructured\"", pos);
+            if (openTag == -1) break;
+
+            // Move past opening tag
+            int endOfOpen = xml.indexOf(">", openTag) + 1;
+
+            // Find matching closing </items> for this open
+            int depth = 1;
+            int searchPos = endOfOpen;
+            while (depth > 0) {
+                int nextOpen = xml.indexOf("<items jcr:primaryType=\"nt:unstructured\"", searchPos);
+                int nextClose = xml.indexOf("</items>", searchPos);
+                if (nextClose == -1) break;
+
+                if (nextOpen != -1 && nextOpen < nextClose) {
+                    depth++;
+                    searchPos = nextOpen + 1;
+                } else {
+                    depth--;
+                    searchPos = nextClose + 1;
+                }
+            }
+
+            // Update deepest position to the current opening tag's content start
+            deepestPos = endOfOpen;
+            pos = endOfOpen;
+        }
+
+        return deepestPos != -1 ? deepestPos : xml.length();
+    }
+
+
 }
