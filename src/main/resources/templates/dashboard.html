@@ -30,11 +30,14 @@
 <!-- Main -->
 <main class="container py-4 animate__animated animate__fadeIn flex-grow-1">
 
-  <!-- Success Alert -->
-  <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert" id="successAlert">
+  <div th:if="${message}"
+       id="flashMessage"
+       class="flash-message flash-message-purple">
+    <!-- Message text -->
     <span th:text="${message}"></span>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
+
+
 
   <!-- Error Alert -->
   <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert" id="errorAlert">
@@ -84,6 +87,9 @@
           <p th:if="${project.importDate != 'Unknown'}">
             <strong>Imported:</strong> <span th:text="${project.importDate}"></span>
           </p>
+          <p th:if="${project.cloneDate != 'Unknown'}">
+            <strong>Cloned:</strong> <span th:text="${project.cloneDate}"></span>
+          </p>
           <p><strong>Path:</strong> <span th:text="${project.path}"></span></p>
 
 
@@ -111,7 +117,12 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <input type="file" id="zipFile" name="file" class="form-control" required>
+        <!-- File upload -->
+        <input type="file" id="zipFile" name="file" class="form-control">
+
+        <!-- Repo URL input -->
+        <input type="url" id="repoUrl" name="repoUrl" class="form-control mt-3" placeholder="Enter repository URL to clone">
+
         <div id="importFeedback" class="mt-2"></div>
       </div>
       <div class="modal-footer">

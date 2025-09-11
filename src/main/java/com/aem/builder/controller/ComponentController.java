@@ -3,10 +3,12 @@ package com.aem.builder.controller;
 import com.aem.builder.model.DTO.ComponentField;
 import com.aem.builder.model.DTO.ComponentRequest;
 import com.aem.builder.model.Enum.FieldType;
-import com.aem.builder.service.*;
+import com.aem.builder.service.ComponentService;
+import com.aem.builder.util.FileGenerationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -21,8 +23,6 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
-
-
 @Controller
 @RequiredArgsConstructor
 @Slf4j
@@ -33,13 +33,13 @@ public class ComponentController {
     private final UpdateHTL updatehtl;
     @Autowired
     private final UpdateComponent updateComponent;
+
     @GetMapping("/fetch-components/{projectname}")
     @ResponseBody
     public Map<String, List<String>> getComponents(@PathVariable String projectname) throws IOException {
         List<String> allComponents = componentService.getAllComponents();
         List<String> projectComponents = componentService
-                .getProjectComponentsMap(List.of(projectname))
-                .getOrDefault(projectname, new ArrayList<>());
+                .getProjectComponentsMap(projectname);
 
         log.info(projectname);
 
@@ -71,8 +71,9 @@ public class ComponentController {
             return "create";
         }
     }
-    //component creation
-    @GetMapping("/create/{project}")
+
+    // component creation
+    @GetMapping("/createComponent/{project}")
     public String showComponentForm(@PathVariable String project, Model model) {
         model.addAttribute("projectName", project);
 
@@ -88,34 +89,21 @@ public class ComponentController {
                         LinkedHashMap::new // keep sorted order
                 ));
 
-
         model.addAttribute("fieldTypes", sortedByKey);
         model.addAttribute("componentGroups", componentService.getComponentGroups(project));
         model.addAttribute("editMode", false);
-        // Components that can be extended (core components + existing ones)
-        // Use a LinkedHashSet to avoid duplicates while preserving order
-        Set<String> available = new LinkedHashSet<>();
-        try {
-            available.addAll(componentService.fetchComponentsFromGeneratedProjects(project).stream()
-                    .map(name -> "/apps/" + project + "/components/" + name)
-                    .toList());
-            available.addAll(componentService.getAllComponents());
-        } catch (IOException e) {
-            log.error("Error loading available components", e);
-        }
-        Map<String, String> compMap = new LinkedHashMap<>();
-        for (String path : available) {
-            int idx = path.lastIndexOf('/') + 1;
-            compMap.put(path, path.substring(idx));
-        }
+        Map<String, String> compMap = componentService.fetchComponentSuperTypes(project);
+
         model.addAttribute("availableComponents", compMap);
+        log.info("superTypessss...{}", compMap);
+
         return "create-component"; // Thymeleaf template
     }
 
     @GetMapping("/{projectName}/editcomponent")
     public String showEditComponentForm(@RequestParam String componentName,
-                                        @PathVariable String projectName,
-                                        Model model) {
+            @PathVariable String projectName,
+            Model model) {
         ComponentRequest component = componentService.loadComponent(projectName, componentName);
 
         model.addAttribute("projectName", projectName);
@@ -131,21 +119,9 @@ public class ComponentController {
         model.addAttribute("componentGroups", componentService.getComponentGroups(projectName));
         model.addAttribute("editMode", true);
 
-        // available components
-        Set<String> available = new LinkedHashSet<>();
-        try {
-            available.addAll(componentService.fetchComponentsFromGeneratedProjects(projectName).stream()
-                    .map(name -> "/apps/" + projectName + "/components/" + name)
-                    .toList());
-            available.addAll(componentService.getAllComponents());
-        } catch (IOException e) {
-            log.error("Error loading available components", e);
-        }
-        Map<String, String> compMap = new LinkedHashMap<>();
-        for (String path : available) {
-            int idx = path.lastIndexOf('/') + 1;
-            compMap.put(path, path.substring(idx));
-        }
+        Map<String, String> compMap = componentService.fetchComponentSuperTypes(projectName);
+        log.info("superTypessss...{}", compMap);
+
         model.addAttribute("availableComponents", compMap);
         model.addAttribute("componentData", component);
         model.addAttribute("htmlCode", componentService.getComponentHtml(projectName, componentName));
@@ -153,45 +129,36 @@ public class ComponentController {
         return "create-component";
     }
 
-    @PostMapping("/component/create/{project}")
+    @PostMapping("/saveComponent/{project}")
     public String createComponent(@PathVariable String project,
-                                  @ModelAttribute ComponentRequest request,
-                                  RedirectAttributes redirectAttributes) {
+            @ModelAttribute ComponentRequest request,
+            RedirectAttributes redirectAttributes) {
+        log.info("Request Details,{}", request);
         try {
             componentService.generateComponent(project, request);
-            redirectAttributes.addFlashAttribute("message", "Component created successfully!");
+            redirectAttributes.addFlashAttribute("message",
+                    request.getComponentName() + " Component created successfully!");
             return "redirect:/view/" + project;
         } catch (Exception e) {
             log.error("Error creating component", e);
             redirectAttributes.addFlashAttribute("error", "Failed to create component: " + e.getMessage());
-            return "redirect:/create/" + project;
+            return "redirect:/createcreateComponent/" + project;
         }
     }
 
-
-    @PostMapping("/component/update/{projectName}")
-    public String updateComponent(
-            @PathVariable String projectName,
-            @ModelAttribute ComponentRequest componentRequest,
-            RedirectAttributes redirectAttributes) throws Exception {
-
-        System.out.println("New request: " + componentRequest);
-
-        // Load old component state
-        ComponentRequest oldRequest = componentService.loadComponent(projectName, componentRequest.getComponentName());
-        System.out.println("Old request: " + oldRequest);
-        String contentXmlPath = "generated-projects/" + projectName
-                + "/ui.apps/src/main/content/jcr_root/apps/"
-                + projectName + "/components/"
-                + componentRequest.getComponentName()
-                + "/.content.xml";
-
-        File contentXmlFile = new File(contentXmlPath);
-        if (contentXmlFile.exists()) {
-            String newGroup = componentRequest.getComponentGroup();
-            updateComponent.updateComponentGroup(contentXmlFile, newGroup);
-        } else {
-            System.out.println("Warning: .content.xml not found at " + contentXmlPath);
+    @PostMapping("/component/update/{project}")
+    public String updateComponent(@PathVariable String project,
+            @ModelAttribute ComponentRequest request,
+            RedirectAttributes redirectAttributes) {
+        try {
+            componentService.updateComponent(project, request);
+            redirectAttributes.addFlashAttribute("message",
+                    request.getComponentName() + " Component updated successfully!");
+            return "redirect:/view/" + project;
+        } catch (Exception e) {
+            log.error("Error updating component", e);
+            redirectAttributes.addFlashAttribute("error", "Failed to update component: " + e.getMessage());
+            return "redirect:/" + project + "/editcomponent?componentName=" + request.getComponentName();
         }
         // Locate dialog.xml
         String dialogPath = "generated-projects/" + projectName
@@ -208,43 +175,37 @@ public class ComponentController {
         // Call service method to update dialog only
         updateComponent.updateDialog(dialogFile, componentRequest.getFields());
 
-
-
-        //sling model update
+        // sling model update
         updateComponent.updateSlingModel(componentRequest);
 
-        //htl update
+        // htl update
         List<ComponentField> fields = componentRequest.getFields();
-        log.info("fields from the new request, {}",fields);
-        String htlFile = "generated-projects/"+ projectName+
-                "/ui.apps/src/main/content/jcr_root/apps/"+
-                projectName+ "/components/"+ componentRequest.getComponentName()+
-                "/"+componentRequest.getComponentName() + ".html";
-          log.info("htl path to update {}",htlFile);
+        log.info("fields from the new request, {}", fields);
+        String htlFile = "generated-projects/" + projectName +
+                "/ui.apps/src/main/content/jcr_root/apps/" +
+                projectName + "/components/" + componentRequest.getComponentName() +
+                "/" + componentRequest.getComponentName() + ".html";
+        log.info("htl path to update {}", htlFile);
 
-        updatehtl.updateHTLFromRequest(componentRequest,htlFile);
+        updatehtl.updateHTLFromRequest(componentRequest, htlFile);
         redirectAttributes.addFlashAttribute("message", "Dialog updated successfully!");
         return "redirect:/view/" + projectName;
     }
 
-
-
-
     @GetMapping("/component/edit/{projectName}")
     public String editComponentPage(@PathVariable String projectName,
-                                    @RequestParam String componentName,
-                                    Model model) {
+            @RequestParam String componentName,
+            Model model) {
         return showEditComponentForm(componentName, projectName, model);
     }
 
-
     @PostMapping("/component/delete/{project}")
     public String deleteComponent(@PathVariable String project,
-                                  @RequestParam String componentName,
-                                  RedirectAttributes redirectAttributes) {
+            @RequestParam String componentName,
+            RedirectAttributes redirectAttributes) {
         try {
             componentService.deleteComponent(project, componentName);
-            redirectAttributes.addFlashAttribute("message", "Component deleted successfully!");
+            redirectAttributes.addFlashAttribute("message", componentName + " Component deleted successfully!");
         } catch (Exception e) {
             log.error("Error deleting component", e);
             redirectAttributes.addFlashAttribute("error", "Failed to delete component: " + e.getMessage());
@@ -252,20 +213,18 @@ public class ComponentController {
         return "redirect:/view/" + project;
     }
 
-//component checking
+    // component checking
     @GetMapping("/check-componentName/{projectName}")
     public ResponseEntity<Boolean> checkComponentNameExists(
             @PathVariable String projectName,
             @RequestParam String componentName) {
 
-        log.info("{}",componentName);
+        log.info("{}", componentName);
         log.info("check-component");
         boolean isAvailable = componentService.isComponentNameAvailable(projectName, componentName);
-        log.info("{}",isAvailable);
+        log.info("{}", isAvailable);
         return ResponseEntity.ok(isAvailable); // true means name is available
     }
-
-
 
     @GetMapping("/grouped-components/{projectName}")
     @ResponseBody
@@ -274,9 +233,11 @@ public class ComponentController {
 
         return componentService.getComponentsByGroup(projectName);
     }
+
     @GetMapping("/policies-components/{projectName}")
     @ResponseBody
-    public Map<String, List<Map<String, String>>> getGroupedComponents(@PathVariable String projectName) throws IOException {
+    public Map<String, List<Map<String, String>>> getGroupedComponents(@PathVariable String projectName)
+            throws IOException {
         // Fetch grouped components from service
         Map<String, List<String>> groupedComponents = componentService.getComponentsByGroup(projectName);
 
@@ -302,7 +263,26 @@ public class ComponentController {
         return response;
     }
 
+    /*
+     * Multifield java class name check
+     */
+    @GetMapping("/checkChildJavaClassName")
+    public ResponseEntity<Boolean> checkChildJavaClassName(
+            @RequestParam String projectName,
+            @RequestParam String fieldName) throws IOException {
+
+        boolean exists = FileGenerationUtil.checkModelFileExists(projectName, fieldName);
+        return ResponseEntity.ok(exists); // returns true or false
+    }
+
+    // logic for Check Parent Having tabs
+    @PostMapping("/checkTabs")
+    public Map<String, Object> checkIfParentHasTabs(@RequestBody Map<String, String> request) throws Exception {
+        String projectName = request.get("projectName");
+        String superType = request.get("superType");
+
+        log.info("Parent Tabs........., {}", componentService.getParentTabs(projectName, superType));
+        return componentService.getParentTabs(projectName, superType);
+    }
 
 }
-
-                                                                                                                                                                                                                                                                                                                                                    

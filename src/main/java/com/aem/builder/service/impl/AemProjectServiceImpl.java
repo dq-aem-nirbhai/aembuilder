@@ -5,13 +5,21 @@ import com.aem.builder.model.ProjectDetails;
 import com.aem.builder.service.AemProjectService;
 import com.aem.builder.service.ComponentService;
 import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.eclipse.jgit.api.CreateBranchCommand;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ListBranchCommand;
+import org.eclipse.jgit.lib.Ref;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
@@ -26,7 +34,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.StandardCopyOption;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -101,41 +109,11 @@ public class AemProjectServiceImpl implements AemProjectService {
             if (exitCode != 0) {
                 throw new IOException("AEM project generation failed with exit code: " + exitCode);
             }
-            String pomPath = baseDir + appId + "/pom.xml";
-            File pomFile = new File(pomPath);
-            if (pomFile.exists()) {
-                try {
-                    var builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-                    Document doc = builder.parse(pomFile);
-                    Element projectEl = doc.getDocumentElement();
-
-                    // Locate or create <properties>
-                    NodeList propsList = doc.getElementsByTagName("properties");
-                    Element propsEl;
-                    if (propsList.getLength() > 0) {
-                        propsEl = (Element) propsList.item(0);
-                    } else {
-                        propsEl = doc.createElement("properties");
-                        projectEl.appendChild(propsEl);
-                    }
-
-                    // Add createdDate if not already present
-                    if (doc.getElementsByTagName("createdDate").getLength() == 0) {
-                        Element createdDateEl = doc.createElement("createdDate");
-                        createdDateEl.setTextContent(
-                                ZonedDateTime.now()
-                                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))                        );
-                        propsEl.appendChild(createdDateEl);
-
-                        // Save back to pom.xml
-                        Transformer transformer = TransformerFactory.newInstance().newTransformer();
-                        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-                        transformer.transform(new DOMSource(doc), new StreamResult(pomFile));
-                    }
-                } catch (Exception e) {
-                    System.err.println("⚠️ Failed to inject createdDate into pom.xml: " + e.getMessage());
-                }
+            Path pomFile = projectPath.resolve("pom.xml");
+            if (Files.exists(pomFile)) {
+                updatePomProperty(pomFile, "createdDate", List.of("importDate", "cloneDate"));
             }
+            updateConfFilterMode(baseDir,appId);
             String componentsTargetPath = baseDir + appId + "/ui.apps/src/main/content/jcr_root/apps/" + appId + "/components/";
             File contentFolder = new File(componentsTargetPath);
             if (!contentFolder.exists()) {
@@ -163,6 +141,7 @@ public class AemProjectServiceImpl implements AemProjectService {
                 String groupId = "Unknown";
                 String createdDate = "Unknown";
                 String importDate = "Unknown";
+                String cloneDate = "Unknown";
                 String displayName="Unknown";
                 String path = new File(projectsFolder, name).getPath();
 
@@ -192,11 +171,14 @@ public class AemProjectServiceImpl implements AemProjectService {
 
                         NodeList createdDateNodes = doc.getElementsByTagName("createdDate");
                         NodeList importDateNodes = doc.getElementsByTagName("importDate");
+                        NodeList cloneDateNodes = doc.getElementsByTagName("cloneDate");
 
                         if (createdDateNodes.getLength() > 0) {
                             createdDate = createdDateNodes.item(0).getTextContent();
                         } else if (importDateNodes.getLength() > 0) {
                             importDate = importDateNodes.item(0).getTextContent();
+                        } else if (cloneDateNodes.getLength() > 0) {
+                            cloneDate = cloneDateNodes.item(0).getTextContent();
                         }
 
                     }
@@ -204,9 +186,8 @@ public class AemProjectServiceImpl implements AemProjectService {
                 } catch (Exception ignored) {
                 }
 
-
-
-                projects.add(new ProjectDetails(displayName,name, version, groupId, createdDate,importDate, path));
+                projects.add(new ProjectDetails(displayName,name, version, groupId, createdDate, importDate, cloneDate,
+                        path));
             }
         }
         return projects;
@@ -325,50 +306,10 @@ public class AemProjectServiceImpl implements AemProjectService {
         }
 
         Path pomFile = target.resolve("pom.xml");
-        try {
-            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-            org.w3c.dom.Document doc = dBuilder.parse(pomFile.toFile());
-            doc.getDocumentElement().normalize();
 
-            org.w3c.dom.NodeList propsList = doc.getElementsByTagName("properties");
-            org.w3c.dom.Element propertiesElement;
-            if (propsList.getLength() > 0) {
-                propertiesElement = (org.w3c.dom.Element) propsList.item(0);
-            } else {
-                propertiesElement = doc.createElement("properties");
-                doc.getDocumentElement().appendChild(propertiesElement);
-            }
+        updatePomProperty(pomFile, "importDate", List.of("createdDate", "cloneDate"));
 
-            // Remove <createdDate> if exists
-            NodeList createdNodes = doc.getElementsByTagName("createdDate");
-            if (createdNodes.getLength() > 0) {
-                org.w3c.dom.Node toRemove = createdNodes.item(0);
-                propertiesElement.removeChild(toRemove);
-            }
-
-            // Add or update <importDate>
-            NodeList importNodes = doc.getElementsByTagName("importDate");
-            String now = ZonedDateTime.now()
-                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-            // yyyy-MM-dd
-
-            if (importNodes.getLength() > 0) {
-                importNodes.item(0).setTextContent(now);
-            } else {
-                org.w3c.dom.Element importDateEl = doc.createElement("importDate");
-                importDateEl.setTextContent(now);
-                propertiesElement.appendChild(importDateEl);
-            }
-
-            // Save pom.xml back
-            Transformer transformer = TransformerFactory.newInstance().newTransformer();
-            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-            transformer.transform(new DOMSource(doc), new StreamResult(pomFile.toFile()));
-
-        } catch (Exception e) {
-            throw new IOException("Failed to update pom.xml with importDate.", e);
-        }
+        updateConfFilterMode(PROJECTS_DIR, artifactId);
 
         // Cleanup temp extraction dir
         if (Files.exists(tempDir)) {
@@ -432,6 +373,175 @@ public class AemProjectServiceImpl implements AemProjectService {
         return artifactId;
     }
 
+    @SneakyThrows
+    @Override
+    public void cloneProject(String repoUrl) {
+        // 1) Clone into a brand new empty temp dir
+        Path tempDir = Files.createTempDirectory("aem-clone-");
+
+        try (Git git = Git.cloneRepository()
+                .setURI(repoUrl)
+                .setDirectory(tempDir.toFile())
+                .setCloneAllBranches(true)
+                .setBranch("refs/heads/main")
+                .call()) {
+
+            // Create local branches for all remotes
+            List<Ref> remoteBranches = git.branchList()
+                    .setListMode(ListBranchCommand.ListMode.REMOTE)
+                    .call();
+
+            for (Ref remoteRef : remoteBranches) {
+                String fullName = remoteRef.getName(); // refs/remotes/origin/feature-x
+                if (fullName.startsWith("refs/remotes/origin/")) {
+                    String branchName = fullName.replace("refs/remotes/origin/", "");
+
+                    // Skip HEAD reference
+                    if ("HEAD".equals(branchName)) continue;
+
+                    // Check if already exists locally
+                    boolean exists = git.branchList().call().stream()
+                            .anyMatch(ref -> ref.getName().equals("refs/heads/" + branchName));
+
+                    if (!exists) {
+                        git.branchCreate()
+                                .setName(branchName)
+                                .setStartPoint(fullName)
+                                .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.TRACK)
+                                .call();
+                    }
+                }
+            }
+
+            // 1) Validate if it’s an AEM project
+            if (!isAemProject(tempDir)) {
+                throw new IOException("The given repository has no valid AEM project.");
+            }
+
+            // 2) Read artifactId from root pom.xml
+            Path rootPom = tempDir.resolve("pom.xml");
+            String artifactId = readArtifactId(rootPom);
+            if (artifactId == null || artifactId.isBlank()) {
+                throw new IOException("pom.xml does not contain a valid <artifactId>.");
+            }
+
+            // 3) Guard against duplicates
+            Path projectsDir = Paths.get(PROJECTS_DIR);
+            Files.createDirectories(projectsDir);
+            Path target = projectsDir.resolve(artifactId);
+            if (Files.exists(target)) {
+                throw new IOException("Clone failed: project '" + artifactId + "' already exists.");
+            }
+
+            // 4) Move or copy directory
+            try {
+                Files.move(tempDir, target, StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException crossFs) {
+                FileUtils.copyDirectory(tempDir.toFile(), target.toFile());
+                FileUtils.deleteDirectory(tempDir.toFile());
+            }
+            Path pomFile = target.resolve("pom.xml");
+            if (Files.exists(pomFile)) {
+                updatePomProperty(pomFile, "cloneDate", List.of("importDate", "createdDate"));
+            }
+        } catch (Exception e) {
+            cleanupTemp(tempDir);
+            if (e instanceof IOException) throw (IOException) e;
+            throw new IOException("Failed to clone repository: " + e.getMessage(), e);
+        }
+    }
+
+    public boolean isAemProject(Path repoRoot) {
+        Path rootPom = repoRoot.resolve("pom.xml");
+        if (Files.notExists(rootPom)) {
+            return false;
+        }
+
+        try {
+            boolean foundPom = Files.walk(repoRoot, 6)
+                    .filter(p -> p.getFileName().toString().equalsIgnoreCase("pom.xml"))
+                    .filter(this::isNotJunk)
+                    .anyMatch(this::isAemModulePom);
+
+            return foundPom || hasAemStructure(repoRoot);
+
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private boolean isAemModulePom(Path pomPath) {
+        try {
+            String xml = Files.readString(pomPath);
+
+            // Packaging types unique to AEM
+            if (xml.contains("<packaging>bundle</packaging>")
+                    || xml.contains("<packaging>content-package</packaging>")
+                    || xml.contains("<packaging>all</packaging>")) {
+                return true;
+            }
+
+            // Maven plugins used by AEM
+            if (xml.contains("filevault-package-maven-plugin")
+                    || xml.contains("content-package-maven-plugin")) {
+                return true;
+            }
+
+            // Typical dependencies
+            if (xml.contains("com.day.jcr.vault")
+                    || xml.contains("com.adobe.cq")) {
+                return true;
+            }
+
+        } catch (IOException ignore) {}
+        return false;
+    }
+
+    private boolean hasAemStructure(Path repoRoot) {
+        return Files.isDirectory(repoRoot.resolve("core"))
+                && Files.isDirectory(repoRoot.resolve("ui.apps"))
+                && Files.isDirectory(repoRoot.resolve("ui.content"));
+    }
+
+    private boolean isNotJunk(Path path) {
+        String p = path.toString().toLowerCase();
+        return !(p.contains(".git") || p.contains("target") || p.contains("node_modules"));
+    }
+
+    private void cleanupTemp(Path tempDir) {
+        try {
+            if (Files.exists(tempDir)) {
+                FileUtils.deleteDirectory(tempDir.toFile());
+            }
+        } catch (IOException ignore) {}
+    }
+
+    private Path findPom(Path root) throws IOException {
+        try (var stream = Files.walk(root)) {
+            return stream
+                    .filter(p -> p.getFileName().toString().equalsIgnoreCase("pom.xml"))
+                    .findFirst()
+                    .orElse(null);
+        }
+    }
+
+    private String readArtifactId(Path pomFile) throws IOException {
+        try {
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            // Avoid XXE
+            dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+
+            DocumentBuilder dBuilder = dbf.newDocumentBuilder();
+            Document doc = dBuilder.parse(pomFile.toFile());
+            doc.getDocumentElement().normalize();
+            NodeList nodes = doc.getElementsByTagName("artifactId");
+            return nodes.getLength() > 0 ? nodes.item(0).getTextContent() : null;
+        } catch (Exception e) {
+            throw new IOException("Failed to read artifactId from pom.xml.", e);
+        }
+    }
 
 
     private String parseArtifactIdFromPom(InputStream pomStream) {
@@ -449,5 +559,97 @@ public class AemProjectServiceImpl implements AemProjectService {
         }
     }
 
+    private void updateConfFilterMode(String baseDir, String appId) throws IOException {
+        Path filterPath = Paths.get(baseDir, appId, "ui.content/src/main/content/META-INF/vault/filter.xml");
 
+        if (!Files.exists(filterPath)) {
+            log.warn("filter.xml not found at {}", filterPath);
+            return;
+        }
+
+        List<String> lines = Files.readAllLines(filterPath);
+        List<String> updatedLines = new ArrayList<>();
+
+        boolean updated = false;
+
+        for (String line : lines) {
+            String targetFilter = "<filter root=\"/conf/" + appId + "\"";
+            if (line.contains(targetFilter)) {
+                if (line.contains("mode=\"merge\"")) {
+                    // Replace merge → replace only if merge is found
+                    line = line.replace("mode=\"merge\"", "mode=\"replace\"");
+                    updated = true;
+                    log.info("Updated /conf/{} filter mode from merge → replace", appId);
+                } else if (line.contains("mode=\"replace\"")) {
+                    // Already correct → no change
+                    log.info("Filter for /conf/{} already set to mode=replace. Skipping.", appId);
+                }
+            }
+            updatedLines.add(line);
+        }
+
+        if (updated) {
+            Files.write(filterPath, updatedLines);
+        }
+    }
+
+    private void updatePomProperty(Path pomFile, String propertyName, List<String> toRemove) throws IOException {
+        try {
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            org.w3c.dom.Document doc = dBuilder.parse(pomFile.toFile());
+            doc.getDocumentElement().normalize();
+
+            // Get or create <properties>
+            NodeList propsList = doc.getElementsByTagName("properties");
+            org.w3c.dom.Element propertiesElement;
+            if (propsList.getLength() > 0) {
+                propertiesElement = (org.w3c.dom.Element) propsList.item(0);
+            } else {
+                propertiesElement = doc.createElement("properties");
+                doc.getDocumentElement().appendChild(propertiesElement);
+            }
+
+            // Remove only requested properties from <properties>
+            if (toRemove != null && !toRemove.isEmpty()) {
+                for (int i = propertiesElement.getChildNodes().getLength() - 1; i >= 0; i--) {
+                    Node child = propertiesElement.getChildNodes().item(i);
+                    if (child.getNodeType() == Node.ELEMENT_NODE
+                            && toRemove.contains(child.getNodeName())) {
+                        propertiesElement.removeChild(child);
+                    }
+                }
+            }
+
+            // Find existing property inside <properties>
+            org.w3c.dom.Element existing = null;
+            NodeList children = propertiesElement.getChildNodes();
+            for (int i = 0; i < children.getLength(); i++) {
+                Node n = children.item(i);
+                if (n.getNodeType() == Node.ELEMENT_NODE && propertyName.equals(n.getNodeName())) {
+                    existing = (org.w3c.dom.Element) n;
+                    break;
+                }
+            }
+
+            // Current timestamp
+            String now = ZonedDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+
+            if (existing != null) {
+                existing.setTextContent(now); // update
+            } else {
+                org.w3c.dom.Element newEl = doc.createElement(propertyName);
+                newEl.setTextContent(now);
+                propertiesElement.appendChild(newEl);
+            }
+
+            // Save pom.xml back
+            Transformer transformer = TransformerFactory.newInstance().newTransformer();
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            transformer.transform(new DOMSource(doc), new StreamResult(pomFile.toFile()));
+
+        } catch (Exception e) {
+            throw new IOException("Failed to update pom.xml with property: " + propertyName, e);
+        }
+    }
 }

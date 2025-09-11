@@ -17,7 +17,7 @@ public interface ComponentService {
 
     List<String> getExistingProjects();
 
-    Map<String, List<String>> getProjectComponentsMap(List<String> projects);
+     List<String> getProjectComponentsMap(String projectName);
 
     List<String> getCommonComponents(List<String> allComponents, List<String> projectComponents);
 
@@ -45,5 +45,10 @@ public interface ComponentService {
 
     public Map<String, List<String>> getComponentsByGroup(String projectName);
 
+    Map<String, String>fetchComponentSuperTypes(String projectName);
 
+    /*
+check parent having tabs or not
+ */
+    Map<String, Object> getParentTabs(String projectName, String superType);
 }
