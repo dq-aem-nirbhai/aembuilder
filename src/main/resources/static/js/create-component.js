@@ -1,7 +1,12 @@
 document.addEventListener("DOMContentLoaded", function () {
   const modeSelect = document.getElementById('creationMode');
   const extendsDiv = document.getElementById('extendsComponentDiv');
+  const componentNameInput = document.getElementById('componentName');
+  const errorDiv = document.getElementById('nameError');
+  const createButton = document.getElementById('createButton');
+  const projectName = document.getElementById('projectName').value;
 
+  // ===== Toggle superType for extend/new component =====
   function toggleSuperType() {
     if (modeSelect.value === 'extend') {
       extendsDiv.style.display = '';
@@ -73,7 +78,6 @@ document.addEventListener("DOMContentLoaded", function () {
     nested.innerHTML = '';
 
     if (["select", "multiselect", "checkboxgroup", "radiogroup"].includes(type)) {
-      // ✅ Now treat as nested fields (text + value only)
       const addBtn = document.createElement('button');
       addBtn.type = 'button';
       addBtn.className = 'btn btn-sm btn-secondary mb-2';
@@ -130,7 +134,7 @@ document.addEventListener("DOMContentLoaded", function () {
     validateFormFields();
   };
 
-  // ===== Special: Add Text/Value row for select/multiselect/radiogroup/checkboxgroup =====
+  // ===== Add Text/Value row for select/multiselect/radio/checkboxgroup =====
   function addTextValueRow(btn) {
     const container = btn.closest('.nested-container');
     const parent = container.closest('.field-row, .nested-row');
@@ -154,6 +158,8 @@ document.addEventListener("DOMContentLoaded", function () {
     validateFormFields();
   };
 
+  
+
   // ===== Index Management =====
   function updateIndexes() {
     const fieldRows = document.querySelectorAll('#fieldsContainer > .field-row');
@@ -168,7 +174,6 @@ document.addEventListener("DOMContentLoaded", function () {
     row.querySelector('.fieldName').name = `${prefix}.fieldName`;
     row.querySelector('.fieldType').name = `${prefix}.fieldType`;
 
-    // Handle nested for select/multiselect/radio/checkbox (text + value)
     const nestedContainer = row.querySelector(':scope > .nested-container');
     if (nestedContainer) {
       const nestedRows = nestedContainer.querySelectorAll(':scope > .nested-row');
@@ -179,7 +184,6 @@ document.addEventListener("DOMContentLoaded", function () {
           text.name = `${prefix}.options[${idx}].text`;
           value.name = `${prefix}.options[${idx}].value`;
         } else {
-          // fallback for multifield/tabs nested
           setRowNames(nrow, `${prefix}.nestedFields[${idx}]`);
         }
       });
@@ -201,11 +205,15 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // ===== Validation, Debounce, Availability Check =====
-  const componentNameInput = document.getElementById('componentName');
-  const errorDiv = document.getElementById('nameError');
-  const createButton = document.getElementById('createButton');
-  const projectName = document.getElementById('projectName').value;
+  // ===== Component Name Validation =====
+  componentNameInput.addEventListener("input", function () {
+    // Only letters, numbers, underscore
+    const cleaned = componentNameInput.value.replace(/[^A-Za-z0-9_]/g, "");
+    if (componentNameInput.value !== cleaned) {
+      componentNameInput.value = cleaned;
+    }
+    checkComponentNameAvailability();
+  });
 
   function debounce(func, delay) {
     let timer;
@@ -254,8 +262,7 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   }, 400);
 
-  componentNameInput.addEventListener('input', checkComponentNameAvailability);
-
+  // ===== Form Validation =====
   window.validateFormFields = function () {
     const name = componentNameInput.value.trim();
     const group = document.getElementById('componentGroup').value;
@@ -316,8 +323,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!data) return;
     componentNameInput.value = data.componentName || '';
     componentNameInput.readOnly = true;
-    document.getElementById('componentGroup').value =
-      data.componentGroup || '';
+    document.getElementById('componentGroup').value = data.componentGroup || '';
     if (data.superType) {
       modeSelect.value = 'extend';
       toggleSuperType();
@@ -347,7 +353,6 @@ document.addEventListener("DOMContentLoaded", function () {
     row.querySelector('.fieldType').value = field.fieldType || '';
     handleFieldTypeChange(row.querySelector('.fieldType'));
 
-    // === Handle Options as Nested Text/Value ===
     if (
       ["select", "multiselect", "checkboxgroup", "radiogroup"].includes(field.fieldType) &&
       field.options &&
@@ -372,9 +377,6 @@ document.addEventListener("DOMContentLoaded", function () {
       container.appendChild(newAddBtn);
     }
 
-    
-
-    // === Handle Multifield/Tabs Nested Fields ===
     if (
       (field.fieldType === 'multifield' || field.fieldType === 'tabs') &&
       field.nestedFields &&
