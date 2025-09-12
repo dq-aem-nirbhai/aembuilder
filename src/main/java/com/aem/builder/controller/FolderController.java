@@ -46,6 +46,8 @@ public class FolderController {
 
             if (System.getProperty("os.name").toLowerCase().contains("win")) {
                 new ProcessBuilder("cmd", "/c", "code", "-n", folder.getAbsolutePath()).start();
+            } else if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+                new ProcessBuilder("open", "-a", "Visual Studio Code", folder.getAbsolutePath()).start();
             } else {
                 new ProcessBuilder("code", "-n", folder.getAbsolutePath()).start(); // Mac/Linux
             }
