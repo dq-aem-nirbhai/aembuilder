@@ -10,7 +10,7 @@ public enum FieldType {
     CHECKBOX("checkbox", "granite/ui/components/coral/foundation/form/checkbox"),
     RADIOGROUP("radiogroup", "granite/ui/components/coral/foundation/form/radiogroup"),
     SELECT("select", "granite/ui/components/coral/foundation/form/select"),
-    MULTISELECT("multiselect", "granite/ui/components/coral/foundation/form/multifield"),
+    MULTISELECT("multiselect", "granite/ui/components/coral/foundation/form/select"),
     PATHFIELD("pathfield", "granite/ui/components/coral/foundation/form/pathfield"),
     DATEPICKER("datepicker", "granite/ui/components/coral/foundation/form/datepicker"),
     FILEUPLOAD("fileupload", "cq/gui/components/authoring/dialog/fileupload"),
@@ -21,7 +21,6 @@ public enum FieldType {
     TAGFIELD("tagfield", "cq/gui/components/coral/common/form/tagfield"),
     COLORFIELD("colorfield","granite/ui/components/coral/foundation/form/colorfield" ),
     TABS("tabs","granite/ui/components/coral/foundation/container" );
-
 
 
     private final String type;

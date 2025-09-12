@@ -10,7 +10,10 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
-import java.util.List;
+
+import java.io.FileNotFoundException;
+import java.nio.file.StandardOpenOption;
+import java.util.*;
 
 import java.io.File;
 
@@ -31,12 +34,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 
-import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-
 
 
 /**
@@ -56,7 +58,7 @@ public class FileGenerationUtil {
         logger.info("FILEGEN: Starting file generation for project: {}", projectName);
         try {
             String appsRoot = "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps";
-            File appsDir = new File( "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps");
+            File appsDir = new File("generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps");
 
             String appName = projectName;
 
@@ -79,18 +81,18 @@ public class FileGenerationUtil {
             // Find models directory
             Path modelPath = findModelBasePath(javaSourceRoot);
 
-            log.info("ModelPath{}",modelPath);
+            log.info("ModelPath{}", modelPath);
 
 
             // Get full model base path
             String modelBasePath = modelPath.toString();
 
-            log.info("ModelBasePath{}",modelBasePath);
+            log.info("ModelBasePath{}", modelBasePath);
 
             // 5. Convert to Java package name
             String packageName = javaSourceRoot.relativize(modelPath).toString().replace(File.separatorChar, '.');
 
-            log.info("PackageName {}",packageName);
+            log.info("PackageName {}", packageName);
 
             generateComponent(basePath, modelBasePath, packageName, request.getComponentName(),
                     request.getComponentGroup(), request.getSuperType(), request.getFields());
@@ -115,13 +117,11 @@ public class FileGenerationUtil {
     }
 
 
-
-
     /**
      * Generates component folders, content.xml, HTL, dialog, and Sling model.
      */
     public static void generateComponent(String basePath, String modelBasePath, String packageName,
-            String componentName, String componentGroup, String superType, List<ComponentField> fields) throws Exception {
+                                         String componentName, String componentGroup, String superType, List<ComponentField> fields) throws Exception {
         logger.info("COMPONENT: Generating component '{}'", componentName);
 
         String componentFolder = basePath + "/" + componentName;
@@ -151,7 +151,7 @@ public class FileGenerationUtil {
      * Generates the .content.xml for the component.
      */
     private static void generateComponentContentXml(String folderPath, String componentName, String componentGroup,
-            String superType) throws Exception {
+                                                    String superType) throws Exception {
         logger.info("CONTENTXML: Generating .content.xml for component '{}'", componentName);
         String content = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
                 "<jcr:root xmlns:sling=\"http://sling.apache.org/jcr/sling/1.0\"\n" +
@@ -361,34 +361,34 @@ public class FileGenerationUtil {
         // If no tabs at all => flat dialog (better structure with fixedcolumns + column)
         if (tabFields.isEmpty()) {
             sb.append(String.format("""
-            <?xml version="1.0" encoding="UTF-8"?>
-            <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
-                      xmlns:cq="http://www.day.com/jcr/cq/1.0"
-                      xmlns:jcr="http://www.jcp.org/jcr/1.0"
-                      jcr:primaryType="nt:unstructured"
-                      jcr:title="%s"
-                      sling:resourceType="cq/gui/components/authoring/dialog"%s>
-                <content jcr:primaryType="nt:unstructured"
-                         sling:resourceType="granite/ui/components/coral/foundation/container">
-                    <layout jcr:primaryType="nt:unstructured"
-                            sling:resourceType="granite/ui/components/coral/foundation/layouts/fixedcolumns"/>
-                    <items jcr:primaryType="nt:unstructured">
-                        <column jcr:primaryType="nt:unstructured"
-                                sling:resourceType="granite/ui/components/coral/foundation/container">
+                    <?xml version="1.0" encoding="UTF-8"?>
+                    <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
+                              xmlns:cq="http://www.day.com/jcr/cq/1.0"
+                              xmlns:jcr="http://www.jcp.org/jcr/1.0"
+                              jcr:primaryType="nt:unstructured"
+                              jcr:title="%s"
+                              sling:resourceType="cq/gui/components/authoring/dialog"%s>
+                        <content jcr:primaryType="nt:unstructured"
+                                 sling:resourceType="granite/ui/components/coral/foundation/container">
+                            <layout jcr:primaryType="nt:unstructured"
+                                    sling:resourceType="granite/ui/components/coral/foundation/layouts/fixedcolumns"/>
                             <items jcr:primaryType="nt:unstructured">
-            """, dialogTitle, superTypeAttr));
+                                <column jcr:primaryType="nt:unstructured"
+                                        sling:resourceType="granite/ui/components/coral/foundation/container">
+                                    <items jcr:primaryType="nt:unstructured">
+                    """, dialogTitle, superTypeAttr));
 
             for (ComponentField f : nonTabFields) {
                 sb.append(generateFieldXml(safeNodeName(f.getFieldName(), "field"), f));
             }
 
             sb.append("""
+                                    </items>
+                                </column>
                             </items>
-                        </column>
-                    </items>
-                </content>
-            </jcr:root>
-            """);
+                        </content>
+                    </jcr:root>
+                    """);
 
         } else {
             // Tabs exist. Try to find an EXPLICIT "Main" tab among them.
@@ -406,22 +406,22 @@ public class FileGenerationUtil {
             boolean willAutoCreateMain = explicitMainTab == null && !nonTabFields.isEmpty();
 
             sb.append(String.format("""
-            <?xml version="1.0" encoding="UTF-8"?>
-            <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
-                      xmlns:cq="http://www.day.com/jcr/cq/1.0"
-                      xmlns:jcr="http://www.jcp.org/jcr/1.0"
-                      jcr:primaryType="nt:unstructured"
-                      jcr:title="%s"
-                      sling:resourceType="cq/gui/components/authoring/dialog"%s>
-                <content jcr:primaryType="nt:unstructured"
-                         sling:resourceType="granite/ui/components/coral/foundation/container">
-                    <layout jcr:primaryType="nt:unstructured"
-                            sling:resourceType="granite/ui/components/coral/foundation/layouts/tabs"/>
-                    <items jcr:primaryType="nt:unstructured">
-                        <tabs jcr:primaryType="nt:unstructured"
-                              sling:resourceType="granite/ui/components/coral/foundation/tabs">
+                    <?xml version="1.0" encoding="UTF-8"?>
+                    <jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
+                              xmlns:cq="http://www.day.com/jcr/cq/1.0"
+                              xmlns:jcr="http://www.jcp.org/jcr/1.0"
+                              jcr:primaryType="nt:unstructured"
+                              jcr:title="%s"
+                              sling:resourceType="cq/gui/components/authoring/dialog"%s>
+                        <content jcr:primaryType="nt:unstructured"
+                                 sling:resourceType="granite/ui/components/coral/foundation/container">
+                            <layout jcr:primaryType="nt:unstructured"
+                                    sling:resourceType="granite/ui/components/coral/foundation/layouts/tabs"/>
                             <items jcr:primaryType="nt:unstructured">
-            """, dialogTitle, superTypeAttr));
+                                <tabs jcr:primaryType="nt:unstructured"
+                                      sling:resourceType="granite/ui/components/coral/foundation/tabs">
+                                    <items jcr:primaryType="nt:unstructured">
+                    """, dialogTitle, superTypeAttr));
 
             // Safety: avoid duplicate tab node names
             java.util.Set<String> writtenTabNodeNames = new java.util.HashSet<>();
@@ -482,12 +482,12 @@ public class FileGenerationUtil {
             }
 
             sb.append("""
+                                    </items>
+                                </tabs>
                             </items>
-                        </tabs>
-                    </items>
-                </content>
-            </jcr:root>
-            """);
+                        </content>
+                    </jcr:root>
+                    """);
         }
 
         // Write to file
@@ -497,7 +497,9 @@ public class FileGenerationUtil {
         logger.info("DIALOG: Dialog .content.xml generated at {}/.content.xml", dialogFolder);
     }
 
-    /** Utility: safe XML node name */
+    /**
+     * Utility: safe XML node name
+     */
     private static String safeNodeName(String fieldName, String fallback) {
         if (fieldName == null || fieldName.isBlank()) {
             return fallback;
@@ -537,8 +539,7 @@ public class FileGenerationUtil {
                     case "numberfield" -> "    min=\"0\" max=\"1000\"\n";
                     case "tagfield" ->
                             "    autocompleter=\"true\"\n    multiple=\"true\"\n    rootPath=\"/content/cq:tags\"\n";
-                    case "richtext" ->
-                            "    useFixedInlineToolbar=\"true\"\n    enableSourceEdit=\"true\"\n";
+                    case "richtext" -> "    useFixedInlineToolbar=\"true\"\n    enableSourceEdit=\"true\"\n";
                     case "colorfield" ->
                             "    emptyText=\"Choose a color\"\n    value=\"#ffffff\"\n    required=\"{Boolean}false\"\n";
                     default -> "";
@@ -570,7 +571,7 @@ public class FileGenerationUtil {
                         nodeName, resource, label, name, label);
             }
 
-            case  "radiogroup" -> {
+            case "radiogroup" -> {
                 String resource = getResourceType("radiogroup");
                 StringBuilder sb = new StringBuilder();
                 sb.append("  <").append(nodeName).append("\n")
@@ -602,7 +603,7 @@ public class FileGenerationUtil {
                         .append("    fieldLabel=\"").append(label).append("\"\n")
                         .append("    name=\"./").append(name).append("\"\n");
                 if (type.equals("multiselect")) {
-                    sb.append("    multiple=\"true\"\n");
+                    sb.append("    multiple=\"{Boolean}true\"\n");
                 }
                 sb.append("    emptyText=\"Select...\">\n")
                         .append("    <items jcr:primaryType=\"nt:unstructured\">\n");
@@ -709,9 +710,9 @@ public class FileGenerationUtil {
                 .append("public class ").append(className).append(" {\n\n");
 
         List<ComponentField> generatedFields = addFieldsToModel(sb, modelBasePath, packageName, componentName, fields);
-        log.info("generateFields   {}",generatedFields);
+        log.info("generateFields   {}", generatedFields);
 
-                sb.append("    /**\n")
+        sb.append("    /**\n")
                 .append("     * Checks if all fields in this model are empty.\n")
                 .append("     * Used in HTL: ${!model.empty}\n")
                 .append("     */\n")
@@ -757,7 +758,7 @@ public class FileGenerationUtil {
      * - Skips "tabs" node but still processes its child fields
      */
     private static List<ComponentField> addFieldsToModel(StringBuilder sb, String modelBasePath, String packageName,
-                                         String componentName, List<ComponentField> fields) throws Exception {
+                                                         String componentName, List<ComponentField> fields) throws Exception {
 
         List<ComponentField> generatedFields = new ArrayList<>();
 
@@ -785,14 +786,14 @@ public class FileGenerationUtil {
                     sb.append("    @ChildResource\n")
                             .append("    private List<").append(capitalize(name)).append("> ").append(name).append(";\n\n");
                 }
-                case "checkbox" ->
-                        sb.append("    @ValueMapValue\n    private boolean ").append(name).append(";\n\n");
-                case "multiselect", "tagfield" ->
-                        sb.append("    @ValueMapValue\n    private List<String> ").append(name).append(";\n\n");
-                case "numberfield" ->
-                        sb.append("    @ValueMapValue\n    private double ").append(name).append(";\n\n");
-                default ->
-                        sb.append("    @ValueMapValue\n    private String ").append(name).append(";\n\n");
+                case "checkbox" -> sb.append("    @ValueMapValue\n")
+                        .append("   private boolean ").append(name).append(";\n\n");
+                case "multiselect", "tagfield" -> sb.append("    @ValueMapValue\n")
+                        .append("    private List<String> ").append(name).append(";\n\n");
+                case "numberfield" -> sb.append("    @ValueMapValue\n")
+                        .append("    private double ").append(name).append(";\n\n");
+                default -> sb.append("    @ValueMapValue\n")
+                        .append("    private String ").append(name).append(";\n\n");
             }
 
             // Add getter
@@ -832,8 +833,8 @@ public class FileGenerationUtil {
 
         sb.append("}");
 
-        FileUtils.writeStringToFile(new File(modelBasePath + "/" + className + ".java"), sb.toString(),
-                StandardCharsets.UTF_8);
+        File file = new File(modelBasePath + "/" + className + ".java");
+        FileUtils.writeStringToFile(file, sb.toString(), StandardCharsets.UTF_8);
         logger.info("MODEL: Child Model generated at {}/{}.java", modelBasePath, className);
     }
 
@@ -849,18 +850,14 @@ public class FileGenerationUtil {
             case "multifield" ->
                     sb.append("    public List<").append(getter).append("> get").append(getter).append("() {\n")
                             .append("        return ").append(name).append(";\n    }\n\n");
-            case "checkbox" ->
-                    sb.append("    public boolean is").append(getter).append("() {\n")
-                            .append("        return ").append(name).append(";\n    }\n\n");
-            case "multiselect", "tagfield" ->
-                    sb.append("    public List<String> get").append(getter).append("() {\n")
-                            .append("        return ").append(name).append(";\n    }\n\n");
-            case "numberfield" ->
-                    sb.append("    public double get").append(getter).append("() {\n")
-                            .append("        return ").append(name).append(";\n    }\n\n");
-            default ->
-                    sb.append("    public String get").append(getter).append("() {\n")
-                            .append("        return ").append(name).append(";\n    }\n\n");
+            case "checkbox" -> sb.append("    public boolean is").append(getter).append("() {\n")
+                    .append("        return ").append(name).append(";\n    }\n\n");
+            case "multiselect", "tagfield" -> sb.append("    public List<String> get").append(getter).append("() {\n")
+                    .append("        return ").append(name).append(";\n    }\n\n");
+            case "numberfield" -> sb.append("    public double get").append(getter).append("() {\n")
+                    .append("        return ").append(name).append(";\n    }\n\n");
+            default -> sb.append("    public String get").append(getter).append("() {\n")
+                    .append("        return ").append(name).append(";\n    }\n\n");
         }
     }
 
@@ -919,9 +916,7 @@ public class FileGenerationUtil {
 
             // ------------------- call update methods -------------------
             updateContentXml(projectName, request);
-            updateDialog(projectName, request);
-            updateSlingModel(projectName, request);
-           // updateHTL(projectName, request);
+            updateComponent(projectName, request, packageName);
 
             logger.info("FILEGEN: Successfully updated all files for project: {}", projectName);
         } catch (Exception e) {
@@ -931,7 +926,14 @@ public class FileGenerationUtil {
     }
 
 
+    public static void updateComponent(String projectName, ComponentRequest request, String packageName) throws Exception {
+        updateDialog(projectName, request);        // update .content.xml of dialog
+        updateSlingModel(request);
+        updateHTL(projectName, request, packageName);// update Sling Model (and HTL inside)
+    }
+
     // -------------------- update content.xml --------------------
+
     public static void updateContentXml(String projectName, ComponentRequest request) throws IOException {
         // Path to the actual component .content.xml
         File contentXml = new File(PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
@@ -960,151 +962,971 @@ public class FileGenerationUtil {
         FileUtils.writeStringToFile(contentXml, xmlContent, StandardCharsets.UTF_8);
     }
 
+    // -------------------- update Dialog content.xml --------------------
 
-    public static void updateDialog(String projectName, ComponentRequest request) {
-        try {
-            String dialogPath = PROJECTS_DIR + "/" + projectName
-                    + "/ui.apps/src/main/content/jcr_root/apps/"
-                    + projectName + "/components/" + request.getComponentName()
-                    + "/_cq_dialog/.content.xml";
+    public static void updateDialog(String projectName, ComponentRequest request) throws Exception {
+        String dialogPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
+                + projectName + "/components/" + request.getComponentName() + "/_cq_dialog/.content.xml";
 
-            File dialogFile = new File(dialogPath);
+        File dialogFile = new File(dialogPath);
+        if (!dialogFile.exists()) {
+            throw new FileNotFoundException("Dialog file not found at: " + dialogPath);
+        }
 
-            if (!dialogFile.exists()) {
-                logger.warn("Dialog file not found for component {}. Generating fresh dialog...", request.getComponentName());
-                generateDialogContentXml(request.getComponentName(),
-                        "_cq_dialog",
-                        request.getSuperType(),
-                        request.getFields());
-                return;
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document doc = builder.parse(dialogFile);
+        doc.getDocumentElement().normalize();
+
+        // Instead of always itemsList.item(0), find the <items> inside <column>
+        Element itemsElement = null;
+        NodeList columns = doc.getElementsByTagName("column");
+        if (columns.getLength() > 0) {
+            Element column = (Element) columns.item(0);
+            NodeList colItems = column.getElementsByTagName("items");
+            if (colItems.getLength() > 0) {
+                itemsElement = (Element) colItems.item(0); // ✅ real container for fields
             }
+        }
 
-            // ✅ Parse existing dialog XML using W3C DOM
-            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-            org.w3c.dom.Document doc = dBuilder.parse(dialogFile);
-            doc.getDocumentElement().normalize();
+// fallback if no column/items found
+        if (itemsElement == null && columns.getLength() > 0) {
+            itemsElement = (Element) columns.item(0);
+        }
 
-            // ✅ For each field in request, update or add
-            for (ComponentField field : request.getFields()) {
-                org.w3c.dom.Element existingField = findFieldByName(doc, field.getFieldName());
-                if (existingField != null) {
-                    // update existing attributes
-                    existingField.setAttribute("fieldLabel", field.getFieldLabel());
-                    existingField.setAttribute("sling:resourceType", getResourceType(field.getFieldType()));
-                } else {
-                    // append new field node
-                    org.w3c.dom.Element newField = createFieldElement(doc, field);
-                    //doc.getDocumentElement().appendChild(newField);
-                    // Find the <main><items> node where fields should be added
-                    NodeList mainNodes = doc.getElementsByTagName("main");
-                    if (mainNodes.getLength() > 0) {
-                        Element main = (Element) mainNodes.item(0);
-                        NodeList itemsNodes = main.getElementsByTagName("items");
-                        if (itemsNodes.getLength() > 0) {
-                            Element itemsEl = (Element) itemsNodes.item(0);
-                            itemsEl.appendChild(newField); // ✅ append in correct location
-                        }
-                    }
 
+        // ------------------- DELETE step -------------------
+        NodeList childNodes = itemsElement.getChildNodes();
+        List<String> incomingNames = request.getFields().stream()
+                .map(ComponentField::getFieldName)
+                .collect(Collectors.toList());
+        cleanUpDeletedFields(itemsElement, incomingNames);
+
+        for (int i = 0; i < childNodes.getLength(); i++) {
+            Node node = childNodes.item(i);
+            if (node.getNodeType() == Node.ELEMENT_NODE) {
+                Element el = (Element) node;
+                String nameAttr = el.getAttribute("name");
+                String fileRefAttr = el.getAttribute("fileReferenceParameter");
+
+                String cleanName = nameAttr.replace("./", "");
+                String cleanFileRef = fileRefAttr.replace("./", "");
+
+                if (!incomingNames.contains(cleanName) && !incomingNames.contains(cleanFileRef)) {
+                    itemsElement.removeChild(el);  // ✅ remove missing field
+                    i--; // adjust loop index
                 }
             }
-
-            // ✅ Write back updated XML
-            TransformerFactory transformerFactory = TransformerFactory.newInstance();
-            Transformer transformer = transformerFactory.newTransformer();
-            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-            DOMSource source = new DOMSource(doc);
-            StreamResult result = new StreamResult(dialogFile);
-            transformer.transform(source, result);
-
-            logger.info("Dialog updated successfully for component {}", request.getComponentName());
-
-        } catch (Exception e) {
-            logger.error("Error updating dialog for component " + request.getComponentName(), e);
         }
+
+        for (ComponentField field : request.getFields()) {
+            Element existing = findChildByName(itemsElement, "./" + field.getFieldName());
+            Element newField = updateFieldNode(doc, itemsElement, field);
+
+            if (existing == null) {
+                // new field → insert at correct order
+                insertAtCorrectPosition(itemsElement, newField, request.getFields(), field.getFieldName());
+            } else {
+                // existing field → nothing to insert, it's already in place
+            }
+        }
+
+        // Save back XML
+        Transformer transformer = TransformerFactory.newInstance().newTransformer();
+        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+
+        DOMSource source = new DOMSource(doc);
+        StreamResult result = new StreamResult(dialogFile);
+        transformer.transform(source, result);
     }
 
     /**
-     * Find existing field node by "name" attribute
+     * Inserts a field node into itemsElement preserving order from request.getFields()
      */
-    private static Element findFieldByName(Document doc, String fieldName) {
-        NodeList itemsNodes = doc.getElementsByTagName("items");
-        for (int i = 0; i < itemsNodes.getLength(); i++) {
-            Node itemsNode = itemsNodes.item(i);
-            NodeList children = itemsNode.getChildNodes();
-            for (int j = 0; j < children.getLength(); j++) {
-                Node n = children.item(j);
-                if (n instanceof Element el) {
-                    String nameAttr = el.getAttribute("name");
-                    if (nameAttr != null && nameAttr.endsWith(fieldName)) { // match "./fieldName"
-                        return el;
-                    }
+    private static void insertAtCorrectPosition(Element itemsElement,
+                                                Element newField,
+                                                List<ComponentField> fields,
+                                                String fieldName) {
+        NodeList childNodes = itemsElement.getChildNodes();
+
+        // find index of this field in request order
+        int desiredIndex = -1;
+        for (int i = 0; i < fields.size(); i++) {
+            if (fields.get(i).getFieldName().equals(fieldName)) {
+                desiredIndex = i;
+                break;
+            }
+        }
+
+        if (desiredIndex == -1) {
+            itemsElement.appendChild(newField); // fallback
+            return;
+        }
+
+        // find sibling to insert before
+        int currentIndex = 0;
+        for (int i = 0; i < childNodes.getLength(); i++) {
+            Node n = childNodes.item(i);
+            if (n.getNodeType() != Node.ELEMENT_NODE) continue;
+
+            String existingName = ((Element) n).getAttribute("name").replace("./", "");
+            int existingFieldIndex = -1;
+            for (int j = 0; j < fields.size(); j++) {
+                if (fields.get(j).getFieldName().equals(existingName)) {
+                    existingFieldIndex = j;
+                    break;
                 }
+            }
+
+            if (existingFieldIndex > desiredIndex) {
+                itemsElement.insertBefore(newField, n); // insert before next higher index
+                return;
+            }
+            currentIndex++;
+        }
+
+        // if no higher index found, append at end
+        itemsElement.appendChild(newField);
+    }
+
+    //==================
+    private static Element updateFieldNode(Document doc, Element parent, ComponentField field) {
+        String type = field.getFieldType().toLowerCase();
+        String fieldName = field.getFieldName();
+        String resourceType = FieldType.getTypeResourceMap()
+                .getOrDefault(type, "granite/ui/components/coral/foundation/form/textfield");
+
+        Element node = findChildByName(parent, "./" + fieldName);
+        if (node == null) {
+            node = doc.createElement(fieldName);
+            node.setAttribute("jcr:primaryType", "nt:unstructured");
+            node.setAttribute("name", "./" + fieldName);
+
+        }
+
+        node.setAttribute("fieldLabel", field.getFieldLabel());
+        node.setAttribute("sling:resourceType", resourceType);
+
+        switch (type) {
+            case "textarea":
+                node.setAttribute("rows", "5");
+                break;
+
+            case "numberfield":
+                node.setAttribute("min", "0");
+                node.setAttribute("max", "1000");
+                break;
+
+            case "colorfield":
+                node.setAttribute("emptyText", "Choose a color");
+                node.setAttribute("value", "#ffffff");
+                node.setAttribute("required", "{Boolean}false");
+                break;
+
+            case "tabs":
+                node.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/container");
+                node.setAttribute("type", "tabs");
+                break;
+
+            case "richtext":
+                node.setAttribute("sling:resourceType", "cq/gui/components/authoring/dialog/richtext");
+                node.setAttribute("useFixedInlineToolbar", "true");
+                node.setAttribute("enableSourceEdit", "true");
+                break;
+
+            case "checkbox":
+                node.setAttribute("text", field.getFieldLabel());
+                node.setAttribute("value", "true");
+                node.setAttribute("uncheckedValue", "false");
+                break;
+
+            case "tagfield":
+                node.setAttribute("autocompleter", "true");
+                node.setAttribute("multiple", "true");
+                node.setAttribute("rootPath", "/content/cq:tags");
+                break;
+
+            case "fileupload":
+            case "image":
+                node.setAttribute("sling:resourceType", "cq/gui/components/authoring/dialog/fileupload");
+                node.setAttribute("autoStart", "{Boolean}false");
+                node.setAttribute("class", "cq-droptarget");
+                node.setAttribute("fileNameParameter", "./" + fieldName + "FileName");
+                node.setAttribute("fileReferenceParameter", "./" + fieldName);
+                node.setAttribute("mimeTypes", "[image/gif,image/jpeg,image/png,image/tiff,image/svg+xml]");
+                node.setAttribute("multiple", "{Boolean}false");
+                node.setAttribute("name", "./file");
+                node.setAttribute("uploadUrl", "/content/dam");
+                break;
+
+            case "select":
+            case "multiselect":
+            case "radiogroup":
+                Element items = ensureChild(doc, node, "items", null);
+                while (items.hasChildNodes()) {
+                    items.removeChild(items.getFirstChild());
+                }
+                int i = 1;
+                for (OptionItem opt : field.getOptions()) {
+                    Element optEl = doc.createElement("option" + i++);
+                    optEl.setAttribute("jcr:primaryType", "nt:unstructured");
+                    optEl.setAttribute("text", opt.getText());
+                    optEl.setAttribute("value", opt.getValue());
+                    items.appendChild(optEl);
+                }
+                if ("multiselect".equals(type)) {
+                    node.setAttribute("multiple", "{Boolean}true");
+                }
+                if ("select".equals(type) || "multiselect".equals(type)) {
+                    node.setAttribute("emptyText", "Select...");
+                }
+                break;
+
+            case "multifield":
+                node.setAttribute("composite", "true");
+                node.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/form/multifield");
+
+                Element fieldset = ensureChild(doc, node, "field", "./" + field.getFieldName());
+                fieldset.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/form/fieldset");
+
+                Element layout = ensureChild(doc, fieldset, "layout", null);
+                layout.setAttribute("jcr:primaryType", "nt:unstructured");
+                layout.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/layouts/fixedcolumns");
+                layout.setAttribute("margin", "true");
+
+                Element mfItems = ensureChild(doc, fieldset, "items", null);
+
+                // This is the critical call: properly add nested fields into multifield items
+                handleNestedFields(doc, mfItems, field.getNestedFields());
+                break;
+
+        }
+        return node;
+
+    }
+
+
+    private static void handleNestedFields(Document doc, Element parentItems, List<ComponentField> nestedFields) {
+        for (ComponentField nested : nestedFields) {
+            String nestedType = nested.getFieldType().toLowerCase();
+            Element nestedNode = findChildByName(parentItems, "./" + nested.getFieldName());
+            if (nestedNode == null) {
+                nestedNode = doc.createElement(nested.getFieldName());
+                nestedNode.setAttribute("jcr:primaryType", "nt:unstructured");
+                nestedNode.setAttribute("name", "./" + nested.getFieldName());
+                parentItems.appendChild(nestedNode);
+            }
+            nestedNode.setAttribute("fieldLabel", nested.getFieldLabel());
+
+            if ("multifield".equals(nestedType)) {
+                nestedNode.setAttribute("composite", "true");
+                nestedNode.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/form/multifield");
+
+                Element fieldset = ensureChild(doc, nestedNode, "field", "./" + nested.getFieldName());
+                fieldset.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/form/fieldset");
+
+                Element layout = ensureChild(doc, fieldset, "layout", null);
+                layout.setAttribute("jcr:primaryType", "nt:unstructured");
+                layout.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/layouts/fixedcolumns");
+                layout.setAttribute("margin", "true");
+
+                Element mfItems = ensureChild(doc, fieldset, "items", null);
+
+                // Recursive call for nested multifield items
+                handleNestedFields(doc, mfItems, nested.getNestedFields());
+
+            } else {
+                // Normal fields inside multifield (textfield, richtext, fileupload, select...)
+                updateFieldNode(doc, parentItems, nested);
+            }
+        }
+    }
+
+
+    private static Element findChildByName(Element parent, String name) {
+        String clean = name.startsWith("./") ? name.substring(2) : name;
+        NodeList children = parent.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node n = children.item(i);
+            if (n.getNodeType() != Node.ELEMENT_NODE) continue;
+            Element el = (Element) n;
+
+            String nameAttr = el.getAttribute("name");
+            String fileRef = el.getAttribute("fileReferenceParameter");
+
+            boolean matchByName = ("./" + clean).equals(nameAttr);
+            boolean matchFileUpload = ("./" + clean).equals(fileRef)
+                    || ("./file".equals(nameAttr) && ("./" + clean).equals(fileRef));
+            boolean matchByNodeName = el.getNodeName().equalsIgnoreCase(clean);
+
+            if (matchByName || matchFileUpload || matchByNodeName) {
+                return el;
             }
         }
         return null;
     }
 
     /**
-     * Create a new field node with proper tag name and attributes
+     * Utility: ensure a child exists, else create it
      */
-    private static Element createFieldElement(Document doc, ComponentField field) {
-        Element fieldEl = doc.createElement(field.getFieldName()); // ✅ use fieldName as node name
-        fieldEl.setAttribute("jcr:primaryType", "nt:unstructured");
-        fieldEl.setAttribute("sling:resourceType", getResourceType(field.getFieldType()));
-        fieldEl.setAttribute("fieldLabel", field.getFieldLabel());
-        fieldEl.setAttribute("name", "./" + field.getFieldName());
-        return fieldEl;
+    private static Element ensureChild(Document doc, Element parent, String nodeName, String nameAttr) {
+        NodeList children = parent.getElementsByTagName(nodeName);
+        if (children.getLength() > 0) {
+            return (Element) children.item(0);
+        }
+        Element child = doc.createElement(nodeName);
+        child.setAttribute("jcr:primaryType", "nt:unstructured");
+        if (nameAttr != null) {
+            child.setAttribute("name", nameAttr);
+        }
+        parent.appendChild(child);
+        return child;
+    }
+
+    // Recursive method to clean up fields (top-level + nested)
+    private static void cleanUpDeletedFields(Element itemsElement, List<String> incomingNames) {
+        NodeList childNodes = itemsElement.getChildNodes();
+        for (int i = 0; i < childNodes.getLength(); i++) {
+            Node node = childNodes.item(i);
+            if (node.getNodeType() == Node.ELEMENT_NODE) {
+                Element el = (Element) node;
+                String nameAttr = el.getAttribute("name");
+                String fileRefAttr = el.getAttribute("fileReferenceParameter");
+
+                boolean shouldRemove = false;
+
+                if (nameAttr != null && !nameAttr.isEmpty()) {
+                    if (!incomingNames.contains(nameAttr.replace("./", ""))) {
+                        shouldRemove = true;
+                    }
+                } else if (fileRefAttr != null && !fileRefAttr.isEmpty()) {
+                    if (!incomingNames.contains(fileRefAttr.replace("./", ""))) {
+                        shouldRemove = true;
+                    }
+                }
+
+                if (shouldRemove) {
+                    itemsElement.removeChild(el);  // ✅ remove missing field
+                    i--; // adjust loop since node list is live
+                } else {
+                    // ✅ check if this element has nested <items> (multifield case)
+                    NodeList nestedItems = el.getElementsByTagName("items");
+                    if (nestedItems != null && nestedItems.getLength() > 0) {
+                        for (int j = 0; j < nestedItems.getLength(); j++) {
+                            Element nested = (Element) nestedItems.item(j);
+                            cleanUpDeletedFields(nested, incomingNames); // recursion
+                        }
+                    }
+                }
+            }
+        }
     }
 
 
-        // -------------------- update Sling Model --------------------
-        public static void updateSlingModel(String projectName, ComponentRequest request) throws IOException {
-            File modelFile = new File(PROJECTS_DIR + "/" + projectName + "/core/src/main/java/com/" + projectName
-                    + "/core/models/" + StringUtils.capitalize(request.getComponentName()) + ".java");
+    // -------------------- update Sling model --------------------
+    //sling model update
 
-            if (!modelFile.exists()) return;
 
-            String content = FileUtils.readFileToString(modelFile, StandardCharsets.UTF_8);
+    public static void updateSlingModel(ComponentRequest request) throws IOException {
+        // 1. Derive HTL path
+        Path htlPath = Paths.get("generated-projects", request.getProjectName(),
+                "ui.apps/src/main/content/jcr_root/apps",
+                request.getProjectName(), "components", request.getComponentName(),
+                request.getComponentName() + ".html");
 
-           /* for (ComponentField field : request.getFields()) {
-                String type = (field.getNestedFields() != null && !field.getNestedFields().isEmpty()) ? "List<String>" : "String";
-
-                if (!content.contains("private " + type + " " + field.getFieldName())) {
-                    String fieldCode = "\n\t@Inject @Named(\"" + field.getFieldName() + "\")\n\tprivate " + type + " " + field.getFieldName() + ";\n" +
-                            "\n\tpublic " + type + " get" + StringUtils.capitalize(field.getFieldName()) + "() {\n\t\treturn " + field.getFieldName() + ";\n\t}\n";
-                    content = content.replaceFirst("\\}", fieldCode + "\n}");
-                }
-
-            }*/
-
-            for (ComponentField field : request.getFields()) {
-                String fieldName = field.getFieldName();
-                if (fieldName == null || fieldName.isBlank()) continue; // skip invalid
-
-                String type;
-
-                // Handle special cases
-                if ("multifield".equalsIgnoreCase(field.getFieldType())) {
-                    type = "List<String>";
-                } else {
-                    type = "String";
-                }
-
-                String fieldSignature = "private " + type + " " + fieldName;
-                if (!content.contains(fieldSignature)) {
-                    String fieldCode = "\n\t@Inject @Named(\"" + fieldName + "\")\n\tprivate " + type + " " + fieldName + ";\n" +
-                            "\n\tpublic " + type + " get" + StringUtils.capitalize(fieldName) + "() {\n\t\treturn " + fieldName + ";\n\t}\n";
-
-                    // Insert before last class closing brace only
-                    content = content.replaceFirst("(\\n}\\s*)$", fieldCode + "\n}");
-                }
-            }
-
-            FileUtils.writeStringToFile(modelFile, content, StandardCharsets.UTF_8);
+        // 2. Extract Sling Model class name from HTL
+        String htlContent = Files.readString(htlPath);
+        String slingModelClass = extractSlingModelClass(htlContent);
+        if (slingModelClass == null) {
+            throw new RuntimeException("❌ No Sling Model found in HTL: " + htlPath);
         }
 
+        // 3. Locate Sling Model .java file
+        Path javaFilePath = locateJavaFile(request.getProjectName(), slingModelClass);
+        if (javaFilePath == null) {
+            throw new RuntimeException("❌ Could not find Java file for model: " + slingModelClass);
+        }
+
+        // 4. Determine base package for generating nested multifield classes
+        String basePackage = slingModelClass.substring(0, slingModelClass.lastIndexOf("."));
+
+        // 5. Patch Sling Model with fields from ComponentRequest
+        patchSlingModel(javaFilePath, request.getFields(), basePackage, request.getProjectName());
+    }
+
+
+    public static String extractSlingModelClass(String htlContent) {
+        Pattern p = Pattern.compile("data-sly-use\\.\\w+\\s*=\\s*\"([^\"]+)\"");
+        Matcher m = p.matcher(htlContent);
+        while (m.find()) {
+            String candidate = m.group(1).trim();
+            // Ignore templates and only pick Java classes
+            if (candidate.contains(".") && !candidate.endsWith(".html")) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+
+    private static Path locateJavaFile(String projectName, String slingModelClass) {
+        String relativePath = slingModelClass.replace(".", "/") + ".java";
+        Path javaPath = Paths.get("generated-projects", projectName,
+                "core/src/main/java", relativePath);
+        return Files.exists(javaPath) ? javaPath : null;
+    }
+
+
+    /**
+     * Patch-update Sling Model file based on ComponentRequest fields.
+     */
+    private static void patchSlingModel(Path javaFile, List<ComponentField> fields,
+                                        String basePackage, String projectName) throws IOException {
+
+        String content = Files.readString(javaFile);
+
+        // 1️⃣ Extract existing fields
+        Map<String, String> existingFields = extractFieldMap(content);
+
+        // 2️⃣ Remove fields that no longer exist
+        for (String fieldName : new HashSet<>(existingFields.keySet())) {
+            if (fields.stream().noneMatch(f -> f.getFieldName().equals(fieldName))) {
+                content = removeField(content, fieldName);
+            }
+        }
+
+        // 3️⃣ Add or update fields
+        for (ComponentField field : fields) {
+            if (fieldExists(content, field.getFieldName())) {
+                content = updateField(content, field); // update type if changed
+            } else {
+                content = insertField(content, field, basePackage, projectName);
+            }
+
+            // 4️⃣ Generate nested classes for multifield or child elements
+            if ("multifield".equalsIgnoreCase(field.getFieldType()) ||
+                    "child".equalsIgnoreCase(field.getFieldType())) {
+
+                String nestedClassName = capitalize(field.getFieldName());
+                generateOrUpdateMultifieldClass(projectName, basePackage, nestedClassName, field.getNestedFields());
+            }
+        }
+
+        // 5️⃣ Rebuild isEmpty()
+        content = updateIsEmpty(content, fields);
+
+        Files.writeString(javaFile, content);
+    }
+
+    private static String insertField(String content, ComponentField field,
+                                      String packageName, String projectName) {
+
+        String capName = capitalize(field.getFieldName());
+
+        // 1️⃣ Multifield / child element → List<NestedClass>
+        if ("multifield".equalsIgnoreCase(field.getFieldType()) ||
+                "child".equalsIgnoreCase(field.getFieldType())) {
+
+            String nestedClassName = capName;
+            String fieldCode =
+                    "    @ChildResource\n" +
+                            "    private List<" + nestedClassName + "> " + field.getFieldName() + ";\n\n" +
+                            "    public List<" + nestedClassName + "> get" + nestedClassName + "() {\n" +
+                            "        return " + field.getFieldName() + ";\n" +
+                            "    }\n\n";
+
+            int insertPos = content.lastIndexOf("}");
+            return content.substring(0, insertPos) + fieldCode + "}\n";
+        }
+
+        // 2️⃣ Single-value field → ValueMapValue
+        String type = mapFieldTypeToJavaType(field.getFieldType());
+        String fieldCode =
+                "    @ValueMapValue\n" +
+                        "    private " + type + " " + field.getFieldName() + ";\n\n" +
+                        "    public " + type + " get" + capName + "() {\n" +
+                        "        return " + field.getFieldName() + ";\n" +
+                        "    }\n\n";
+
+        int insertPos = content.lastIndexOf("}");
+        return content.substring(0, insertPos) + fieldCode + "}\n";
+    }
+
+
+    private static boolean fieldExists(String content, String fieldName) {
+        Pattern pField = Pattern.compile("private\\s+[\\w<>\\[\\]]+\\s+" + fieldName + "\\s*;");
+        Pattern pGetter = Pattern.compile("public\\s+[\\w<>\\[\\]]+\\s+get" + capitalize(fieldName) + "\\s*\\(");
+        return pField.matcher(content).find() || pGetter.matcher(content).find();
+    }
+
+
+    private boolean clsIsMultifield(Path file) {
+        try {
+            String content = Files.readString(file);
+            return content.contains("@ValueMapValue"); // heuristic: multifield child classes always have VMV fields
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    // Extract all @ValueMapValue / @ChildResource fields
+    // Extract all @ValueMapValue / @ChildResource fields reliably
+    private static Map<String, String> extractFieldMap(String content) {
+        Map<String, String> map = new HashMap<>();
+        Pattern p = Pattern.compile("@(?:ValueMapValue|ChildResource)\\s+private\\s+([\\w<>]+)\\s+(\\w+)\\s*;");
+        Matcher m = p.matcher(content);
+        while (m.find()) {
+            map.put(m.group(2), m.group(1)); // fieldName → type
+        }
+        return map;
+    }
+
+
+    // Remove a field + its getter
+    // Remove a field and its getter
+    private static String removeField(String content, String fieldName) {
+        // Remove annotated field
+        content = content.replaceAll(
+                "(?s)@(ValueMapValue|ChildResource)\\s+private[^{;]+\\s+" + fieldName + "\\s*;\\s*",
+                ""
+        );
+
+        /*// Remove ALL getters for this field
+        content = content.replaceAll(
+                "(?s)public\\s+[\\w<>\\[\\]]+\\s+get" + capitalize(fieldName) +
+                        "\\s*\\(\\)\\s*\\{.*?\\}",
+                ""
+        );*/
+
+        // Remove ALL getters for this field
+        content = content.replaceAll(
+                "(?s)public\\s+[\\w<>\\[\\]]+\\s+(get|is)" + capitalize(fieldName) +
+                        "\\s*\\(\\)\\s*\\{.*?\\}",
+                ""
+        );
+
+        return content;
+    }
+
+
+    // Insert new field + getter before last }
+    private String insertNewField(String content, ComponentField field,
+                                  String packageName, String projectName) {
+        String cap = capitalize(field.getFieldName());
+
+        String fieldCode;
+
+        if ("multifield".equalsIgnoreCase(field.getFieldType())) {
+            // ➡ Use List<ClassName> for multifields
+            String nestedClassName = capitalize(field.getFieldName());
+            fieldCode =
+                    "    @ChildResource\n" +
+                            "    private List<" + nestedClassName + "> " + field.getFieldName() + ";\n\n" +
+                            "    public List<" + nestedClassName + "> get" + cap + "() {\n" +
+                            "        return " + field.getFieldName() + ";\n" +
+                            "    }\n\n";
+
+            // 🔄 Generate the nested class
+            try {
+                generateOrUpdateMultifieldClass(projectName, packageName, nestedClassName, field.getNestedFields());
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to generate multifield class for " + nestedClassName, e);
+            }
+
+        } else {
+            // Normal field → map type
+            String type = mapFieldTypeToJavaType(field.getFieldType());
+            fieldCode =
+                    "    @ValueMapValue\n" +
+                            "    private " + type + " " + field.getFieldName() + ";\n\n" +
+                            "    public " + type + " get" + cap + "() {\n" +
+                            "        return " + field.getFieldName() + ";\n" +
+                            "    }\n\n";
+        }
+
+        // Prevent duplicates
+        if (content.contains("private " + field.getFieldName())) {
+            return content;
+        }
+
+        int insertPos = content.lastIndexOf("}");
+        return content.substring(0, insertPos) + fieldCode + "}\n";
+    }
+
+
+    // Update existing field type/annotation if needed
+    private static String updateField(String content, ComponentField field) {
+        String fieldName = field.getFieldName();
+        String capName = capitalize(fieldName);
+        String type;
+        String annotation;
+
+        if ("multifield".equalsIgnoreCase(field.getFieldType()) ||
+                "child".equalsIgnoreCase(field.getFieldType())) {
+            type = "List<" + capName + ">";
+            annotation = "@ChildResource";
+        } else {
+            type = mapFieldTypeToJavaType(field.getFieldType());
+            annotation = "@ValueMapValue";
+        }
+
+        // Replace field declaration
+        content = content.replaceAll(
+                "(?s)@(?:ValueMapValue|ChildResource)\\s+private[^{;]+\\s+" + fieldName + "\\s*;",
+                annotation + "\n private " + type + " " + fieldName + ";"
+        );
+
+        // Replace getter return type
+        content = content.replaceAll(
+                "(?s)public\\s+[\\w<>\\[\\]]+\\s+(get|is)" + capName + "\\s*\\(",
+                "public " + type + " get" + capName + "("
+        );
+
+        return content;
+    }
+
+
+    // Rebuild isEmpty()
+
+    /**
+     * Recursive generator for multifield classes
+     */
+    private static void generateOrUpdateMultifieldClass(String projectName, String packageName,
+                                                        String className, List<ComponentField> nestedFields)
+            throws IOException {
+
+        String relativePath = packageName.replace(".", "/") + "/" + className + ".java";
+        Path javaFile = Paths.get("generated-projects", projectName, "core/src/main/java", relativePath);
+        Files.createDirectories(javaFile.getParent());
+
+        // Create skeleton if missing
+        if (!Files.exists(javaFile)) {
+            String header = "package " + packageName + ";\n\n" +
+                    "import java.util.List;\n" +
+                    "import org.apache.sling.api.resource.Resource;\n" +
+                    "import org.apache.sling.models.annotations.DefaultInjectionStrategy;\n" +
+                    "import org.apache.sling.models.annotations.Model;\n" +
+                    "import org.apache.sling.models.annotations.injectorspecific.ValueMapValue;\n" +
+                    "import org.apache.sling.models.annotations.injectorspecific.ChildResource;\n\n" +
+                    "@Model(adaptables = Resource.class, defaultInjectionStrategy = DefaultInjectionStrategy.OPTIONAL)\n" +
+                    "public class " + className + " {\n\n}\n";
+            Files.writeString(javaFile, header);
+        }
+
+        String content = Files.readString(javaFile);
+
+        Map<String, String> existing = extractFieldMap(content);
+
+        // Remove old fields
+        for (String f : new HashSet<>(existing.keySet())) {
+            if (nestedFields.stream().noneMatch(n -> n.getFieldName().equals(f))) {
+                content = removeField(content, f);
+            }
+        }
+
+        // Insert or update nested fields
+        for (ComponentField nested : nestedFields) {
+            if (fieldExists(content, nested.getFieldName())) {
+                content = updateField(content, nested);
+            } else {
+                content = insertField(content, nested, packageName, projectName);
+
+                // Recursively generate further nested multifields
+                if ("multifield".equalsIgnoreCase(nested.getFieldType()) ||
+                        "child".equalsIgnoreCase(nested.getFieldType())) {
+
+                    generateOrUpdateMultifieldClass(projectName, packageName,
+                            capitalize(nested.getFieldName()), nested.getNestedFields());
+                }
+            }
+        }
+
+        // Rebuild isEmpty
+        content = updateIsEmpty(content, nestedFields);
+
+        Files.writeString(javaFile, content);
+    }
+
+
+    /**
+     * Inserts or updates a normal (non-multifield) field
+     */
+    private String insertOrUpdateSingleField(String content, ComponentField field,
+                                             String packageName, String projectName) {
+        String capName = capitalize(field.getFieldName());
+        String type = mapFieldTypeToJavaType(field.getFieldType());
+
+        if (fieldExists(content, field.getFieldName())) {
+            return content.replaceAll("private\\s+[\\w<>\\[\\]]+\\s+" + field.getFieldName() + "\\s*;",
+                    "private " + type + " " + field.getFieldName() + ";");
+        }
+
+        String fieldCode =
+                "    @ValueMapValue\n" +
+                        "    private " + type + " " + field.getFieldName() + ";\n\n" +
+                        "    public " + type + " get" + capName + "() {\n" +
+                        "        return " + field.getFieldName() + ";\n" +
+                        "    }\n\n";
+
+        int insertPos = content.lastIndexOf("}");
+        return content.substring(0, insertPos) + fieldCode + "}\n";
+    }
+
+    private static String updateIsEmpty(String content, List<ComponentField> fields) {
+        // Remove old isEmpty
+        content = content.replaceAll("(?s)public\\s+boolean\\s+isEmpty\\s*\\(\\)\\s*\\{.*?\\}", "");
+
+        StringBuilder checks = new StringBuilder();
+        for (ComponentField f : fields) {
+            if ("numberfield".equalsIgnoreCase(f.getFieldType())) {
+                checks.append("        if (").append(f.getFieldName()).append(" != 0) empty = false;\n");
+            } else if ("checkbox".equalsIgnoreCase(f.getFieldType())) {
+                checks.append("        if (").append(f.getFieldName()).append(") empty = false;\n");
+            } else {
+                checks.append("        if (").append(f.getFieldName())
+                        .append(" != null && !").append(f.getFieldName()).append(".toString().isEmpty()) " +
+                                "empty = false;\n");
+            }
+        }
+
+        String isEmptyMethod =
+                "    public boolean isEmpty() {\n" +
+                        "        boolean empty = true;\n" +
+                        checks +
+                        "        return empty;\n" +
+                        "    }\n";
+
+        int insertPos = content.lastIndexOf("}");
+        return content.substring(0, insertPos) + isEmptyMethod + "}\n";
+    }
+
+    // Utility: map AEM field types to Java types
+    private static String mapFieldTypeToJavaType(String fieldType) {
+        return switch (fieldType.toLowerCase()) {
+            case "numberfield" -> "double";
+            case "checkbox" -> "boolean";
+            case "textfield", "textarea", "password", "fileupload", "pathfield" -> "String";
+            case "tagfield", "multiselect" -> "List<String>";
+
+            default -> "String"; // fallback
+        };
+    }
+
+
+    // Map field type to Java type
+    private String mapFieldType(String fieldType) {
+        return switch (fieldType.toLowerCase()) {
+            case "numberfield" -> "double";
+            case "textfield", "textarea", "password", "pathfield" -> "String";
+            case "tagfield", "multiselect" -> "List<String>";
+            default -> "String"; // fallback
+        };
+    }
+
+    private void generateMultifieldClass(Path classFile, String basePackage, String className, List<ComponentField>
+            nestedFields) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        sb.append("package ").append(basePackage).append(";\n\n")
+                .append("import org.apache.sling.models.annotations.Model;\n")
+                .append("import org.apache.sling.models.annotations.DefaultInjectionStrategy;\n")
+                .append("import java.util.*;\n")
+                .append("import org.apache.sling.models.annotations.injectorsspecific.ValueMapValue;\n\n")
+                .append("@Model(adaptables = org.apache.sling.api.resource.Resource.class, defaultInjectionStrategy" +
+                        " = " +
+                        "DefaultInjectionStrategy.OPTIONAL)\n")
+                .append("public class ").append(className).append(" {\n");
+
+//        for (ComponentField nested : nestedFields) {
+//            sb.append("    @ValueMapValue\n")
+//                    .append("    private String ").append(nested.getFieldName()).append(";\n\n");
+//
+//            sb.append("    public String get").append(capitalize(nested.getFieldName())).append("() {\n")
+//                    .append("        return ").append(nested.getFieldName()).append(";\n")
+//                    .append("    }\n\n");
+//        }
+        for (ComponentField nested : nestedFields) {
+            String type = mapFieldTypeToJavaType(nested.getFieldType());
+            sb.append("    @ValueMapValue\n")
+                    .append("    private ").append(type).append(" ").append(nested.getFieldName()).append(";\n\n");
+
+            sb.append("    public ").append(type).append(" get").append(capitalize(nested.getFieldName())).append("() {\n")
+                    .append("        return ").append(nested.getFieldName()).append(";\n")
+                    .append("    }\n\n");
+        }
+
+
+        sb.append("}\n");
+        Files.writeString(classFile, sb.toString());
+    }
+
+    private void updateMultifieldClass(Path classFile, List<ComponentField> nestedFields) throws IOException {
+        String content = Files.readString(classFile);
+        StringBuilder newFields = new StringBuilder();
+
+        for (ComponentField nested : nestedFields) {
+            if (!content.contains("private String " + nested.getFieldName())) {
+                newFields.append("    @ValueMapValue\n")
+                        .append("    private String ").append(nested.getFieldName()).append(";\n\n");
+                newFields.append("    public String get").append(capitalize(nested.getFieldName())).append("() {\n")
+                        .append("        return ").append(nested.getFieldName()).append(";\n")
+                        .append("    }\n\n");
+            }
+        }
+
+        int insertPos = content.lastIndexOf("}");
+        String updated = content.substring(0, insertPos) + newFields + "}\n";
+        Files.writeString(classFile, updated);
+    }
+
+    private String removeField(String content, String fieldName, Path projectDir) throws IOException {
+        // Remove the field declaration
+        content = content.replaceAll(
+                "(?s)@(ValueMapValue|ChildResource)\\s+private[^{;]+\\s+" + fieldName + "\\s*;\\s*", ""
+        );
+
+        // Remove getter(s)
+        content = content.replaceAll(
+                "(?s)public\\s+[\\w<>\\[\\]]+\\s+(get|is)" + capitalize(fieldName) + "\\s*\\(\\)\\s*\\{.*?\\}", ""
+        );
+
+        // Delete nested multifield class if exists
+        Path nestedClass = projectDir.resolve(capitalize(fieldName) + ".java");
+        if (Files.exists(nestedClass)) Files.delete(nestedClass);
+
+        return content;
+    }
+
+
+    // -------------------- update HTL --------------------
+
+    public static void updateHTL(String projectName, ComponentRequest request, String packageName) throws IOException {
+        File htlFile = new File(PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
+                + projectName + "/components/" + request.getComponentName() + "/" + request.getComponentName() + ".html");
+
+
+        if (!htlFile.exists()) {
+            System.out.println("HTL file not found: " + htlFile.getAbsolutePath());
+            return;
+        }
+
+        StringBuilder fieldSnippets = new StringBuilder();
+        for (ComponentField field : request.getFields()) {
+            fieldSnippets.append(generateHTLSnippet(field, 1)).append("\n");
+        }
+
+        String htlContent =
+                "<sly data-sly-use.model=\"" + packageName + "." + capitalize(request.getComponentName()) + "Model\" />\n" +
+                        "<sly data-sly-use.placeholderTemplate=\"core/wcm/components/commons/v1/templates.html\"/>\n\n" +
+                        "<sly data-sly-test.hasContent=\"${!model.empty}\">\n" +
+                        fieldSnippets +
+                        "</sly>\n" +
+                        "<sly data-sly-call=\"${placeholderTemplate.placeholder @ isEmpty = !hasContent}\" />";
+
+        Files.writeString(htlFile.toPath(), htlContent, StandardOpenOption.TRUNCATE_EXISTING);
+    }
+
+    private static String generateHTLSnippet(ComponentField field, int level) {
+        String name = field.getFieldName();
+        String type = field.getFieldType().toLowerCase();
+
+        switch (type) {
+            case "fileupload":
+                return indent(level) + "<sly data-sly-test=\"${model." + name + "}\">\n" +
+                        indent(level + 1) + "<p>" + field.getFieldLabel() +
+                        ": <img src=\"${model." + name + "}\" alt=\"" + field.getFieldLabel() +
+                        "\" style=\"max-width:100%; height:auto;\"/></p>\n" +
+                        indent(level) + "</sly>";
+
+            case "textfield":
+            case "title":
+                return indent(level) + "<sly data-sly-test=\"${model." + name + "}\">\n" +
+                        indent(level + 1) + "<p class=\"" + name + "\">${model." + name + "}</p>\n" +
+                        indent(level) + "</sly>";
+            case "textarea":
+                return indent(level) + "<sly data-sly-test=\"${model." + name + "}\">\n" +
+                        indent(level + 1) + "<div class=\"" + name + "\">${model." + name + "}</div>\n" +
+                        indent(level) + "</sly>";
+            case "richtext":
+                return indent(level) + "<sly data-sly-test=\"${model." + name + "}\">\n" +
+                        indent(level + 1) + "<div class=\"" + name + "\">${model." + name + " @context='html'}</div>\n" +
+                        indent(level) + "</sly>";
+            case "pathfield":
+                return indent(level) + "<sly data-sly-test=\"${model." + name + "}\">\n" +
+                        indent(level + 1) + "<p class=\"" + name + "\"><a href=\"${model." + name + "}\">${model." + name + "}</a></p>\n" +
+                        indent(level) + "</sly>";
+            case "checkbox":
+                return indent(level) + "<sly data-sly-test=\"${model." + name + "}\">\n"
+                        + indent(level + 1) + "<p>" + field.getFieldLabel()
+                        + ": <input type=\"checkbox\" disabled checked=\"checked\"/></p>\n"
+                        + indent(level) + "</sly>";
+
+            case "multifield":
+                StringBuilder mf = new StringBuilder();
+                mf.append(indent(level)).append("<sly data-sly-test=\"${model.").append(name).append("}\">\n");
+                mf.append(indent(level + 1)).append("<ul data-sly-list.item=\"${model.").append(name).append("}\">\n");
+                mf.append(indent(level + 2)).append("<li>\n");
+
+                if (field.getNestedFields() != null && !field.getNestedFields().isEmpty()) {
+                    for (ComponentField child : field.getNestedFields()) {
+                        mf.append(generateHTLSnippetForChild(child, "item", level + 3)).append("\n");
+                    }
+                } else {
+                    mf.append(indent(level + 3)).append("${item}\n");
+                }
+
+                mf.append(indent(level + 2)).append("</li>\n");
+                mf.append(indent(level + 1)).append("</ul>\n");
+                mf.append(indent(level)).append("</sly>");
+                return mf.toString();
+            default:
+                return indent(level) + "<sly data-sly-test=\"${model." + name + "}\">\n" +
+                        indent(level + 1) + "<div class=\"" + name + "\">${model." + name + "}</div>\n" +
+                        indent(level) + "</sly>";
+        }
+    }
+
+
+    private static String generateHTLSnippetForChild(ComponentField field, String parent, int level) {
+        String name = field.getFieldName();
+        String type = field.getFieldType().toLowerCase();
+
+        switch (type) {
+            case "fileupload":
+                return indent(level) + "<sly data-sly-test=\"${" + parent + "." + name + "}\">\n" +
+                        indent(level + 1) + "<img src=\"${" + parent + "." + name + "}\" alt=\"" + name + "\"/>\n" +
+                        indent(level) + "</sly>";
+            case "textfield":
+            case "title":
+                return indent(level) + "<sly data-sly-test=\"${" + parent + "." + name + "}\">\n" +
+                        indent(level + 1) + "<p class=\"" + name + "\">${" + parent + "." + name + "}</p>\n" +
+                        indent(level) + "</sly>";
+            case "textarea":
+                return indent(level) + "<sly data-sly-test=\"${" + parent + "." + name + "}\">\n" +
+                        indent(level + 1) + "<div class=\"" + name + "\">${" + parent + "." + name + "}</div>\n" +
+                        indent(level) + "</sly>";
+            case "richtext":
+                return indent(level) + "<sly data-sly-test=\"${" + parent + "." + name + "}\">\n" +
+                        indent(level + 1) + "<div class=\"" + name + "\">${" + parent + "." + name + " @context='html'}</div>\n" +
+                        indent(level) + "</sly>";
+            case "checkbox":
+                return indent(level) + "<sly data-sly-test=\"${" + parent + "." + name + "}\">\n" +
+                        indent(level + 1) + "<div class=\"" + name + "\">${" + parent + "." + name + "}</div>\n" +
+                        indent(level) + "</sly>";
+            case "pathfield":
+                return indent(level) + "<sly data-sly-test=\"${" + parent + "." + name + "}\">\n" +
+                        indent(level + 1) + "<p class=\"" + name + "\"><a href=\"${" + parent + "." + name + "}\">${" + parent + "." + name + "}</a></p>\n" +
+                        indent(level) + "</sly>";
+            default:
+                return indent(level) + "<sly data-sly-test=\"${" + parent + "." + name + "}\">\n" +
+                        indent(level + 1) + "<div class=\"" + name + "\">${" + parent + "." + name + "}</div>\n" +
+                        indent(level) + "</sly>";
+        }
+    }
+
+    private static String indent(int level) {
+        return "    ".repeat(level); // 4 spaces per level
+    }
 
 
 }

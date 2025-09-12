@@ -30,6 +30,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import static java.nio.file.Paths.get;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -203,7 +205,7 @@ public class ComponentServiceImpl implements ComponentService {
             log.error("Failed to delete component folder {}", componentName, e);
         }
 
-        Path javaRoot = Paths.get(PROJECTS_DIR, projectName, "core", "src", "main", "java");
+        Path javaRoot = get(PROJECTS_DIR, projectName, "core", "src", "main", "java");
         Set<String> targets = new HashSet<>(modelFiles);
         try (Stream<Path> paths = Files.walk(javaRoot)) {
             paths.filter(p -> targets.contains(p.getFileName().toString()))
@@ -243,7 +245,7 @@ public class ComponentServiceImpl implements ComponentService {
 
     @Override
     public String getComponentHtml(String projectName, String componentName) {
-        Path htmlPath = Paths.get(PROJECTS_DIR, projectName, "ui.apps", "src", "main", "content", "jcr_root",
+        Path htmlPath = get(PROJECTS_DIR, projectName, "ui.apps", "src", "main", "content", "jcr_root",
                 "apps", projectName, "components", componentName, componentName + ".html");
         try {
             return Files.readString(htmlPath);
@@ -291,7 +293,7 @@ public class ComponentServiceImpl implements ComponentService {
                 // Skip duplicates
                 if (!processed.add(current)) continue;
 
-                Path javaFile = Paths.get(
+                Path javaFile = get(
                         PROJECTS_DIR, projectName, "core", "src", "main", "java",
                         current.replace(".", "/") + ".java"
                 );
@@ -351,10 +353,17 @@ public class ComponentServiceImpl implements ComponentService {
         String type = getFieldTypeFromResource(resourceType);
         if ("granite/ui/components/coral/foundation/form/multifield".equals(resourceType)) {
             type = "multifield";
-        } else if ("granite/ui/components/coral/foundation/form/select".equals(resourceType)
-                && "true".equalsIgnoreCase(elem.getAttribute("multiple"))) {
-            type = "multiselect";
         }
+        if ("granite/ui/components/coral/foundation/form/select".equals(resourceType)) {
+            // check if the "multiple" attribute is present in dialog XML
+            String multiple = elem.getAttribute("multiple");
+            if ("{Boolean}true".equalsIgnoreCase(multiple)) {
+                type = FieldType.MULTISELECT.getType();
+            } else {
+                type = FieldType.SELECT.getType();
+            }
+        }
+
         if ("cq/gui/components/authoring/dialog/fileupload".equals(resourceType)) {
             String node = elem.getNodeName().toLowerCase();
             if (node.contains("file")) {
@@ -416,12 +425,17 @@ public class ComponentServiceImpl implements ComponentService {
 
         // --- Handle select / multiselect / radiogroup
         else if ("select".equals(fieldType) || "multiselect".equals(fieldType) || "radiogroup".equals(fieldType)) {
-            if ("select".equals(fieldType)) {
-                String multipleAttr = elem.getAttribute("multiple");
-                if ("true".equalsIgnoreCase(multipleAttr)) {
-                    fieldType = "multiselect";
+            if ("granite/ui/components/coral/foundation/form/select".equals(resourceType)) {
+                // check if the "multiple" attribute is present in dialog XML
+                String multiple = elem.getAttribute("multiple");
+                if ("{Boolean}true".equalsIgnoreCase(multiple)) {
+                    fieldType = FieldType.MULTISELECT.getType();
+                } else {
+                    fieldType = FieldType.SELECT.getType();
                 }
             }
+
+
             NodeList itemsNodes = elem.getElementsByTagName("items");
             if (itemsNodes.getLength() > 0) {
                 Element itemsElem = (Element) itemsNodes.item(0);
@@ -578,7 +592,7 @@ public class ComponentServiceImpl implements ComponentService {
 
         String slingModelsSourcePath = System.getProperty("user.dir") + "/src/main/java/com/aem/builder/slingModels";
 
-        Path javaSourceRoot = Paths.get("generated-projects/" + projectName + "/core/src/main/java/");
+        Path javaSourceRoot = get("generated-projects/" + projectName + "/core/src/main/java/");
 
         // Find models directory
         Path modelPath = findModelBasePath(javaSourceRoot);
@@ -951,6 +965,9 @@ public class ComponentServiceImpl implements ComponentService {
         return "Others";
     }
 
+    private boolean isTrue(String value) {
+        return value != null && value.replace("{Boolean}", "").trim().equalsIgnoreCase("true");
+    }
 
 
 }
