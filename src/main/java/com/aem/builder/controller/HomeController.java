@@ -59,7 +59,7 @@ public class HomeController {
     public ResponseEntity<ByteArrayResource> downloadProject(@PathVariable String projectName) {
         log.info("[downloadProject] Download requested for project: {}", projectName);
         try {
-            byte[] data = aemProjectService.getProjectZip(projectName); // Get ZIP bytes
+            byte[] data = aemProjectService.downloadProjectZip(projectName); // Get ZIP bytes
             ByteArrayResource resource = new ByteArrayResource(data);
 
             // Return response with appropriate headers for download
