@@ -39,7 +39,7 @@ public class HomeController {
 
     @GetMapping("/download/{projectName}")
     public ResponseEntity<ByteArrayResource> downloadProject(@PathVariable String projectName) throws IOException {
-        byte[] data = aemProjectService.getProjectZip(projectName);
+        byte[] data = aemProjectService.downloadProjectZip(projectName);
         ByteArrayResource resource = new ByteArrayResource(data);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + projectName + ".zip")
