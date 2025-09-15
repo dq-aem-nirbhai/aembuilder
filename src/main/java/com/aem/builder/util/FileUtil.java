@@ -3,8 +3,11 @@ package com.aem.builder.util;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 public class FileUtil {
@@ -44,4 +47,39 @@ public class FileUtil {
             log.warn("[FileUtil] Failed to clean temp directory '{}': {}", tempDir, e.getMessage(), e);
         }
     }
+
+
+    /**
+     * Ensures a directory exists; creates it if missing.
+     *
+     * @param folder Directory
+     */
+    public static void ensureFolder(File folder) {
+        if (!folder.exists()) {
+            boolean created = folder.mkdirs();
+            log.info("{} Created folder '{}'", folder.getAbsolutePath(), created);
+        }
+    }
+
+    /**
+     * Recursively walks a base directory and collects files matching a filename.
+     *
+     * @param baseDir      Base directory
+     * @param filenameMatch Filename to match
+     * @return List of matching files
+     */
+    public static List<File> walkFiles(File baseDir, String filenameMatch) {
+        List<File> files = new ArrayList<>();
+        if (!baseDir.exists()) return files;
+
+        try {
+            Files.walk(baseDir.toPath())
+                    .filter(path -> path.getFileName().toString().equals(filenameMatch))
+                    .forEach(path -> files.add(path.toFile()));
+        } catch (IOException e) {
+            log.info("{} Error walking files in", baseDir.getAbsolutePath(), e);
+        }
+        return files;
+    }
+
 }

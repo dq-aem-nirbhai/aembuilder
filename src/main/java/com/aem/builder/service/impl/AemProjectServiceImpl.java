@@ -546,6 +546,7 @@ public class AemProjectServiceImpl implements AemProjectService {
             Path pomFile = target.resolve("pom.xml");
             if (Files.exists(pomFile)) {
                 PomXmlUtil.updatePomProperty(pomFile, "cloneDate", List.of("importDate", "createdDate"));
+                updateConfFilterMode(PROJECTS_DIR,artifactId);
             }
 
             log.info("[cloneProject] Repository '{}' cloned successfully as project '{}'", repoUrl, artifactId);
