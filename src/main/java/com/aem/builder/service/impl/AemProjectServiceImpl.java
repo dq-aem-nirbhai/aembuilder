@@ -126,8 +126,6 @@ public class AemProjectServiceImpl implements AemProjectService {
         }
     }
 
-
-
     @Override
     public List<ProjectDetails> getAllProjects() {
         File projectsFolder = new File(PROJECTS_DIR);
@@ -317,7 +315,6 @@ public class AemProjectServiceImpl implements AemProjectService {
         }
     }
 
-
     @Override
     public void deleteProject(String projectName) throws IOException {
         Path projectPath = Paths.get(PROJECTS_DIR, projectName);
@@ -326,7 +323,6 @@ public class AemProjectServiceImpl implements AemProjectService {
         }
         org.apache.commons.io.FileUtils.deleteDirectory(projectPath.toFile());
     }
-
 
     @Override
     public boolean projectExists(String projectName) {
@@ -514,15 +510,6 @@ public class AemProjectServiceImpl implements AemProjectService {
                 FileUtils.deleteDirectory(tempDir.toFile());
             }
         } catch (IOException ignore) {}
-    }
-
-    private Path findPom(Path root) throws IOException {
-        try (var stream = Files.walk(root)) {
-            return stream
-                    .filter(p -> p.getFileName().toString().equalsIgnoreCase("pom.xml"))
-                    .findFirst()
-                    .orElse(null);
-        }
     }
 
     private String readArtifactId(Path pomFile) throws IOException {

@@ -289,10 +289,6 @@ public class PolicyServiceImpl implements PolicyService {
         return null;
     }
 
-
-
-
-
     /**
      * Gets a direct child element by name.
      */
@@ -760,7 +756,7 @@ public class PolicyServiceImpl implements PolicyService {
             log.info("✅ POLICY: Template mapping updated successfully for component: {}", leafNodeName);
 
         } catch (Exception e) {
-            log.error("❌ POLICY: Failed to update template mapping file: {}", mappingFilePath, e);
+            log.error(" POLICY: Failed to update template mapping file: {}", mappingFilePath, e);
         }
     }
 

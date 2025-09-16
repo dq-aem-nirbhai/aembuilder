@@ -79,7 +79,6 @@ public class GitBranchServiceImpl implements GitBranchService {
         }
     }
 
-
     public void discardAndSwitch(Path repoPath, String branchName) throws Exception {
         try (Git git = Git.open(repoPath.toFile())) {
             git.reset().setMode(ResetCommand.ResetType.HARD).call(); // discard local changes
