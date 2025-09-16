@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static com.aem.builder.constants.AemProjectConstants.*;
+import static com.aem.builder.constants.PolicyConstants.*;
 
 public class TemplateUtil {
 
@@ -106,7 +107,7 @@ public class TemplateUtil {
      */
 
     public static String getPoliciesFilePath(String projectName) {
-        return String.format(AemProjectConstants.POLICIES_BASE_PATH, projectName, projectName);
+        return String.format(POLICIES_BASE_PATH, projectName, projectName);
     }
 
     /**
@@ -116,7 +117,7 @@ public class TemplateUtil {
         return AemProjectConstants.PROJECTS_DIR + "/" + projectName +
                 UI_CONTENT_PATH  + projectName +
                 WCM_TEMPLATES_PATH+ "/" + templateName +
-                AemProjectConstants.CONTENT_FILE;
+                CONTENT_FILE;
     }
 
     /**
@@ -181,7 +182,7 @@ public class TemplateUtil {
      */
     public static Element createElement(Document doc, String name, String primaryType) {
         Element el = doc.createElement(name);
-        el.setAttribute(AemProjectConstants.ATTR_JCR_PRIMARY_TYPE, primaryType);
+        el.setAttribute(ATTR_JCR_PRIMARY_TYPE, primaryType);
         return el;
     }
 

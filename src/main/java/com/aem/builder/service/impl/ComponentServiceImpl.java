@@ -1431,6 +1431,32 @@ public class ComponentServiceImpl implements ComponentService {
         }
         return null;
     }
+
+    /**
+     * Returns a list of editable components by filtering out hidden/system structure components.
+     *
+     * @param compMap Map of componentName → componentGroup
+     * @param appTitle The title of the application/project (used to filter "Structure" group)
+     * @return List of editable component names
+     */
+    public List<String> getEditableComponents(Map<String, String> compMap, String appTitle) {
+        if (compMap == null || compMap.isEmpty()) {
+            return List.of();
+        }
+
+        return compMap.entrySet()
+                .stream()
+                .filter(entry -> {
+                    String group = Optional.ofNullable(entry.getValue())
+                            .map(String::trim)
+                            .orElse(null);
+                    // Editable if group is null, or not structure, and not hidden
+                    return group == null
+                            || (!group.equals(appTitle + " - Structure") && !group.equals(".hidden"));
+                })
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+    }
 }
 
 

@@ -33,7 +33,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static com.aem.builder.constants.AemProjectConstants.*;
+import static com.aem.builder.constants.PolicyConstants.*;
 import static com.aem.builder.util.TemplateUtil.writeFile;
 
 
@@ -336,13 +336,13 @@ public class TemplateServiceImpl implements TemplateService {
 
             TemplateModel model = new TemplateModel();
             model.setName(templateName);
-            model.setTitle(root.getAttribute(AemProjectConstants.ATTR_JCR_TITLE ));
+            model.setTitle(root.getAttribute(ATTR_JCR_TITLE ));
 
-            Element content = (Element) root.getElementsByTagName( AemProjectConstants.JCR_CONTENT_TAG).item(0);
-            model.setTitle(content.getAttribute(AemProjectConstants.ATTR_JCR_TITLE ));
-            model.setStatus(content.getAttribute(AemProjectConstants.STATUS));
-            model.setDescription(content.getAttribute(AemProjectConstants.ATT_DESCRIPTION));
-            String templateType=content.getAttribute(AemProjectConstants.ATTR_TEMPLATE_TYPE);
+            Element content = (Element) root.getElementsByTagName( JCR_CONTENT_TAG).item(0);
+            model.setTitle(content.getAttribute(ATTR_JCR_TITLE ));
+            model.setStatus(content.getAttribute(STATUS));
+            model.setDescription(content.getAttribute(ATT_DESCRIPTION));
+            String templateType=content.getAttribute(ATTR_TEMPLATE_TYPE);
             if (templateType != null && templateType.contains("/")) {
                 model.setTemplateType(templateType.substring(templateType.lastIndexOf("/") + 1));
             }
@@ -364,7 +364,7 @@ public class TemplateServiceImpl implements TemplateService {
     @Override
     public void updateTemplate(TemplateModel updatedModel, String projectName, String oldTemplateName)
             throws ParserConfigurationException, IOException, SAXException, TransformerException {
-        String basePath = "generated-projects/" + projectName + "/ui.content/src/main/content/jcr_root/conf/" +
+        String basePath = GENERATED_PROJECTS_PATH+ projectName + UI_CONTENT_PATH  +
                 projectName + "/settings/wcm/templates/";
         String targetpath=basePath+updatedModel.getName();
         File oldFolder = new File(basePath + oldTemplateName);
@@ -414,15 +414,15 @@ public class TemplateServiceImpl implements TemplateService {
             Element root = doc.getDocumentElement();
             Element content = (Element) root.getElementsByTagName(JCR_CONTENT_TAG).item(0);
 
-            root.setAttribute(AemProjectConstants.ATTR_JCR_TITLE, updatedModel.getName()); // updates root title
-            if (updatedModel.getTitle() != null) content.setAttribute(AemProjectConstants.ATTR_JCR_TITLE,
+            root.setAttribute( ATTR_JCR_TITLE , updatedModel.getName()); // updates root title
+            if (updatedModel.getTitle() != null) content.setAttribute(ATTR_JCR_TITLE,
                     updatedModel.getTitle());
-            if (updatedModel.getStatus() != null) content.setAttribute(AemProjectConstants.STATUS,
+            if (updatedModel.getStatus() != null) content.setAttribute(STATUS,
                     updatedModel.getStatus());
 
             if (updatedModel.getTemplateType() != null) {
-                content.setAttribute(AemProjectConstants.ATTR_TEMPLATE_TYPE, AemProjectConstants.CONF_PATH +
-                        projectName + AemProjectConstants.WCM_TEMPLATE_TYPES_PATH  + updatedModel.getTemplateType());
+                content.setAttribute(ATTR_TEMPLATE_TYPE, CONF_PATH +
+                        projectName + WCM_TEMPLATE_TYPES_PATH  + updatedModel.getTemplateType());
             }
 
             // Save updated template .content.xml
@@ -443,9 +443,9 @@ public class TemplateServiceImpl implements TemplateService {
             Document doc1 = builder1.parse(intialContentFile);
             Element root1 = doc1.getDocumentElement();
             Element content1 = (Element) root1.getElementsByTagName(JCR_CONTENT_TAG).item(0);
-            String cqTemplate=AemProjectConstants. CONF_PATH +projectName+TEMPLATES_SUBPATH +updatedModel.getName();
+            String cqTemplate=CONF_PATH +projectName+TEMPLATES_SUBPATH +updatedModel.getName();
             content1.setAttribute("cq:template",cqTemplate);
-            content1.setAttribute(AemProjectConstants.ATTR_SLING_RESOURCE_TYPE,projectName+"/components/xfpage");
+            content1.setAttribute(ATTR_SLING_RESOURCE_TYPE,projectName+"/components/xfpage");
             //"project_1/components/xfpage"
             log.info("[updatedTemplate]  updated cq template field");
             Transformer transformer = TransformerFactory.newInstance().newTransformer();

@@ -1,5 +1,9 @@
 package com.aem.builder.controller;
 
+import static com.aem.builder.constants.AemProjectConstants.PROJECTS_DIR;
+import static com.aem.builder.constants.ModelAttributeKeys.*;
+import static com.aem.builder.constants.UrlMappings.*;
+import static com.aem.builder.constants.ViewNames.*;
 import com.aem.builder.service.GitBranchService;
 import com.aem.builder.service.impl.ComponentServiceImpl;
 import com.aem.builder.service.impl.DeployServiceImpl;
@@ -12,13 +16,13 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import reactor.core.publisher.Flux;
-
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
+/**
+ * Controller responsible for handling deployment-related views and actions.
+ */
 @Controller
 @RequiredArgsConstructor
 @Slf4j
@@ -29,82 +33,104 @@ public class DeployController {
     private final DeployServiceImpl deployService;
     private final GitBranchService gitBranchService;
 
-    private static final String PROJECTS_DIR = "generated-projects";
-
-
-    @GetMapping("/view/{projectName}")
+    /**
+     * Fetch project details and render deploy page.
+     */
+    @GetMapping(VIEW_PROJECT_URL)
     public String projectDetails(@PathVariable String projectName, Model model) {
-        log.info("DEPLOY: Fetching project details for project: {}", projectName);
-        List<String> templates = templateService.fetchTemplatesFromGeneratedProjects(projectName);
-        Map<String, String> compMap = componentService.fetchComponentsWithGroups(projectName);
+        log.info("[projectDetails] Fetching project details for '{}'", projectName);
 
-        // If project not found or no components/templates
+        List<String> templates = Collections.emptyList();
+        Map<String, String> compMap = Collections.emptyMap();
+
+        try {
+            templates = templateService.fetchTemplatesFromGeneratedProjects(projectName);
+        } catch (Exception e) {
+            log.error("[projectDetails] Failed to fetch templates for '{}'", projectName, e);
+        }
+
+        try {
+            compMap = componentService.fetchComponentsWithGroups(projectName);
+        } catch (Exception e) {
+            log.error("[projectDetails] Failed to fetch components for '{}'", projectName, e);
+        }
+
         if ((templates == null || templates.isEmpty()) &&
                 (compMap == null || compMap.isEmpty())) {
-            log.error("DEPLOY: No project found for name '{}'", projectName);
-            model.addAttribute("errorMessage", "Project '" + projectName + "' not found or has no data.");
-            return "error"; // forward to error.html (or error.jsp depending on your setup)
+            log.error("[projectDetails] No project found for '{}'", projectName);
+            model.addAttribute(ERROR,
+                    "Project '" + projectName + "' not found or has no data.");
+            return ERROR;
         }
 
         List<String> components = new ArrayList<>(compMap.keySet());
-        String appTitle = componentService.readAppTitleFromPom(projectName);
-
-        // Fallback to appName if title not found
-        if (appTitle == null || appTitle.isBlank()) {
+        String appTitle;
+        try {
+            appTitle = componentService.readAppTitleFromPom(projectName);
+        } catch (Exception e) {
+            log.warn("[projectDetails] Failed to read app title from POM for '{}', using fallback", projectName, e);
             appTitle = projectName;
         }
 
-        final String finalAppTitle = appTitle;
+        // Editable components logic moved to service
+        List<String> editable = componentService.getEditableComponents(compMap, appTitle);
+        log.info("[projectDetails] Editable components for '{}': {}", projectName, editable);
 
-        List<String> editable = compMap.entrySet().stream()
-                .filter(e -> {
-                    String g = e.getValue();
-                    if (g != null) {
-                        g = g.trim();
-                    }
-                    return g == null
-                            || (!g.equals(finalAppTitle + " - Structure")
-                            && !g.equals(".hidden"));
-                })
-                .map(Map.Entry::getKey)
-                .toList();
-
-        log.info("Editable {}", editable);
-
-        log.info("Fetching Git related details..");
+        // Git details
         Path projectPath = Paths.get(PROJECTS_DIR, projectName);
-        String branch = gitBranchService.getCurrentBranch(projectPath);
-        List<String> branches = gitBranchService.listBranches(projectPath);
-        log.info("Fetched Git related details..");
-
-        model.addAttribute("projectName", projectName);
-        model.addAttribute("branch", branch);
-        model.addAttribute("branches", branches);
-
+        String branch = "unknown";
+        List<String> branches = Collections.emptyList();
+        boolean hasStash = false;
         try {
-            model.addAttribute("hasStash", gitBranchService.hasStash(projectPath));
+            branch = gitBranchService.getCurrentBranch(projectPath);
+            branches = gitBranchService.listBranches(projectPath);
+            hasStash = gitBranchService.hasStash(projectPath);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            log.error("[projectDetails] Error fetching Git details for '{}'", projectName, e);
         }
-        model.addAttribute("components", components);
-        model.addAttribute("editableComponents", editable);
-        model.addAttribute("templates", templates);
-        model.addAttribute("projectName", projectName);
-        model.addAttribute("canDeploy", true);
 
-        log.debug("DEPLOY: Added attributes to model for project: {}", projectName);
-        return "deploy";
+        model.addAttribute(PROJECT_NAME, projectName);
+        model.addAttribute(BRANCH, branch);
+        model.addAttribute(BRANCHES, branches);
+        model.addAttribute(HAS_STASH, hasStash);
+        model.addAttribute(COMPONENTS, components);
+        model.addAttribute(EDITABLE_COMPONENTS, editable);
+        model.addAttribute(TEMPLATES, templates);
+        model.addAttribute(CAN_DEPLOY, true);
+
+        log.debug("[projectDetails] Model attributes set for '{}'", projectName);
+        return DEPLOY_PAGE;
     }
 
-    @GetMapping("/{projectName}/deploy")
+    /**
+     * Serve deployment logs page.
+     */
+    @GetMapping(DEPLOY_PROJECT_URL)
     public String deployProject(@PathVariable String projectName, Model model) {
-        model.addAttribute("projectName", projectName);
-        return "deployLogs";
+        log.info("[deployProject] Opening deploy logs page for '{}'", projectName);
+        try {
+            model.addAttribute(PROJECT_NAME, projectName);
+        } catch (Exception e) {
+            log.error("[deployProject] Failed to prepare deploy logs page for '{}'", projectName, e);
+            model.addAttribute(ERROR, "Unable to open deployment logs for project: " + projectName);
+            return ERROR_PAGE;
+        }
+        return DEPLOY_LOGS_PAGE;
     }
 
-    @GetMapping(value = "/{projectName}/deploy/logs", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    /**
+     * Stream deployment logs live as SSE.
+     */
+    @GetMapping(value = DEPLOY_LOGS_URL, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> streamLogs(@PathVariable String projectName) {
-        return deployService.deployProjectLive(projectName);
+        log.info("[streamLogs] Streaming logs for '{}'", projectName);
+        try {
+            return deployService.deployProjectLive(projectName)
+                    .doOnComplete(() -> log.info("[streamLogs] Completed log streaming for '{}'", projectName))
+                    .doOnError(err -> log.error("[streamLogs] Error while streaming logs for '{}'", projectName, err));
+        } catch (Exception e) {
+            log.error("[streamLogs] Failed to initiate log streaming for '{}'", projectName, e);
+            return Flux.just("Error: Unable to stream logs for project " + projectName);
+        }
     }
-
 }

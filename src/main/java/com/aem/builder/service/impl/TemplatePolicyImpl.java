@@ -1,6 +1,5 @@
 package com.aem.builder.service.impl;
 
-import com.aem.builder.constants.AemProjectConstants;
 import com.aem.builder.model.PolicyRequest;
 import com.aem.builder.service.TemplatePolicy;
 import com.aem.builder.util.DateUtil;
@@ -24,6 +23,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static com.aem.builder.constants.AemProjectConstants.*;
+import static com.aem.builder.constants.PolicyConstants.*;
 
 @Service
 @Slf4j
@@ -52,11 +52,11 @@ public class TemplatePolicyImpl implements TemplatePolicy {
         log.info("[addPolicy] Container node obtained");
 
         String policyNodeName = "policy_" + System.currentTimeMillis();
-        Element policy = TemplateUtil.createElement(doc, policyNodeName, AemProjectConstants.NT_UNSTRUCTURED);
+        Element policy = TemplateUtil.createElement(doc, policyNodeName, NT_UNSTRUCTURED);
         setPolicyAttributes(policy, policyName, componentGroups, styleDefaultClasses, styleDefaultElement);
         log.debug("[addPolicy] Attributes set for policy node '{}'", policyNodeName);
 
-        Element jcrContent = TemplateUtil.createElement(doc, JCR_CONTENT_TAG, AemProjectConstants.NT_UNSTRUCTURED);
+        Element jcrContent = TemplateUtil.createElement(doc, JCR_CONTENT_TAG, NT_UNSTRUCTURED);
         policy.appendChild(jcrContent);
         log.debug("[addPolicy] jcr:content node added for policy '{}'", policyNodeName);
 
@@ -78,16 +78,16 @@ public class TemplatePolicyImpl implements TemplatePolicy {
     private void setPolicyAttributes(Element policy, String policyName, String componentGroups,
                                      String styleDefaultClasses, String styleDefaultElement) {
 
-        policy.setAttribute(AemProjectConstants.ATTR_STYLE_DEFAULT_CLASSES, styleDefaultClasses);
-        policy.setAttribute(AemProjectConstants.ATTR_STYLE_DEFAULT_ELEMENT, styleDefaultElement);
+        policy.setAttribute(ATTR_STYLE_DEFAULT_CLASSES, styleDefaultClasses);
+        policy.setAttribute(ATTR_STYLE_DEFAULT_ELEMENT, styleDefaultElement);
         String jcrDate = "{Date}" + ZonedDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX"));
-        policy.setAttribute(AemProjectConstants.ATTR_JCR_LAST_MODIFIED, jcrDate);
-        policy.setAttribute(AemProjectConstants.ATTR_JCR_LAST_MODIFIED_BY, "admin");
-        policy.setAttribute(AemProjectConstants.ATTR_JCR_PRIMARY_TYPE, AemProjectConstants.NT_UNSTRUCTURED);
-        policy.setAttribute(AemProjectConstants.ATTR_JCR_TITLE, policyName);
-        policy.setAttribute(AemProjectConstants.ATTR_SLING_RESOURCE_TYPE, AemProjectConstants.POLICY_RESOURCE_TYPE);
-        policy.setAttribute(AemProjectConstants.ATTR_COMPONENTS, componentGroups);
-        policy.setAttribute(AemProjectConstants.ATTR_LAYOUT_DISABLED, "false");
+        policy.setAttribute(ATTR_JCR_LAST_MODIFIED, jcrDate);
+        policy.setAttribute(ATTR_JCR_LAST_MODIFIED_BY, "admin");
+        policy.setAttribute(ATTR_JCR_PRIMARY_TYPE, NT_UNSTRUCTURED);
+        policy.setAttribute(ATTR_JCR_TITLE, policyName);
+        policy.setAttribute(ATTR_SLING_RESOURCE_TYPE, POLICY_RESOURCE_TYPE);
+        policy.setAttribute(ATTR_COMPONENTS, componentGroups);
+        policy.setAttribute(ATTR_LAYOUT_DISABLED, "false");
     }
     /**
      * Saves the XML document to a file with indentation for readability.
@@ -95,7 +95,7 @@ public class TemplatePolicyImpl implements TemplatePolicy {
     private void saveDocument(Document doc, File file) throws TransformerException, TransformerException {
         Transformer transformer = TransformerFactory.newInstance().newTransformer();
         transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
+        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "1");
         transformer.transform(new DOMSource(doc), new StreamResult(file));
     }
 
@@ -153,7 +153,7 @@ public class TemplatePolicyImpl implements TemplatePolicy {
      */
 @Override
     public void saveOrUpdatePolicy(String projectName, String templateName, PolicyRequest request) throws Exception {
-        String path = String.format(AemProjectConstants.POLICIES_BASE_PATH, projectName, projectName);
+        String path = String.format(POLICIES_BASE_PATH, projectName, projectName);
         File xmlFile = new File(path);
         DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
         Document doc = builder.parse(xmlFile);
@@ -166,23 +166,23 @@ public class TemplatePolicyImpl implements TemplatePolicy {
             Node node = policyNodes.item(i);
             if (node.getNodeType() == Node.ELEMENT_NODE) {
                 Element policyEl = (Element) node;
-                if (policyEl.hasAttribute(AemProjectConstants.ATTR_JCR_TITLE) &&
-                        policyEl.getAttribute(AemProjectConstants.ATTR_JCR_TITLE).equals(request.getName())) {
+                if (policyEl.hasAttribute(ATTR_JCR_TITLE) &&
+                        policyEl.getAttribute(ATTR_JCR_TITLE).equals(request.getName())) {
 
                     TemplateUtil.clearChildren(policyEl);
                     TemplateUtil.setAttributes(policyEl, new String[][] {
-                            {AemProjectConstants.ATTR_JCR_TITLE, request.getName()},
-                            {AemProjectConstants.ATTR_SLING_RESOURCE_TYPE, AemProjectConstants.POLICY_RESOURCE_TYPE},
-                            {AemProjectConstants.ATTR_COMPONENTS, request.getComponentPath()},
-                            {AemProjectConstants.ATTR_LAYOUT_DISABLED, "false"},
-                            {AemProjectConstants.ATTR_JCR_LAST_MODIFIED, DateUtil.getCurrentJcrDate()},
-                            {AemProjectConstants.ATTR_JCR_LAST_MODIFIED_BY, "admin"},
-                            {AemProjectConstants.ATTR_CQ_STYLE_DEFAULT_CLASSES, request.getStyleDefaultClasses()},
-                            {AemProjectConstants.ATTR_CQ_STYLE_DEFAULT_ELEMENT, request.getStyleDefaultElement()}
+                            {ATTR_JCR_TITLE, request.getName()},
+                            {ATTR_SLING_RESOURCE_TYPE, POLICY_RESOURCE_TYPE},
+                            {ATTR_COMPONENTS, request.getComponentPath()},
+                            {ATTR_LAYOUT_DISABLED, "false"},
+                            {ATTR_JCR_LAST_MODIFIED, DateUtil.getCurrentJcrDate()},
+                            {ATTR_JCR_LAST_MODIFIED_BY, "admin"},
+                            {ATTR_CQ_STYLE_DEFAULT_CLASSES, request.getStyleDefaultClasses()},
+                            {ATTR_CQ_STYLE_DEFAULT_ELEMENT, request.getStyleDefaultElement()}
                     });
 
-                    Element jcrContent = TemplateUtil.createElement(doc, "jcr:content");
-                    jcrContent.setAttribute("jcr:primaryType", "nt:unstructured");
+                    Element jcrContent = TemplateUtil.createElement(doc, JCR_CONTENT_TAG);
+                    jcrContent.setAttribute(ATTR_PRIMARY_TYPE , NT_UNSTRUCTURED);
                     policyEl.appendChild(jcrContent);
 
                     appendStyleGroups(doc, policyEl, request.getStyles());
@@ -234,8 +234,8 @@ public class TemplatePolicyImpl implements TemplatePolicy {
                 Node node = nodeList.item(i);
                 if (node.getNodeType() == Node.ELEMENT_NODE) {
                     Element element = (Element) node;
-                    if (element.hasAttribute(AemProjectConstants.ATTR_JCR_TITLE)) {
-                        String title = element.getAttribute(AemProjectConstants.ATTR_JCR_TITLE);
+                    if (element.hasAttribute(ATTR_JCR_TITLE)) {
+                        String title = element.getAttribute(ATTR_JCR_TITLE);
                         policies.add(title);
                         log.debug("Found policy with title: {}", title);
                     }
@@ -278,7 +278,7 @@ public class TemplatePolicyImpl implements TemplatePolicy {
                 Node node = policies.item(i);
                 if (node.getNodeType() == Node.ELEMENT_NODE) {
                     Element policyEl = (Element) node;
-                    if (policyTitle.equals(policyEl.getAttribute(AemProjectConstants.ATTR_JCR_TITLE))) {
+                    if (policyTitle.equals(policyEl.getAttribute(ATTR_JCR_TITLE))) {
                         log.info("[getPolicyDetails] Found policy with title: {}", policyTitle);
                         return parsePolicyElement(policyEl);
                     }
@@ -298,14 +298,14 @@ public class TemplatePolicyImpl implements TemplatePolicy {
      */
     private PolicyRequest parsePolicyElement(Element policyEl) {
         PolicyRequest request = new PolicyRequest();
-        request.setName(policyEl.getAttribute(AemProjectConstants.ATTR_JCR_TITLE));
-        request.setComponentPath(policyEl.getAttribute(AemProjectConstants.ATTR_COMPONENTS));
-        request.setStyleDefaultClasses(policyEl.getAttribute(AemProjectConstants.ATTR_CQ_STYLE_DEFAULT_CLASSES));
-        request.setStyleDefaultElement(policyEl.getAttribute(AemProjectConstants.ATTR_CQ_STYLE_DEFAULT_ELEMENT));
+        request.setName(policyEl.getAttribute(ATTR_JCR_TITLE));
+        request.setComponentPath(policyEl.getAttribute(ATTR_COMPONENTS));
+        request.setStyleDefaultClasses(policyEl.getAttribute(ATTR_CQ_STYLE_DEFAULT_CLASSES));
+        request.setStyleDefaultElement(policyEl.getAttribute(ATTR_CQ_STYLE_DEFAULT_ELEMENT));
 
         Map<String, Map<String, Object>> styleGroups = new LinkedHashMap<>();
 
-        NodeList styleGroupsNode = policyEl.getElementsByTagName("cq:styleGroups");
+        NodeList styleGroupsNode = policyEl.getElementsByTagName(TAG_STYLE_GROUPS);
         if (styleGroupsNode.getLength() > 0) {
             Node styleGroupNode = styleGroupsNode.item(0);
             NodeList groups = styleGroupNode.getChildNodes();
@@ -313,7 +313,7 @@ public class TemplatePolicyImpl implements TemplatePolicy {
                 Node groupNode = groups.item(g);
                 if (groupNode.getNodeType() == Node.ELEMENT_NODE) {
                     Element groupEl = (Element) groupNode;
-                    String groupName = groupEl.getAttribute("cq:styleGroupLabel");
+                    String groupName = groupEl.getAttribute(ATTR_STYLE_GROUP_LABEL);
                     log.debug("[parsePolicyElement] Parsing style group: {}", groupName);
                     styleGroups.put(groupName, parseStyleGroup(groupEl));
                 }
@@ -328,10 +328,10 @@ public class TemplatePolicyImpl implements TemplatePolicy {
      */
     private Map<String, Object> parseStyleGroup(Element groupEl) {
         Map<String, Object> groupData = new LinkedHashMap<>();
-        groupData.put("multiple", "true".equals(groupEl.getAttribute("cq:styleGroupMultiple")));
+        groupData.put("multiple", "true".equals(groupEl.getAttribute(ATTR_STYLE_GROUP_MULTIPLE)));
 
         Map<String, Object> items = new LinkedHashMap<>();
-        NodeList stylesNodes = groupEl.getElementsByTagName("cq:styles");
+        NodeList stylesNodes = groupEl.getElementsByTagName(TAG_CQ_STYLES);
         if (stylesNodes.getLength() > 0) {
             Node styleNode = stylesNodes.item(0);
             NodeList styleItems = styleNode.getChildNodes();
@@ -339,12 +339,12 @@ public class TemplatePolicyImpl implements TemplatePolicy {
                 Node styleItem = styleItems.item(s);
                 if (styleItem.getNodeType() == Node.ELEMENT_NODE) {
                     Element styleEl = (Element) styleItem;
-                    String label = styleEl.getAttribute("cq:styleLabel");
+                    String label = styleEl.getAttribute(ATTR_STYLE_LABEL);
                     log.debug("[parseStyleGroup] Parsing style: {}", label);
 
                     Map<String, String> def = new HashMap<>();
-                    def.put("cls", styleEl.getAttribute("cq:styleClasses"));
-                    def.put("element", styleEl.getAttribute("cq:styleElement"));
+                    def.put("cls", styleEl.getAttribute(ATTR_STYLE_CLASSES));
+                    def.put("element", styleEl.getAttribute(ATTR_STYLE_ELEMENT));
 
                     items.put(label, def);
                 }
@@ -362,7 +362,7 @@ public class TemplatePolicyImpl implements TemplatePolicy {
             return;
         }
 
-        Element styleGroups = TemplateUtil.createElement(doc, AemProjectConstants.TAG_STYLE_GROUPS, AemProjectConstants.NT_UNSTRUCTURED);
+        Element styleGroups = TemplateUtil.createElement(doc, TAG_STYLE_GROUPS, NT_UNSTRUCTURED);
         log.info("[appendStyleGroups] Appending style groups...");
 
         int groupIndex = 0;
@@ -375,13 +375,13 @@ public class TemplatePolicyImpl implements TemplatePolicy {
 
             boolean isMultiple = TemplateUtil.parseBoolean(groupData.get("multiple"));
 
-            Element styleGroup = TemplateUtil.createElement(doc, AemProjectConstants.TAG_STYLE_GROUP + groupIndex++, AemProjectConstants.NT_UNSTRUCTURED);
-            TemplateUtil.setAttribute(styleGroup, AemProjectConstants.ATTR_STYLE_GROUP_LABEL, groupName);
+            Element styleGroup = TemplateUtil.createElement(doc, TAG_STYLE_GROUP + groupIndex++, NT_UNSTRUCTURED);
+            TemplateUtil.setAttribute(styleGroup,ATTR_STYLE_GROUP_LABEL, groupName);
             if (isMultiple) {
-                TemplateUtil.setAttribute(styleGroup, AemProjectConstants.ATTR_STYLE_GROUP_MULTIPLE, "true");
+                TemplateUtil.setAttribute(styleGroup, ATTR_STYLE_GROUP_MULTIPLE, "true");
             }
 
-            Element cqStyles = TemplateUtil.createElement(doc, AemProjectConstants.TAG_CQ_STYLES, AemProjectConstants.NT_UNSTRUCTURED);
+            Element cqStyles = TemplateUtil.createElement(doc, TAG_CQ_STYLES, NT_UNSTRUCTURED);
 
             int iStyle = 0;
             for (Map.Entry<String, Object> styleEntry : styleItems.entrySet()) {
@@ -393,12 +393,12 @@ public class TemplatePolicyImpl implements TemplatePolicy {
                 String cssClass = styleDef.getOrDefault("class", "");
                 String element = styleDef.getOrDefault("element", "div");
 
-                Element styleItem = TemplateUtil.createElement(doc, AemProjectConstants.TAG_STYLE_ITEM + iStyle++, AemProjectConstants.NT_UNSTRUCTURED);
-                TemplateUtil.setAttribute(styleItem, AemProjectConstants.ATTR_STYLE_LABEL, label);
-                TemplateUtil.setAttribute(styleItem, AemProjectConstants.ATTR_STYLE_CLASSES, cssClass);
-                TemplateUtil.setAttribute(styleItem, AemProjectConstants.ATTR_STYLE_ELEMENT, element);
+                Element styleItem = TemplateUtil.createElement(doc, TAG_STYLE_ITEM + iStyle++,NT_UNSTRUCTURED);
+                TemplateUtil.setAttribute(styleItem, ATTR_STYLE_LABEL, label);
+                TemplateUtil.setAttribute(styleItem,ATTR_STYLE_CLASSES, cssClass);
+                TemplateUtil.setAttribute(styleItem, ATTR_STYLE_ELEMENT, element);
                 String styleId = String.valueOf(System.currentTimeMillis() + iStyle);
-                TemplateUtil.setAttribute(styleItem, AemProjectConstants.ATTR_STYLE_ID, styleId);
+                TemplateUtil.setAttribute(styleItem, ATTR_STYLE_ID, styleId);
 
                 log.debug("[appendStyleGroups] Appending style: {} with id {}", label, styleId);
 
@@ -429,9 +429,9 @@ public class TemplatePolicyImpl implements TemplatePolicy {
         Document doc = TemplateUtil.parseXmlFile(xmlFile);
         Element root = doc.getDocumentElement();
 
-        Element content = TemplateUtil.getFirstElementByTagName(root, AemProjectConstants.JCR_CONTENT_TAG);
+        Element content = TemplateUtil.getFirstElementByTagName(root, JCR_CONTENT_TAG);
         if (content != null) {
-            String templateType = content.getAttribute(AemProjectConstants.ATTR_TEMPLATE_TYPE);
+            String templateType = content.getAttribute(ATTR_TEMPLATE_TYPE);
             if (templateType != null && !templateType.isEmpty()) {
                 String[] parts = templateType.split("/");
                 String result = parts[parts.length - 1];
