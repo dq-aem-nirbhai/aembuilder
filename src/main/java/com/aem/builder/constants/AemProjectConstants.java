@@ -1,7 +1,6 @@
 package com.aem.builder.constants;
 
-public final class AemProjectConstants {
-
+public class AemProjectConstants {
     public static final String PROJECTS_DIR = "generated-projects";
     public static final String POM_XML = "pom.xml";
     public static final String COMPONENTS_PATH = "ui.apps/src/main/content/jcr_root/apps";

@@ -104,9 +104,6 @@ public class FileGenerationUtil {
         }
     }
 
-
-
-
     /**
      * Generates component folders, content.xml, HTL, dialog, and Sling model.
      */
@@ -429,8 +426,6 @@ public class FileGenerationUtil {
                         ? field.getFieldName()
                         : tabNodeName;
 
-
-
                 if (!writtenTabNodeNames.add(tabNodeName.toLowerCase())) {
                     logger.warn("DIALOG: Duplicate tab node name '{}' detected. Skipping duplicate.", tabNodeName);
                     continue;
@@ -477,8 +472,6 @@ public class FileGenerationUtil {
                         sb.append(tabBuilder);
                         continue;
                     }
-
-
                     else {
                         logger.info("DIALOG: Parent tab '{}' has no XML structure. Generating fresh tab", tabNodeName);
                     }
@@ -557,8 +550,6 @@ public class FileGenerationUtil {
         String sanitized = fieldName.replaceAll("[^a-zA-Z0-9_-]", ""); // letters, digits, underscore, hyphen
         return sanitized.isEmpty() ? fallback : sanitized;
     }
-
-
     /**
      * Generates XML for a single dialog field.
      */
@@ -578,7 +569,6 @@ public class FileGenerationUtil {
                 }
             }
         }
-
 
         return switch (type) {
             case "textfield", "textarea", "numberfield", "hidden", "password",
@@ -688,8 +678,6 @@ public class FileGenerationUtil {
                         .append("    uploadUrl=\"/content/dam\"/>\n"); //  removed `${request.contextPath}`
                 yield sb.toString();
             }
-
-
             case "multifield" -> {
                 StringBuilder sb = new StringBuilder();
                 sb.append("  <").append(nodeName).append("\n")
@@ -733,8 +721,6 @@ public class FileGenerationUtil {
     public static String getResourceType(String type) {
         return FieldType.getTypeResourceMap().getOrDefault(type.toLowerCase(), "");
     }
-
-
     /**
      * Generates the Sling Model for a component.
      * - Creates the class file
@@ -916,7 +902,6 @@ public class FileGenerationUtil {
         }
     }
 
-
     /**
      * Capitalizes the first letter of the input string.
      */
@@ -934,8 +919,6 @@ public class FileGenerationUtil {
             return "";
         }
     }
-
-
     /*
     checkMultifieldJavaClassNames
      */

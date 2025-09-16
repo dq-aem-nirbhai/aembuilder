@@ -301,7 +301,8 @@ public class ComponentServiceImpl implements ComponentService {
             if (line.contains("data-sly-use")) {
                 int eqIndex = line.indexOf("=");
                 if (eqIndex > 0) {
-                    String ref = line.substring(eqIndex + 1).replaceAll("[\"';]", "").trim();
+                    String ref =
+                            line.substring(eqIndex + 1).replaceAll("[\"';]", "").trim();
                     // Remove trailing HTML characters like /> or >
                     ref = ref.replaceAll("[/>].*$", "").trim();
                     if (ref.startsWith("com.")) {
@@ -342,13 +343,15 @@ public class ComponentServiceImpl implements ComponentService {
                 // Check the next few lines for field declaration (skip annotations)
                 for (int j = i + 1; j < Math.min(i + 4, lines.size()); j++) {
                     String fieldLine = lines.get(j).trim();
-                    Matcher m = Pattern.compile("(?:private|protected|public)?\\s*(?:List<([A-Z]\\w+)>|Set<([A-Z]\\w+)>|([A-Z]\\w+))\\s+\\w+;").matcher(fieldLine);
+                    Matcher m = Pattern.compile("(?:private|protected|public)?\\s*(?:List<([A-Z]\\w+)>" +
+                            "|Set<([A-Z]\\w+)>|([A-Z]\\w+))\\s+\\w+;").matcher(fieldLine);
                     if (m.find()) {
                         String childClass = m.group(1) != null ? m.group(1) :
                                 m.group(2) != null ? m.group(2) : m.group(3);
                         if (childClass != null && !childClass.equals(className)) {
                             log.info("Found @ChildResource child class '{}' in '{}'", childClass, className);
-                            collectClassAndChildren(javaRoot, childClass, javaClassesToDelete, processedClasses, multifieldNames);
+                            collectClassAndChildren(javaRoot, childClass, javaClassesToDelete, processedClasses,
+                                    multifieldNames);
                         }
                     }
                 }
@@ -358,9 +361,11 @@ public class ComponentServiceImpl implements ComponentService {
             // 2. Detect multifield child classes
             for (String mfName : multifieldNames) {
                 if (line.matches(".*\\b([A-Z]\\w+)\\s+" + mfName + ";.*")) {
-                    String childClassName = line.replaceAll(".*\\b([A-Z]\\w+)\\s+" + mfName + ";.*", "$1");
+                    String childClassName = line.replaceAll(".*\\b([A-Z]\\w+)\\s+" + mfName + ";.*",
+                            "$1");
                     log.info("Found child class '{}' for multifield '{}' in '{}'", childClassName, mfName, className);
-                    collectClassAndChildren(javaRoot, childClassName, javaClassesToDelete, processedClasses, multifieldNames);
+                    collectClassAndChildren(javaRoot, childClassName, javaClassesToDelete, processedClasses,
+                            multifieldNames);
                 }
             }
         }
@@ -523,7 +528,8 @@ public class ComponentServiceImpl implements ComponentService {
                 Element fieldElem = (Element) fieldNodes.item(0);
                 String nestedFieldName = fieldElem.getAttribute("name");
                 if (nestedFieldName != null && !nestedFieldName.isBlank()) {
-                    fieldName = nestedFieldName.startsWith("./") ? nestedFieldName.substring(2) : nestedFieldName;
+                    fieldName = nestedFieldName.startsWith("./") ? nestedFieldName.substring(2) :
+                            nestedFieldName;
                 }
             }
         }
@@ -663,7 +669,6 @@ public class ComponentServiceImpl implements ComponentService {
         return "";
     }
 
-
     @Override
     public  List<String> getProjectComponentsMap(String projectName) {
         Map<String, String> components = fetchComponentsWithGroups(projectName);
@@ -730,7 +735,8 @@ public class ComponentServiceImpl implements ComponentService {
                 if (contentXml.exists()) {
                     String content = FileUtils.readFileToString(contentXml, "UTF-8");
                     content = content.replaceAll("sling:resourceType=\"[^\"]+\"",
-                            "sling:resourceType=\"" + projectName + "/components/" + component.toLowerCase() + "\"");
+                            "sling:resourceType=\"" + projectName + "/components/" +
+                                    component.toLowerCase() + "\"");
                     FileUtils.writeStringToFile(contentXml, content, "UTF-8");
                 }
 
@@ -740,7 +746,6 @@ public class ComponentServiceImpl implements ComponentService {
 
                 if (html.exists() && parentModel != null) {
                     String htmlContent = FileUtils.readFileToString(html, "UTF-8");
-                    //String fqcn = extractFullyQualifiedClassName(parentModel, "com." + projectName + ".core.models");
                     String fqcn = extractFullyQualifiedClassName(parentModel, packageName);
 
                     if (fqcn != null) {
@@ -752,7 +757,8 @@ public class ComponentServiceImpl implements ComponentService {
 
                 // Copy model and its dependencies
                 if (parentModel != null && parentModel.exists()) {
-                    copyModelAndDependencies(parentModel, slingModelsSourcePath, modelBasePath,packageName, copiedModels);
+                    copyModelAndDependencies(parentModel, slingModelsSourcePath, modelBasePath,packageName,
+                            copiedModels);
 
                 } else {
                     System.out.println("No matching Sling Model found for: " + component);
@@ -806,7 +812,8 @@ public class ComponentServiceImpl implements ComponentService {
         return null;
     }
 
-    private void copyModelAndDependencies(File modelFile, String sourceBase, String targetBase,String targetPackageName,  Set<String> copiedModels) throws IOException {
+    private void copyModelAndDependencies(File modelFile, String sourceBase, String targetBase,
+                                          String targetPackageName,  Set<String> copiedModels) throws IOException {
         if (modelFile == null || !modelFile.exists()) return;
 
         String modelName = modelFile.getName();
@@ -861,7 +868,8 @@ public class ComponentServiceImpl implements ComponentService {
         }
 
 
-        File modelsDir = new File(System.getProperty("user.dir") + "/src/main/java/com/aem/builder/slingModels");
+        File modelsDir = new File(System.getProperty("user.dir") +
+                "/src/main/java/com/aem/builder/slingModels");
 
         if (modelsDir.exists() && modelsDir.isDirectory()) {
             File[] modelFiles = modelsDir.listFiles((dir, name) -> name.endsWith(".java"));
@@ -897,7 +905,6 @@ public class ComponentServiceImpl implements ComponentService {
         return null;
     }
 
-
     @Override
     public List<String> getComponentGroups(String projectName) {
         String appTitle = readAppTitleFromPom(projectName);
@@ -905,7 +912,8 @@ public class ComponentServiceImpl implements ComponentService {
             appTitle = projectName;
         }
 
-        String path = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
+        String path = PROJECTS_DIR + "/" + projectName +
+                "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
         File folder = new File(path);
         Set<String> groups = new HashSet<>();
         groups.add(appTitle);
@@ -1002,19 +1010,18 @@ public class ComponentServiceImpl implements ComponentService {
         return true;
     }
 
-
     /**
      * Fetch all components from local project structure.
      */
     public Map<String, List<String>> getComponentsByGroup(String projectName) {
         String COMPONENTS_PATH =
-                "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
+                "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" +
+                        projectName + "/components";
 
         Map<String, List<String>> groupedComponents = new HashMap<>();
         scanComponents(new File(COMPONENTS_PATH), groupedComponents, "/apps/" + projectName + "/components");
         return groupedComponents;
     }
-
 
     private void scanComponents(File folder, Map<String, List<String>> groupedComponents, String basePath) {
         if (!folder.exists() || !folder.isDirectory()) return;
@@ -1048,7 +1055,6 @@ public class ComponentServiceImpl implements ComponentService {
         }
     }
 
-
     private boolean isComponent(File contentXml) {
         try {
             Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(contentXml);
@@ -1079,11 +1085,6 @@ public class ComponentServiceImpl implements ComponentService {
         }
         return "Others";
     }
-/*
-
-Updating logic below
- */
-
 
     /**
      * Search for a component anywhere under the project's components folder
@@ -1237,10 +1238,10 @@ Updating logic below
 
             result.put("hasTabs", !tabs.isEmpty());
             result.put("tabs", new ArrayList<>(tabs));
-            log.info("✅ Final merged tabs for {} -> {}", superType, tabs);
+            log.info("Final merged tabs for {} -> {}", superType, tabs);
 
         } catch (Exception e) {
-            log.error("❌ Error while fetching parent tabs for {}", superType, e);
+            log.error(" Error while fetching parent tabs for {}", superType, e);
             result.put("hasTabs", false);
             result.put("tabs", new ArrayList<>());
         }
@@ -1325,7 +1326,8 @@ Updating logic below
                         if (tabAttrs == null) continue;
 
                         org.w3c.dom.Node tabResType = tabAttrs.getNamedItem("sling:resourceType");
-                        if (tabResType != null && "granite/ui/components/coral/foundation/container".equals(tabResType.getNodeValue())) {
+                        if (tabResType != null && "granite/ui/components/coral/foundation/container"
+                                .equals(tabResType.getNodeValue())) {
                             String tabTitle = tabAttrs.getNamedItem("jcr:title") != null
                                     ? tabAttrs.getNamedItem("jcr:title").getNodeValue()
                                     : tabNode.getNodeName();
@@ -1338,7 +1340,6 @@ Updating logic below
         }
         return tabs;
     }
-
 
     /**
      * Parse dialog file and extract tab names for Core components.
@@ -1364,7 +1365,8 @@ Updating logic below
         // Case 1: Node is <tabs>
         if ("tabs".equals(node.getNodeName()) ||
                 (attrs != null && attrs.getNamedItem("sling:resourceType") != null &&
-                        "granite/ui/components/coral/foundation/tabs".equals(attrs.getNamedItem("sling:resourceType").getNodeValue()))) {
+                        "granite/ui/components/coral/foundation/tabs".equals(attrs.getNamedItem("sling:resourceType")
+                                .getNodeValue()))) {
 
             NodeList itemsNodes = node.getChildNodes();
             for (int i = 0; i < itemsNodes.getLength(); i++) {
@@ -1402,8 +1404,6 @@ Updating logic below
             }
         }
     }
-
-
 
     /**
      * Reads sling:resourceSuperType from .content.xml.
