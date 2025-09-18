@@ -542,6 +542,11 @@ public class UpdateComponentImpl implements UpdateComponent {
 
     }
 
+
+
+
+
+
     //sling model update
 
     @Override
@@ -901,9 +906,6 @@ public class UpdateComponentImpl implements UpdateComponent {
     }
 
     private String updateIsEmpty(String content, List<ComponentField> fields) {
-        // Remove old isEmpty
-        content = content.replaceAll("(?s)public\\s+boolean\\s+isEmpty\\s*\\(\\)\\s*\\{.*?\\}", "");
-
         StringBuilder checks = new StringBuilder();
         for (ComponentField f : fields) {
             if ("numberfield".equalsIgnoreCase(f.getFieldType())) {
@@ -912,21 +914,31 @@ public class UpdateComponentImpl implements UpdateComponent {
                 checks.append("        if (").append(f.getFieldName()).append(") empty = false;\n");
             } else {
                 checks.append("        if (").append(f.getFieldName())
-                        .append(" != null && !").append(f.getFieldName()).append(".toString().isEmpty()) " +
-                                "empty = false;\n");
+                        .append(" != null && !").append(f.getFieldName()).append(".toString().isEmpty()) empty = false;\n");
             }
         }
 
-        String isEmptyMethod =
-                "    public boolean isEmpty() {\n" +
-                        "        boolean empty = true;\n" +
+        String newBody =
+                "        boolean empty = true;\n" +
                         checks +
-                        "        return empty;\n" +
-                        "    }\n";
+                        "        return empty;\n";
 
-        int insertPos = content.lastIndexOf("}");
-        return content.substring(0, insertPos) + isEmptyMethod + "}\n";
+        // Regex to replace only the body of isEmpty()
+        String regex = "(?s)(public\\s+boolean\\s+isEmpty\\s*\\(\\)\\s*\\{).*?(\\})";
+        if (content.matches("(?s).*public\\s+boolean\\s+isEmpty\\s*\\(\\).*")) {
+            // Replace body only
+            return content.replaceAll(regex, "$1\n" + newBody + "    $2");
+        } else {
+            // Append new method before last brace
+            int insertPos = content.lastIndexOf("}");
+            String isEmptyMethod =
+                    "    public boolean isEmpty() {\n" +
+                            newBody +
+                            "    }\n";
+            return content.substring(0, insertPos) + isEmptyMethod + "}\n";
+        }
     }
+
 
 
 

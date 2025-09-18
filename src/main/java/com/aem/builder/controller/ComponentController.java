@@ -154,7 +154,7 @@ public class ComponentController {
             @ModelAttribute ComponentRequest componentRequest,
             RedirectAttributes redirectAttributes) throws Exception {
 
-        System.out.println("New request: " + componentRequest);
+        System.out.println("update request: " + componentRequest);
 
         // Load old component state
         ComponentRequest oldRequest = componentService.loadComponent(projectName, componentRequest.getComponentName());
@@ -194,12 +194,6 @@ public class ComponentController {
         return "redirect:/view/" + projectName;
     }
 
-    @GetMapping("/component/edit/{projectName}")
-    public String editComponentPage(@PathVariable String projectName,
-            @RequestParam String componentName,
-            Model model) {
-        return showEditComponentForm(componentName, projectName, model);
-    }
 
     @PostMapping("/component/delete/{project}")
     public String deleteComponent(@PathVariable String project,

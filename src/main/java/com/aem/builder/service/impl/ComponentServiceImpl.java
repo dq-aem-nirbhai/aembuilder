@@ -497,7 +497,7 @@ public class ComponentServiceImpl implements ComponentService {
         if ("granite/ui/components/coral/foundation/form/multifield".equals(resourceType)) {
             type = "multifield";
         } else if ("granite/ui/components/coral/foundation/form/select".equals(resourceType)
-                && "true".equalsIgnoreCase(elem.getAttribute("multiple"))) {
+                && "true".equalsIgnoreCase(elem.getAttribute("multiple"))||"{Boolean}true".equalsIgnoreCase(elem.getAttribute("multiple"))) {
             type = "multiselect";
         }
         if ("cq/gui/components/authoring/dialog/fileupload".equals(resourceType)) {
@@ -563,7 +563,7 @@ public class ComponentServiceImpl implements ComponentService {
         else if ("select".equals(fieldType) || "multiselect".equals(fieldType) || "radiogroup".equals(fieldType)) {
             if ("select".equals(fieldType)) {
                 String multipleAttr = elem.getAttribute("multiple");
-                if ("true".equalsIgnoreCase(multipleAttr)) {
+                if ("true".equalsIgnoreCase(multipleAttr)||"{Boolean}true".equalsIgnoreCase(elem.getAttribute("multiple"))) {
                     fieldType = "multiselect";
                 }
             }
