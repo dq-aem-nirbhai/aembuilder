@@ -181,8 +181,22 @@ public class UpdateComponentImpl implements UpdateComponent {
             if (field.getNestedFields() != null) {
                 for (ComponentField nested : field.getNestedFields()) {
                     insertField(items, nested);
+                    if (field.getOptions() != null && !field.getOptions().isEmpty()) {
+                        Element items3 = doc.createElement("items");
+                        items.setAttribute("jcr:primaryType", "nt:unstructured");
+                        for (int i = 0; i < field.getOptions().size(); i++) {
+                            OptionItem opt = field.getOptions().get(i);
+                            Element option = doc.createElement("option" + (i + 1));
+                            option.setAttribute("jcr:primaryType", "nt:unstructured");
+                            option.setAttribute("text", opt.getText());
+                            option.setAttribute("value", opt.getValue());
+                            items3.appendChild(option);
+                        }
+                        multifield.appendChild(items);
+                    }
                 }
             }
+
         }
 
         else if("multiselect".equalsIgnoreCase(field.getFieldType())){
@@ -527,19 +541,6 @@ public class UpdateComponentImpl implements UpdateComponent {
 
 
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     //sling model update
 

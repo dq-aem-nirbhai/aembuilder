@@ -4,6 +4,8 @@ import com.aem.builder.model.DTO.ComponentField;
 import com.aem.builder.model.DTO.ComponentRequest;
 import com.aem.builder.model.Enum.FieldType;
 import com.aem.builder.service.ComponentService;
+import com.aem.builder.service.UpdateComponent;
+import com.aem.builder.service.UpdateHTL;
 import com.aem.builder.util.FileGenerationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -146,20 +148,18 @@ public class ComponentController {
         }
     }
 
-    @PostMapping("/component/update/{project}")
-    public String updateComponent(@PathVariable String project,
-            @ModelAttribute ComponentRequest request,
-            RedirectAttributes redirectAttributes) {
-        try {
-            componentService.updateComponent(project, request);
-            redirectAttributes.addFlashAttribute("message",
-                    request.getComponentName() + " Component updated successfully!");
-            return "redirect:/view/" + project;
-        } catch (Exception e) {
-            log.error("Error updating component", e);
-            redirectAttributes.addFlashAttribute("error", "Failed to update component: " + e.getMessage());
-            return "redirect:/" + project + "/editcomponent?componentName=" + request.getComponentName();
-        }
+    @PostMapping("/component/update/{projectName}")
+    public String updateComponent(
+            @PathVariable String projectName,
+            @ModelAttribute ComponentRequest componentRequest,
+            RedirectAttributes redirectAttributes) throws Exception {
+
+        System.out.println("New request: " + componentRequest);
+
+        // Load old component state
+        ComponentRequest oldRequest = componentService.loadComponent(projectName, componentRequest.getComponentName());
+        System.out.println("Old request: " + oldRequest);
+
         // Locate dialog.xml
         String dialogPath = "generated-projects/" + projectName
                 + "/ui.apps/src/main/content/jcr_root/apps/"
@@ -175,7 +175,9 @@ public class ComponentController {
         // Call service method to update dialog only
         updateComponent.updateDialog(dialogFile, componentRequest.getFields());
 
-        // sling model update
+
+
+        //sling model update
         updateComponent.updateSlingModel(componentRequest);
 
         // htl update
@@ -186,8 +188,8 @@ public class ComponentController {
                 projectName + "/components/" + componentRequest.getComponentName() +
                 "/" + componentRequest.getComponentName() + ".html";
         log.info("htl path to update {}", htlFile);
-
         updatehtl.updateHTLFromRequest(componentRequest, htlFile);
+
         redirectAttributes.addFlashAttribute("message", "Dialog updated successfully!");
         return "redirect:/view/" + projectName;
     }
