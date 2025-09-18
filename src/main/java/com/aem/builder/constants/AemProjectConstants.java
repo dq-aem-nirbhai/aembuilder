@@ -13,4 +13,6 @@ public class AemProjectConstants {
     public static final String ARCHETYPE_GROUP = "com.adobe.aem";
     public static final String ARCHETYPE_ARTIFACT = "aem-project-archetype";
     public static final String ARCHETYPE_VERSION = "41";
+    public static final String MSM_FOLDER = "msm";
+
 }
