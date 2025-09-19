@@ -24,6 +24,7 @@ import java.util.*;
 
 import static com.aem.builder.constants.AemProjectConstants.*;
 import static com.aem.builder.constants.PolicyConstants.*;
+import static com.aem.builder.util.AemUtil.getAppId;
 
 @Service
 @Slf4j
@@ -36,7 +37,6 @@ public class TemplatePolicyImpl implements TemplatePolicy {
     public String addPolicy(String projectName, String policyName, String componentGroups,
                             String styleDefaultClasses, String styleDefaultElement,
                             Map<String, Map<String, Object>> styles) throws Exception {
-
         log.info("[addPolicy] Adding policy '{}' for project '{}'", policyName, projectName);
 
         String policiesPath = TemplateUtil.getPoliciesFilePath(projectName);
@@ -130,8 +130,9 @@ public class TemplatePolicyImpl implements TemplatePolicy {
     @Override
     public void assignPolicyToTemplate(String projectName, String templateName,
                                        String policyNodeName) throws Exception {
+        String appId=getAppId(PROJECTS_DIR,projectName);
         String templatePath = GENERATED_PROJECTS_PATH + projectName
-                + UI_CONTENT_PATH + projectName
+                + UI_CONTENT_PATH + appId
                 + TEMPLATES_SUBPATH + templateName
                 + POLICIES_SUBPATH;
         log.info("[assignPolicyToTemplate] Assigning policy '{}' to template '{}'", policyNodeName, templateName);
@@ -141,7 +142,7 @@ public class TemplatePolicyImpl implements TemplatePolicy {
 
         File xmlFile = new File(templatePath);
         try {
-            TemplateUtil.updatePolicyId(templatePath, policyNodeName,projectName,templateType);
+            TemplateUtil.updatePolicyId(templatePath, policyNodeName,appId,templateType);
         } catch (Exception e) {
             log.error("[assignPolicyToTemplate] Failed to assign policy '{}' to template '{}'", policyNodeName, templateName, e);
             throw new IOException("Error occurred while assigning policy to template", e);
@@ -153,7 +154,9 @@ public class TemplatePolicyImpl implements TemplatePolicy {
      */
 @Override
     public void saveOrUpdatePolicy(String projectName, String templateName, PolicyRequest request) throws Exception {
-        String path = String.format(POLICIES_BASE_PATH, projectName, projectName);
+    String appId = getAppId(PROJECTS_DIR, projectName);
+    String path = String.format(POLICIES_BASE_PATH, projectName, appId);
+    log.info("path.......,{}",path);
         File xmlFile = new File(path);
         DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
         Document doc = builder.parse(xmlFile);
@@ -212,6 +215,7 @@ public class TemplatePolicyImpl implements TemplatePolicy {
      */
     @Override
     public List<String> getExistingPolicies(String projectName) {
+        String appId=getAppId(PROJECTS_DIR,projectName);
         List<String> policies = new ArrayList<>();
         try {
             String path = TemplateUtil.getPoliciesFilePath(projectName);
@@ -241,9 +245,9 @@ public class TemplatePolicyImpl implements TemplatePolicy {
                     }
                 }
             }
-            log.info("getExistingPolicies] Total policies found: {}", policies.size());
+            log.info("[getExistingPolicies] Total policies found: {}", policies.size());
         } catch (Exception e) {
-            log.error("getExistingPolicies] Error while fetching existing policies for project: " + projectName, e);
+            log.error("[getExistingPolicies] Error while fetching existing policies for project: " + projectName, e);
         }
         return policies;
     }
@@ -253,6 +257,7 @@ public class TemplatePolicyImpl implements TemplatePolicy {
      */
     @Override
     public PolicyRequest getPolicyDetails(String projectName, String policyTitle) {
+        String appId=getAppId(PROJECTS_DIR,projectName);
         try {
             String path = TemplateUtil.getPoliciesFilePath(projectName);
             File file = new File(path);
@@ -391,7 +396,7 @@ public class TemplatePolicyImpl implements TemplatePolicy {
                 Map<String, String> styleDef = (Map<String, String>) styleEntry.getValue();
 
                 String cssClass = styleDef.getOrDefault("class", "");
-                String element = styleDef.getOrDefault("element", "div");
+                String element = styleDef.getOrDefault("element", "Element");
 
                 Element styleItem = TemplateUtil.createElement(doc, TAG_STYLE_ITEM + iStyle++,NT_UNSTRUCTURED);
                 TemplateUtil.setAttribute(styleItem, ATTR_STYLE_LABEL, label);

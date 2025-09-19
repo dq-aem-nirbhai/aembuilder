@@ -22,6 +22,7 @@ import java.nio.file.Paths;
 
 import static com.aem.builder.constants.AemProjectConstants.*;
 import static com.aem.builder.constants.PolicyConstants.*;
+import static com.aem.builder.util.AemUtil.getAppId;
 
 public class TemplateUtil {
 
@@ -29,7 +30,8 @@ public class TemplateUtil {
      * Returns the path to the templates directory for the given project.
      */
     public static String getTemplatePath(String projectName) {
-        return PROJECTS_DIR + "/" + projectName + UI_CONTENT_PATH + projectName + WCM_TEMPLATES_PATH;
+        String appId=getAppId(PROJECTS_DIR,projectName);
+        return PROJECTS_DIR + "/" + projectName + UI_CONTENT_PATH + appId + WCM_TEMPLATES_PATH;
     }
 
     /**
@@ -43,7 +45,8 @@ public class TemplateUtil {
      * Returns the path where template types are stored for the given project.
      */
     public static String getTemplateTypesPath(String projectName) {
-        return PROJECTS_DIR + "/" + projectName + UI_CONTENT_PATH + projectName + WCM_TEMPLATE_TYPES_PATH;
+        String appId=getAppId(PROJECTS_DIR,projectName);
+        return PROJECTS_DIR + "/" + projectName + UI_CONTENT_PATH + appId + WCM_TEMPLATE_TYPES_PATH;
     }
 
     /**
@@ -107,15 +110,17 @@ public class TemplateUtil {
      */
 
     public static String getPoliciesFilePath(String projectName) {
-        return String.format(POLICIES_BASE_PATH, projectName, projectName);
+       String appId= AemUtil.getAppId(PROJECTS_DIR,projectName);
+        return String.format(POLICIES_BASE_PATH, projectName, appId);
     }
 
     /**
      * Returns the path to the template's content file (.content.xml) for the given template.
      */
     public static String getTemplateContentFilePath(String projectName, String templateName) {
+        String appId=getAppId(PROJECTS_DIR,projectName);
         return AemProjectConstants.PROJECTS_DIR + "/" + projectName +
-                UI_CONTENT_PATH  + projectName +
+                UI_CONTENT_PATH  + appId +
                 WCM_TEMPLATES_PATH+ "/" + templateName +
                 CONTENT_FILE;
     }

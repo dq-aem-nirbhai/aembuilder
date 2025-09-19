@@ -1,6 +1,5 @@
 package com.aem.builder.service.impl;
 
-import com.aem.builder.constants.AemProjectConstants;
 import com.aem.builder.model.TemplateModel;
 import com.aem.builder.service.TemplateService;
 
@@ -33,7 +32,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static com.aem.builder.constants.AemProjectConstants.PROJECTS_DIR;
 import static com.aem.builder.constants.PolicyConstants.*;
+import static com.aem.builder.util.AemUtil.getAppId;
 import static com.aem.builder.util.TemplateUtil.writeFile;
 
 
@@ -233,6 +234,7 @@ public class TemplateServiceImpl implements TemplateService {
      */
     @Override
     public TemplateModel createTemplate(TemplateModel model, String projectName) throws IOException {
+        String appId=getAppId(PROJECTS_DIR,projectName);
         log.info("[createTemplate:] Creating template '{}' for project '{}'", model.getName(), projectName);
         String url = TemplateUtil.getTemplateParent(projectName,model.getName());
 
@@ -247,30 +249,30 @@ public class TemplateServiceImpl implements TemplateService {
 
         // Write XML files
         writeFile(TemplateUtil.getRootContentFilePath(projectName,model.getName()),
-                TemplateUtil.getTemplateRootXmlPage(model.getName(),projectName,
+                TemplateUtil.getTemplateRootXmlPage(model.getName(),appId,
                         model.getTemplateType(),model.getStatus(),model.getDescription()));
 
         if(model.getTemplateType().equals("page")) {
             writeFile(TemplateUtil.getIntialContentFile(projectName,model.getName()),
-                    TemplateUtil.getInitialXmlPage(projectName,
+                    TemplateUtil.getInitialXmlPage(appId,
                     model.getName()));
             writeFile(TemplateUtil.getStructureContentFile(projectName,model.getName()),
                     TemplateUtil.getStructureXmlPage(model.getName(),
-                    projectName));
+                            appId));
             writeFile(TemplateUtil.getPoliciesContentFile(projectName,model.getName()),
-                    TemplateUtil.getPoliciesPage(projectName));
+                    TemplateUtil.getPoliciesPage(appId));
             log.info("[createTemplate] Page type XML files created for template '{}'", model.getName());
         }
         else {
 
             writeFile(TemplateUtil.getIntialContentFile(projectName,model.getName()),
-                    TemplateUtil.getIntialContentXf(projectName,
+                    TemplateUtil.getIntialContentXf(appId,
                     model.getName()));
             writeFile(TemplateUtil.getStructureContentFile(projectName,model.getName()),
-                    TemplateUtil.generateStructureContentXmlXf(projectName,
+                    TemplateUtil.generateStructureContentXmlXf(appId,
                     model.getName()));
             writeFile(TemplateUtil.getPoliciesContentFile(projectName,model.getName()),
-                    TemplateUtil.generatePoliciesXmlXf(projectName));
+                    TemplateUtil.generatePoliciesXmlXf(appId));
             log.info("[createTemplate:] XF type XML files created for template '{}'", model.getName());
         }
 
@@ -364,12 +366,13 @@ public class TemplateServiceImpl implements TemplateService {
     @Override
     public void updateTemplate(TemplateModel updatedModel, String projectName, String oldTemplateName)
             throws ParserConfigurationException, IOException, SAXException, TransformerException {
+        String appId=getAppId(PROJECTS_DIR,projectName);
+
         String basePath = GENERATED_PROJECTS_PATH+ projectName + UI_CONTENT_PATH  +
-                projectName + "/settings/wcm/templates/";
+                appId + WCM_TEMPLATES_RELATIVE_PATH;
         String targetpath=basePath+updatedModel.getName();
         File oldFolder = new File(basePath + oldTemplateName);
         File newFolder = new File(basePath + updatedModel.getName());
-
         if (!oldFolder.exists()) {
             throw new FileNotFoundException("Old template folder not found: " + oldFolder.getAbsolutePath());
         }
@@ -391,18 +394,18 @@ public class TemplateServiceImpl implements TemplateService {
         if(updatedModel.getTemplateType().equals("page")) {
             writeFile(targetpath + STRUCTURE+ CONTENT_FILE,
                     TemplateUtil.getStructureXmlPage(updatedModel.getName(),
-                    projectName)); // Pass projectname here
+                    appId)); // Pass projectname here
             writeFile(targetpath + POLICIES+CONTENT_FILE,
-                    TemplateUtil.getPoliciesPage(projectName));
+                    TemplateUtil.getPoliciesPage(appId));
 
         }
         else {
 
             writeFile(targetpath +STRUCTURE+ CONTENT_FILE,
-                    TemplateUtil.generateStructureContentXmlXf(projectName,
+                    TemplateUtil.generateStructureContentXmlXf(appId,
                     updatedModel.getName())); // Pass projectname here
             writeFile(targetpath+ POLICIES+CONTENT_FILE,
-                    TemplateUtil.generatePoliciesXmlXf(projectName));
+                    TemplateUtil.generatePoliciesXmlXf(appId));
 
         }
 
