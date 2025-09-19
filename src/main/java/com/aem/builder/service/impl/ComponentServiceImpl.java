@@ -43,188 +43,114 @@ import static com.aem.builder.constants.ModelAttributeKeys.*;
 @Slf4j
 public class ComponentServiceImpl implements ComponentService {
 
-    private static final String PROJECTS_DIR = "generated-projects";
-
     /**
-     * Extracts a property value from an xml string, handling AEM typed values like
-     * <code>componentGroup="{String}my-group"</code>.
-     */
-    /*private String extractProperty(String content, String property) {
-        if (content == null) return "";
-        Pattern p = Pattern.compile(property + "=\"(?:\\{String\\})?([^\"]+)\"");
-        Matcher m = p.matcher(content);
-        return m.find() ? m.group(1) : "";
-    }*/
-
-    /**
-     * Extracts a property value from an XML string.
-     * Handles AEM typed values like: componentGroup="{String}my-group".
-     * Logs entry and exit for debugging purposes.
+     * Extracts the value of a given property from the provided content using a predefined regex pattern.
+     * <p>
+     * This method searches the input {@code content} for the specified {@code property}
+     * and returns the first captured value if found.
+     * If the content is null or the property is not found, an empty string is returned.
      *
-     * @param content  XML content string
-     * @param property Property name to extract
-     * @return Extracted property value or empty string if not found
+     * @param content  The source string (e.g., XML/JSON text) where the property is searched.
+     * @param property The property name whose value needs to be extracted.
+     * @return The extracted value if the property exists; otherwise, an empty string.
      */
     private String extractProperty(String content, String property) {
-        log.debug("Entering extractProperty with property: {}", property);
+        log.info("[extractProperty] Entering method with property: {}", property);
 
         if (content == null) {
-            log.warn("Content is null, returning empty string");
+            log.info("[extractProperty] Content is null, returning empty string");
             return "";
         }
 
-        Pattern p = Pattern.compile(String.format(PROPERTY_REGEX, property));
-        Matcher m = p.matcher(content);
-        String value = m.find() ? m.group(1) : "";
+        Pattern p = Pattern.compile(property + PROPERTY_REGEX);
+        log.info("[extractProperty] Regex pattern created for property '{}': {}", property, p.pattern());
 
-        log.debug("Exiting extractProperty with value: {}", value);
+        Matcher m = p.matcher(content);
+        log.info("[extractProperty] Starting search for property '{}' in content", property);
+
+        String value = m.find() ? m.group(1) : "";
+        log.info("[extractProperty] Property '{}' found: {}", property, !value.isEmpty());
+        log.info("[extractProperty] Extracted value: {}", value);
+
+        log.info("[extractProperty] Exiting method with value: {}", value);
         return value;
     }
 
-    /*@Override
-    public List<String> fetchComponentsFromGeneratedProjects(String projectName) {
-        // fetchComponentsWithGroups returns Map<componentName, componentGroup>
-        Map<String, String> components = fetchComponentsWithGroups(projectName);
-
-        // Return only the component names as a list
-        return new ArrayList<>(components.keySet());
-    }*/
-
-
     /**
-     * Fetches all component names for a given generated project.
-     * Uses fetchComponentsWithGroups internally to retrieve name-group mapping.
+     * Fetches a list of component names for the specified generated project.
+     * <p>
+     * This method retrieves components with their groups and returns only the
+     * component names as a list.
      *
-     * @param projectName Name of the project
-     * @return List of component names
+     * @param projectName the name of the project whose components are being fetched
+     * @return a list of component names belonging to the project
      */
     @Override
     public List<String> fetchComponentsFromGeneratedProjects(String projectName) {
+        log.info("[fetchComponentsFromGeneratedProjects] Starting fetch for project: {}", projectName);
+
         log.info("Fetching components for project: {}", projectName);
-
         Map<String, String> components = fetchComponentsWithGroups(projectName);
 
-        log.info("Fetched {} components", components.size());
+        log.info("Fetched {} components for project '{}'", components.size(), projectName);
         return new ArrayList<>(components.keySet());
     }
 
-    
-   /* @Override
-    public Map<String, String> fetchComponentsWithGroups(String projectName) {
-        Map<String, String> result = new LinkedHashMap<>();
-        File componentsDir = new File(PROJECTS_DIR,
-                projectName + CONTENT_ROOT_PATH + projectName + "/"+COMPONENTS_FOLDER);
-        log.info("componentsDir {}", componentsDir);
-
-        if (componentsDir.exists()) {
-            fetchRealComponentsRecursive(componentsDir, result);
-        }
-
-        return result;
-    }*/
-
     /**
-     * Fetches all components for a given project along with their associated groups.
+     * Fetches all components of a given project along with their component groups.
      * <p>
-     * This method scans the project's components directory under
-     * {@code ui.apps/src/main/content/jcr_root/apps/{projectName}/components}
-     * and recursively collects real AEM components (ignores excluded folders).
-     * The result is a map where:
-     * <ul>
-     *     <li>Key = Component name (String)</li>
-     *     <li>Value = Component group (String)</li>
-     * </ul>
+     * This method resolves the components directory for the specified project
+     * and recursively fetches all components, mapping each component name to its group.
+     * </p>
      *
-     * @param projectName the name of the AEM project for which components are fetched
-     * @return a map of component names to their component groups
+     * @param projectName the name of the project whose components are being fetched
+     * @return a {@link Map} where the key is the component name and the value is its group
      */
-
     @Override
     public Map<String, String> fetchComponentsWithGroups(String projectName) {
-        log.info("Fetching components with groups for project: {}", projectName);
+        log.info("[fetchComponentsWithGroups] Fetching components with groups for project: {}", projectName);
+
         String appId = AemUtil.getAppId(PROJECTS_DIR, projectName);
+        log.info("[fetchComponentsWithGroups] Resolved App ID: {}", appId);
 
         Map<String, String> result = new LinkedHashMap<>();
-        File componentsDir = new File(
-                PROJECTS_DIR,
-                projectName + CONTENT_ROOT_PATH + appId + "/" + COMPONENTS_FOLDER
-        );
+        File componentsDir = new File(PROJECTS_DIR, projectName + CONTENT_ROOT_PATH + appId + "/" + COMPONENTS_FOLDER);
 
-        log.debug("Resolved components directory path: {}", componentsDir.getAbsolutePath());
+        log.info("[fetchComponentsWithGroups] Resolved components directory path: {}", componentsDir.getAbsolutePath());
 
         if (componentsDir.exists()) {
-            log.info("Components directory found. Starting recursive fetch...");
+            log.info("[fetchComponentsWithGroups] Components directory found. Starting recursive fetch...");
             fetchRealComponentsRecursive(componentsDir, result);
-            log.info("Completed fetching components. Total components found: {}", result.size());
+            log.info("[fetchComponentsWithGroups] Completed fetching components. Total components found: {}", result.size());
         } else {
-            log.warn("Components directory does not exist for project: {}", projectName);
+            log.info("[fetchComponentsWithGroups] Components directory does not exist for project: {}", projectName);
         }
 
         return result;
     }
 
-    /*private void fetchRealComponentsRecursive(File dir, Map<String, String> result) {
-        if (!dir.isDirectory()) return;
-
-        String dirName = dir.getName();
-
-        // Skip excluded folders
-        if (EXCLUDED_FOLDERS.stream().anyMatch(ex ->
-                dirName.equalsIgnoreCase(ex) || dirName.startsWith(ex))) {
-            return;
-        }
-
-        File contentXml = new File(dir, ".content.xml");
-        if (contentXml.exists()) {
-            String content = FileGenerationUtil.readFile(contentXml);
-
-            // Extra safety: skip if it's a design dialog
-            if (content.contains("Design Dialog") || content.contains("cq/gui/components/authoring/dialog")) {
-                return;
-            }
-
-            String group = extractProperty(content, "componentGroup").trim();
-            // Use only component folder name as key
-            result.put(dirName, group);
-        }
-
-        File[] subDirs = dir.listFiles(File::isDirectory);
-        if (subDirs != null) {
-            for (File subDir : subDirs) {
-                fetchRealComponentsRecursive(subDir, result);
-            }
-        }
-    }
-*/
-
     /**
-     * Recursively scans the given directory for real AEM components and populates
-     * the provided result map with component names and their groups.
+     * Recursively traverses the components directory and fetches all valid AEM components.
      * <p>
-     * This method:
-     * <ul>
-     *     <li>Skips non-directories</li>
-     *     <li>Ignores excluded folders (e.g., "dialog", "global", "structure")</li>
-     *     <li>Reads {@code .content.xml} to detect component metadata</li>
-     *     <li>Skips design dialogs</li>
-     *     <li>Extracts the {@code componentGroup} property and maps it against the component folder name</li>
-     * </ul>
+     * This method scans the given directory, ignores excluded folders, reads the
+     * `.content.xml` files to determine the component group, and adds each component
+     * to the provided result map.
+     * </p>
      *
-     * @param dir    the directory to scan
-     * @param result the map of component names to their groups (to be populated)
+     * @param dir    the directory to scan for components
+     * @param result the map to store component names and their corresponding groups
      */
     private void fetchRealComponentsRecursive(File dir, Map<String, String> result) {
         if (!dir.isDirectory()) {
-            log.debug("Skipping non-directory path: {}", dir.getAbsolutePath());
+            log.info("Skipping non-directory path: {}", dir.getAbsolutePath());
             return;
         }
 
         String dirName = dir.getName();
 
-        // Skip excluded folders
         if (EXCLUDED_FOLDERS.stream().anyMatch(ex ->
                 dirName.equalsIgnoreCase(ex) || dirName.startsWith(ex))) {
-            log.debug("Skipping excluded folder: {}", dirName);
+            log.info("Skipping excluded folder: {}", dirName);
             return;
         }
 
@@ -232,16 +158,15 @@ public class ComponentServiceImpl implements ComponentService {
         if (contentXml.exists()) {
             String content = FileGenerationUtil.readFile(contentXml);
 
-            // Extra safety: skip if it's a design dialog
             if (content.contains(DESIGN_DIALOG) ||
                     content.contains(AUTHORING_DIALOG_PATH)) {
-                log.debug("Skipping design dialog for component: {}", dirName);
+                log.info("Skipping design dialog for component: {}", dirName);
                 return;
             }
 
-            String group = extractProperty(content, COMPONENT_GROUP_PROP).trim();
+            String group = extractProperty(content, COMPONENT_GROUP).trim();
             result.put(dirName, group);
-            log.info("Discovered component: {} with group: {}", dirName, group);
+            log.info("[fetchRealComponentsRecursive] Discovered component: '{}' with group: '{}'", dirName, group);
         }
 
         File[] subDirs = dir.listFiles(File::isDirectory);
@@ -252,222 +177,133 @@ public class ComponentServiceImpl implements ComponentService {
         }
     }
 
-   /* @Override
-    public List<String> getAllComponents() throws IOException {
-        List<String> components = new ArrayList<>();
-        PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-        Resource[] resources = resolver.getResources("classpath:/aem-components/*");
-
-        for (Resource resource : resources) {
-            components.add(resource.getFilename());
-        }
-        return components;
-    }*/
-
     /**
-     * Retrieves a list of all available AEM components from the classpath resource folder.
+     * Retrieves all AEM components available in the classpath.
      * <p>
-     * This method scans the {@code aem-components} directory on the classpath and collects
-     * the names of all component files. It is typically used to provide component definitions
-     * bundled with the application.
+     * This method scans the specified classpath pattern and returns a list of all
+     * component filenames found. Useful for populating available components for
+     * project creation or editing.
      * </p>
      *
-     * @return list of component file names found in the classpath
-     * @throws IOException if resource scanning fails
+     * @return a list of all AEM component filenames found in the classpath
+     * @throws IOException if there is an issue accessing resources in the classpath
      */
     @Override
     public List<String> getAllComponents() throws IOException {
         List<String> components = new ArrayList<>();
         PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
 
+        log.info("[getAllComponents] Scanning for AEM components under classpath: {}", COMPONENTS_CLASSPATH_PATTERN);
         Resource[] resources = resolver.getResources(COMPONENTS_CLASSPATH_PATTERN);
-        log.info("Scanning for AEM components under classpath: {}", COMPONENTS_CLASSPATH_PATTERN);
 
         for (Resource resource : resources) {
             String fileName = resource.getFilename();
             if (fileName != null) {
                 components.add(fileName);
-                log.debug("Discovered component resource: {}", fileName);
+                log.debug("[getAllComponents] Discovered component resource: {}", fileName);
             }
         }
 
-        log.info("Total AEM components discovered: {}", components.size());
+        log.info("[getAllComponents] Total AEM components discovered: {}", components.size());
         return components;
     }
 
-
-    /*@Override
-    public List<String> getCommonComponents(List<String> allComponents, List<String> projectComponents) {
-        return allComponents.stream()
-                .filter(projectComponents::contains)
-                .collect(Collectors.toList());
-    }*/
-
-
     /**
-     * Finds the list of common components between the global component library
+     * Finds and returns the common components between all available components
      * and the components already present in a specific project.
-     * <p>
-     * This method performs an intersection of two lists:
-     * - {@code allComponents}: all available AEM components (from resources).
-     * - {@code projectComponents}: components that exist in the target project.
-     * </p>
      *
-     * @param allComponents     list of all available components
-     * @param projectComponents list of components in the given project
-     * @return list of components that exist in both lists
+     * @param allComponents     the list of all available components
+     * @param projectComponents the list of components already present in the project
+     * @return a list of component names that are common to both input lists
      */
     @Override
     public List<String> getCommonComponents(List<String> allComponents, List<String> projectComponents) {
-        log.info("Finding common components. Total available: {}, Project components: {}",
+        log.info("[getCommonComponents] Finding common components. Total available: {}, Project components: {}",
                 allComponents.size(), projectComponents.size());
 
         List<String> common = allComponents.stream()
                 .filter(projectComponents::contains)
                 .collect(Collectors.toList());
 
-        log.info("Common components found: {}", common.size());
-        log.debug("Common components list: {}", common);
+        log.info("[getCommonComponents] Common components found: {}", common.size());
+        log.info("[getCommonComponents] Common components list: {}", common);
 
         return common;
     }
 
-    /*@Override
-    public List<String> getDistinctComponents(List<String> allComponents, List<String> projectComponents) {
-        return allComponents.stream()
-                .filter(c -> !projectComponents.contains(c))
-                .collect(Collectors.toList());
-    }*/
-
     /**
-     * Finds the list of distinct components that exist in the global component library
-     * but are not yet included in the given project.
-     * <p>
-     * This method performs a subtraction operation:
-     * - {@code allComponents}: all available AEM components (from resources).
-     * - {@code projectComponents}: components that exist in the target project.
-     * </p>
+     * Finds and returns components that are present in all available components
+     * but not yet included in the specified project.
      *
-     * @param allComponents     list of all available components
-     * @param projectComponents list of components in the given project
-     * @return list of components that are available globally but missing in the project
+     * @param allComponents     the list of all available components
+     * @param projectComponents the list of components already present in the project
+     * @return a list of component names that are distinct (not in the project)
      */
     @Override
     public List<String> getDistinctComponents(List<String> allComponents, List<String> projectComponents) {
-        log.info("Finding distinct components. Total available: {}, Project components: {}",
+        log.info("[getDistinctComponents] Finding distinct components. Total available: {}, Project components: {}",
                 allComponents.size(), projectComponents.size());
 
         List<String> distinct = allComponents.stream()
                 .filter(c -> !projectComponents.contains(c))
                 .collect(Collectors.toList());
 
-        log.info("Distinct components found: {}", distinct.size());
-        log.debug("Distinct components list: {}", distinct);
+        log.info("[getDistinctComponents] Distinct components found: {}", distinct.size());
+        log.debug("[getDistinctComponents] Distinct components list: {}", distinct);
 
         return distinct;
     }
 
 
-    /*@Override
-    public List<String>getExistingProjects() {
-        List<String> existingProjects = new ArrayList<>();
-        File projectsDir = new File(System.getProperty("user.dir") + "/generated-projects/");
-
-        if (projectsDir.exists() && projectsDir.isDirectory()) {
-
-            String[] names = projectsDir.list();
-
-            if (names != null) {
-                existingProjects = List.of(names);
-            }
-        }
-        return existingProjects;
-    }*/
-
     /**
-     * Retrieves the list of existing generated projects.
+     * Retrieves a list of existing generated projects from the workspace.
      * <p>
-     * This method checks the {@code /generated-projects/} directory under the current
-     * working directory ({@code user.dir}). If the directory exists, it collects the
-     * names of all projects inside it.
+     * This method checks the default generated projects directory and returns
+     * the names of all existing projects. If the directory does not exist or
+     * is empty, it returns an empty list.
      * </p>
      *
-     * @return list of existing project names, or an empty list if none are found
+     * @return a list of existing project names; empty if none are found
      */
     @Override
     public List<String> getExistingProjects() {
         String projectsPath = System.getProperty(USER_DIR_SYS_PROP) + GENERATED_PROJECTS_DIR;
         File projectsDir = new File(projectsPath);
 
-        log.info("Checking for existing projects in: {}", projectsPath);
+        log.info("[getExistingProjects] Checking for existing projects in: {}", projectsPath);
 
         if (!projectsDir.exists() || !projectsDir.isDirectory()) {
-            log.warn("No 'generated-projects' directory found at path: {}", projectsPath);
+            log.warn("[getExistingProjects] No 'generated-projects' directory found at path: {}", projectsPath);
             return Collections.emptyList();
         }
 
         String[] names = projectsDir.list();
         if (names == null || names.length == 0) {
-            log.info("No existing projects found in directory: {}", projectsPath);
+            log.info("[getExistingProjects] No existing projects found in directory: {}", projectsPath);
             return Collections.emptyList();
         }
 
         List<String> existingProjects = Arrays.asList(names);
-        log.info("Found {} existing projects.", existingProjects.size());
-        log.debug("Existing projects list: {}", existingProjects);
+        log.info("[getExistingProjects] Found {} existing projects.", existingProjects.size());
+        log.debug("[getExistingProjects] Existing projects list: {}", existingProjects);
 
         return existingProjects;
     }
 
-
-   /* @Override
-    public ComponentRequest loadComponent(String projectName, String componentName) {
-
-     String basePath=   findComponentPathExact(projectName,componentName);
-        String group = "";
-        String superType = null;
-        List<ComponentField> fields = new ArrayList<>();
-
-        try {
-            File contentXml = new File(basePath, ".content.xml");
-            if (contentXml.exists()) {
-                String content = FileGenerationUtil.readFile(contentXml);
-                group = extractProperty(content, "componentGroup").trim();
-                superType = extractProperty(content, "sling:resourceSuperType").trim();
-            }
-
-            File dialogXml = new File(basePath + "/_cq_dialog/.content.xml");
-            if (dialogXml.exists()) {
-                DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-                factory.setNamespaceAware(false);
-                DocumentBuilder builder = factory.newDocumentBuilder();
-                Document doc = builder.parse(dialogXml);
-                collectFields(doc.getDocumentElement(), fields);
-            }
-        } catch (Exception e) {
-            log.error("Failed to load component {}", componentName, e);
-        }
-
-        ComponentRequest req = new ComponentRequest();
-        req.setProjectName(projectName);
-        req.setComponentName(componentName);
-        req.setComponentGroup(group);
-        req.setSuperType(superType);
-        req.setFields(fields);
-        return req;
-    }*/
-
-
     /**
-     * Loads an AEM component's metadata including its group, superType, and dialog fields.
+     * Loads a component's metadata and dialog fields for a given project and component name.
+     * <p>
+     * This method reads the component's `.content.xml` to retrieve its group and super type,
+     * then parses the dialog XML under `_cq_dialog/.content.xml` to collect all dialog fields.
+     * </p>
      *
      * @param projectName   the name of the project containing the component
      * @param componentName the name of the component to load
-     * @return a {@link ComponentRequest} containing component metadata and parsed fields
+     * @return a {@link ComponentRequest} object populated with the component's metadata and fields
      */
     @Override
     public ComponentRequest loadComponent(String projectName, String componentName) {
-        log.info("Starting loadComponent for project='{}', component='{}'", projectName, componentName);
+        log.info("[loadComponent] Starting loadComponent for project='{}', component='{}'", projectName, componentName);
 
         String basePath = findComponentPathExact(projectName, componentName);
         String group = "";
@@ -475,24 +311,22 @@ public class ComponentServiceImpl implements ComponentService {
         List<ComponentField> fields = new ArrayList<>();
 
         try {
-            // --- Load component metadata from .content.xml
             File contentXml = new File(basePath, CONTENT_XML);
             if (contentXml.exists()) {
-                log.debug("Reading component metadata from '{}'", contentXml.getAbsolutePath());
+                log.debug("[loadComponent] Reading component metadata from '{}'", contentXml.getAbsolutePath());
                 String content = FileGenerationUtil.readFile(contentXml);
 
-                group = extractProperty(content, COMPONENT_GROUP_PROP).trim();
+                group = extractProperty(content, COMPONENT_GROUP).trim();
                 superType = extractProperty(content, SLING_RESOURCE_SUPER_TYPE).trim();
 
-                log.debug("Parsed component metadata: group='{}', superType='{}'", group, superType);
+                log.debug("[loadComponent] Parsed component metadata: group='{}', superType='{}'", group, superType);
             } else {
-                log.warn(".content.xml not found for component '{}'", componentName);
+                log.warn("[loadComponent] .content.xml not found for component '{}'", componentName);
             }
 
-            // --- Load dialog fields from _cq_dialog/.content.xml
             File dialogXml = new File(basePath + "/" + CQ_DIALOG + "/" + CONTENT_XML);
             if (dialogXml.exists()) {
-                log.debug("Parsing dialog XML at '{}'", dialogXml.getAbsolutePath());
+                log.debug("[loadComponent] Parsing dialog XML at '{}'", dialogXml.getAbsolutePath());
 
                 DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
                 factory.setNamespaceAware(false); // disabling namespaces for easier parsing
@@ -500,16 +334,15 @@ public class ComponentServiceImpl implements ComponentService {
                 Document doc = builder.parse(dialogXml);
 
                 collectFields(doc.getDocumentElement(), fields);
-                log.info("Collected {} field(s) for component '{}'", fields.size(), componentName);
+                log.info("[loadComponent] Collected {} field(s) for component '{}'", fields.size(), componentName);
             } else {
-                log.warn("Dialog XML not found for component '{}'", componentName);
+                log.warn("[loadComponent] Dialog XML not found for component '{}'", componentName);
             }
 
         } catch (Exception e) {
-            log.error("Failed to load component '{}'", componentName, e);
+            log.error("[loadComponent] Failed to load component '{}'", componentName, e);
         }
 
-        // --- Prepare and return ComponentRequest
         ComponentRequest req = new ComponentRequest();
         req.setProjectName(projectName);
         req.setComponentName(componentName);
@@ -517,177 +350,85 @@ public class ComponentServiceImpl implements ComponentService {
         req.setSuperType(superType);
         req.setFields(fields);
 
-        log.info("Completed loadComponent for component '{}'", componentName);
+        log.info("[loadComponent] Completed loadComponent for component '{}'", componentName);
         return req;
     }
 
-
-   /* @Override
-    public void updateComponent(String projectName, ComponentRequest request) {
-        String compPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName
-                + "/components/" + request.getComponentName();
-        try {
-            FileUtils.deleteDirectory(new File(compPath));
-        } catch (IOException e) {
-            log.warn("Could not clean component folder before update", e);
-        }
-        FileGenerationUtil.generateAllFiles(projectName, request);
-    }*/
-
     /**
-     * Updates an existing component by removing its current files
-     * and regenerating them based on the provided {@link ComponentRequest}.
-     *
+     * Updates an existing component in the specified project by regenerating
+     * its files based on the provided {@link ComponentRequest}.
      * <p>
-     * Steps performed:
-     * <ol>
-     *   <li>Resolve the component path in the generated project structure.</li>
-     *   <li>Delete the existing component folder (if it exists).</li>
-     *   <li>Regenerate the component using {@link FileGenerationUtil}.</li>
-     * </ol>
+     * The method first deletes the existing component directory, then regenerates
+     * all files using {@link FileGenerationUtil#generateAllFiles(String, ComponentRequest)}.
      * </p>
      *
-     * @param projectName the project where the component resides
-     * @param request     the updated component definition
+     * @param projectName the name of the project containing the component
+     * @param request     the component request containing updated metadata and fields
      */
     @Override
     public void updateComponent(String projectName, ComponentRequest request) {
         String appId = AemUtil.getAppId(PROJECTS_DIR, projectName);
 
-        String compPath = PROJECTS_DIR + "/" + projectName + "/"
-                + CONTENT_ROOT_PATH + appId
-                + COMPONENTS_FOLDER
-                + request.getComponentName();
+        String compPath = PROJECTS_DIR + "/" + projectName + "/" + CONTENT_ROOT_PATH + appId + COMPONENTS_FOLDER + request.getComponentName();
 
-        log.info("Updating component '{}' in project '{}'", request.getComponentName(), projectName);
-        log.debug("Resolved component path for update: {}", compPath);
+        log.info("[updateComponent] Updating component '{}' in project '{}'", request.getComponentName(), projectName);
+        log.debug("[updateComponent] Resolved component path for update: {}", compPath);
 
         try {
             FileUtils.deleteDirectory(new File(compPath));
-            log.info("Deleted existing component directory: {}", compPath);
+            log.info("[updateComponent] Deleted existing component directory: {}", compPath);
         } catch (IOException e) {
-            log.warn("Could not clean component folder before update for '{}'", request.getComponentName(), e);
+            log.warn("[updateComponent] Could not clean component folder before update for '{}'", request.getComponentName(), e);
         }
 
         FileGenerationUtil.generateAllFiles(projectName, request);
-        log.info("Regenerated component '{}' in project '{}'", request.getComponentName(), projectName);
+        log.info("[updateComponent] Regenerated component '{}' in project '{}'", request.getComponentName(), projectName);
     }
 
-   /* @Override
-    public void deleteComponent(String projectName, String componentName) {
-        log.info("Deleting component '{}' from project '{}'", componentName, projectName);
-
-        // 1. Find component folder
-        String compPath = findComponentPathExact(projectName, componentName);
-        if (compPath == null) {
-            log.warn("Component '{}' not found in project '{}'", componentName, projectName);
-            return;
-        }
-        log.info("Component folder found at '{}'", compPath);
-
-        // 2. Collect Sling Models from HTL recursively
-        Set<String> slingModels = new HashSet<>();
-        try {
-            slingModels = collectSlingModelsFromHTLFolder(new File(compPath));
-        } catch (IOException e) {
-            log.error("Failed to read HTL files for component '{}'", componentName, e);
-        }
-        log.info("Sling Models found in HTL: {}", slingModels);
-
-        // 3. Collect multifield names
-        ComponentRequest req = loadComponent(projectName, componentName);
-        Set<String> multifieldNames = req.getFields().stream()
-                .filter(f -> "multifield".equals(f.getFieldType()))
-                .map(ComponentField::getFieldName)
-                .collect(Collectors.toSet());
-
-        // 4. Collect all Java classes to delete (main + child classes)
-        Set<String> javaClassesToDelete = new HashSet<>();
-        Set<String> processedClasses = new HashSet<>();
-        Path javaRoot = Paths.get(PROJECTS_DIR, projectName, "core", "src", "main", "java");
-
-        for (String fqcn : slingModels) {
-            String simpleName = fqcn.substring(fqcn.lastIndexOf('.') + 1);
-            try {
-                collectClassAndChildren(javaRoot, simpleName, javaClassesToDelete, processedClasses, multifieldNames);
-            } catch (IOException e) {
-                log.error("Failed to collect child classes for '{}'", fqcn, e);
-            }
-        }
-
-        // 5. Delete component folder
-        try {
-            FileUtils.deleteDirectory(new File(compPath));
-            log.info("Deleted component folder '{}'", compPath);
-        } catch (IOException e) {
-            log.error("Failed to delete component folder '{}'", componentName, e);
-        }
-
-        // 6. Delete all collected Java classes
-        try (Stream<Path> paths = Files.walk(javaRoot)) {
-            paths.filter(p -> javaClassesToDelete.contains(p.getFileName().toString()))
-                    .forEach(p -> {
-                        try {
-                            Files.deleteIfExists(p);
-                            log.info("Deleted Java class '{}'", p);
-                        } catch (IOException ex) {
-                            log.error("Failed to delete Java class '{}'", p, ex);
-                        }
-                    });
-        } catch (IOException e) {
-            log.error("Failed to locate model classes for component '{}'", componentName, e);
-        }
-    }*/
-
     /**
-     * Deletes a component and its associated Sling Models and Java classes
-     * from the specified project.
-     *
+     * Deletes a component from a specified project along with its associated
+     * folders, HTL files, Sling Models, multifield classes, and Java classes.
      * <p>
-     * Steps performed:
+     * The method performs the following steps:
      * <ol>
-     *   <li>Locate the component folder.</li>
-     *   <li>Collect Sling Models referenced in HTL files.</li>
-     *   <li>Collect multifield names from the component definition.</li>
-     *   <li>Resolve all Java classes (main + children) that should be deleted.</li>
-     *   <li>Delete the component folder from the file system.</li>
-     *   <li>Delete collected Java classes from the core module.</li>
+     *     <li>Resolve the component folder path.</li>
+     *     <li>Collect Sling Models from HTL files.</li>
+     *     <li>Collect multifield names from component dialog.</li>
+     *     <li>Determine Java classes to delete, including child classes.</li>
+     *     <li>Delete the component folder.</li>
+     *     <li>Delete the collected Java classes.</li>
      * </ol>
      * </p>
      *
-     * @param projectName   the project name
-     * @param componentName the component to delete
+     * @param projectName   the name of the project containing the component
+     * @param componentName the name of the component to delete
      */
     @Override
     public void deleteComponent(String projectName, String componentName) {
-        log.info("Deleting component '{}' from project '{}'", componentName, projectName);
+        log.info("[deleteComponent] Deleting component '{}' from project '{}'", componentName, projectName);
 
-        // --- Step 1: Find component folder ---
         String compPath = findComponentPathExact(projectName, componentName);
         if (compPath == null) {
-            log.warn("Component '{}' not found in project '{}'", componentName, projectName);
+            log.warn("[deleteComponent] Component '{}' not found in project '{}'", componentName, projectName);
             return;
         }
-        log.debug("Component folder resolved at '{}'", compPath);
+        log.debug("[deleteComponent] Component folder resolved at '{}'", compPath);
 
-        // --- Step 2: Collect Sling Models from HTL ---
         Set<String> slingModels = new HashSet<>();
         try {
             slingModels = collectSlingModelsFromHTLFolder(new File(compPath));
-            log.debug("Sling Models found: {}", slingModels);
+            log.debug("[deleteComponent] Sling Models found: {}", slingModels);
         } catch (IOException e) {
-            log.error("Failed to read HTL files for component '{}'", componentName, e);
+            log.error("[deleteComponent] Failed to read HTL files for component '{}'", componentName, e);
         }
 
-        // --- Step 3: Collect multifield names ---
         ComponentRequest req = loadComponent(projectName, componentName);
         Set<String> multifieldNames = req.getFields().stream()
                 .filter(f -> TYPE_MULTIFIELD.equals(f.getFieldType()))
                 .map(ComponentField::getFieldName)
                 .collect(Collectors.toSet());
-        log.debug("Multifield names collected: {}", multifieldNames);
+        log.debug("[deleteComponent] Multifield names collected: {}", multifieldNames);
 
-        // --- Step 4: Collect Java classes to delete ---
         Set<String> javaClassesToDelete = new HashSet<>();
         Set<String> processedClasses = new HashSet<>();
         Path javaRoot = Paths.get(PROJECTS_DIR, projectName, JAVA_SRC_PATH);
@@ -697,67 +438,44 @@ public class ComponentServiceImpl implements ComponentService {
             try {
                 collectClassAndChildren(javaRoot, simpleName, javaClassesToDelete, processedClasses, multifieldNames);
             } catch (IOException e) {
-                log.error("Failed to collect child classes for '{}'", fqcn, e);
+                log.error("[deleteComponent] Failed to collect child classes for '{}'", fqcn, e);
             }
         }
-        log.debug("Java classes marked for deletion: {}", javaClassesToDelete);
+        log.debug("[deleteComponent] Java classes marked for deletion: {}", javaClassesToDelete);
 
-        // --- Step 5: Delete component folder ---
         try {
             FileUtils.deleteDirectory(new File(compPath));
-            log.info("Deleted component folder '{}'", compPath);
+            log.info("[deleteComponent] Deleted component folder '{}'", compPath);
         } catch (IOException e) {
-            log.error("Failed to delete component folder for '{}'", componentName, e);
+            log.error("[deleteComponent] Failed to delete component folder for '{}'", componentName, e);
         }
 
-        // --- Step 6: Delete collected Java classes ---
         try (Stream<Path> paths = Files.walk(javaRoot)) {
             paths.filter(p -> javaClassesToDelete.contains(p.getFileName().toString()))
                     .forEach(p -> {
                         try {
                             Files.deleteIfExists(p);
-                            log.info("Deleted Java class '{}'", p);
+                            log.info("[deleteComponent] Deleted Java class '{}'", p);
                         } catch (IOException ex) {
-                            log.error("Failed to delete Java class '{}'", p, ex);
+                            log.error("[deleteComponent] Failed to delete Java class '{}'", p, ex);
                         }
                     });
         } catch (IOException e) {
-            log.error("Failed to locate model classes in '{}'", javaRoot, e);
+            log.error("[deleteComponent] Failed to locate model classes in '{}'", javaRoot, e);
         }
     }
 
-    /* *//**
-     * Recursively collect fully qualified Sling Model class names from HTL files
-     *//*
-    private Set<String> collectSlingModelsFromHTLFolder(File dir) throws IOException {
-        Set<String> slingModels = new HashSet<>();
-        if (!dir.isDirectory()) return slingModels;
-
-        File[] files = dir.listFiles();
-        if (files == null) return slingModels;
-
-        for (File file : files) {
-            if (file.isDirectory()) {
-                slingModels.addAll(collectSlingModelsFromHTLFolder(file));
-            } else if (file.isFile() && file.getName().endsWith(".html")) {
-                slingModels.addAll(extractSlingModelsFromHTL(file));
-            }
-        }
-        return slingModels;
-    }*/
-
     /**
-     * Recursively scans a folder for HTL files and collects all fully qualified
-     * Sling Model class names referenced via {@code data-sly-use} attributes.
+     * Recursively collects all Sling Models referenced in HTL files within the given directory.
      *
-     * @param dir The root folder to scan recursively
-     * @return A set of fully qualified Sling Model class names
-     * @throws IOException If reading any HTL file fails
+     * @param dir the root directory to scan for HTL files
+     * @return a set of fully qualified Sling Model class names found in the HTL files
+     * @throws IOException if there is an error reading any HTL file
      */
     private Set<String> collectSlingModelsFromHTLFolder(File dir) throws IOException {
         Set<String> slingModels = new HashSet<>();
         if (!dir.isDirectory()) {
-            log.warn("Provided path '{}' is not a directory", dir.getAbsolutePath());
+            log.warn("[collectSlingModelsFromHTLFolder] Provided path '{}' is not a directory", dir.getAbsolutePath());
             return slingModels;
         }
 
@@ -766,56 +484,33 @@ public class ComponentServiceImpl implements ComponentService {
 
         for (File file : files) {
             if (file.isDirectory()) {
-                log.debug("Entering directory '{}'", file.getAbsolutePath());
+                log.debug("[collectSlingModelsFromHTLFolder] Entering directory '{}'", file.getAbsolutePath());
                 slingModels.addAll(collectSlingModelsFromHTLFolder(file));
             } else if (file.isFile() && file.getName().endsWith(HTL_FILE_EXTENSION)) {
-                log.debug("Processing HTL file '{}'", file.getAbsolutePath());
+                log.debug("[collectSlingModelsFromHTLFolder] Processing HTL file '{}'", file.getAbsolutePath());
                 slingModels.addAll(extractSlingModelsFromHTL(file));
             }
         }
 
-        log.info("Collected Sling Models from folder '{}': {}", dir.getAbsolutePath(), slingModels);
+        log.info("[collectSlingModelsFromHTLFolder] Collected Sling Models from folder '{}': {}", dir.getAbsolutePath(), slingModels);
         return slingModels;
     }
 
 
     /**
-     * Extract fully qualified Sling Model class names from HTL
-     *//*
-    private Set<String> extractSlingModelsFromHTL(File htlFile) throws IOException {
-        Set<String> classes = new HashSet<>();
-        List<String> lines = Files.readAllLines(htlFile.toPath());
-
-        for (String line : lines) {
-            line = line.trim();
-            if (line.contains("data-sly-use")) {
-                int eqIndex = line.indexOf("=");
-                if (eqIndex > 0) {
-                    String ref = line.substring(eqIndex + 1).replaceAll("[\"';]", "").trim();
-                    // Remove trailing HTML characters like /> or >
-                    ref = ref.replaceAll("[/>].*$", "").trim();
-                    if (ref.startsWith("com.")) {
-                        classes.add(ref);
-                    }
-                }
-            }
-        }
-        return classes;
-    }*/
-
-
-    /**
-     * Extracts fully qualified Sling Model class names from a given HTL file.
-     * It scans for {@code data-sly-use} attributes and collects references
-     * starting with "com." (assuming project package naming convention).
+     * Extracts Sling Model class references from a single HTL file.
+     * <p>
+     * The method scans each line of the HTL file for {@code data-sly-use} attributes
+     * and collects fully qualified class names that belong to project-specific packages.
+     * </p>
      *
-     * @param htlFile The HTL (.html) file to parse
-     * @return A set of fully qualified Sling Model class names
-     * @throws IOException If reading the file fails
+     * @param htlFile the HTL file to parse
+     * @return a set of fully qualified Sling Model class names found in the HTL file
+     * @throws IOException if there is an error reading the HTL file
      */
     private Set<String> extractSlingModelsFromHTL(File htlFile) throws IOException {
         Set<String> classes = new HashSet<>();
-        log.debug("Extracting Sling Models from HTL file '{}'", htlFile.getAbsolutePath());
+        log.debug("[extractSlingModelsFromHTL] Extracting Sling Models from HTL file '{}'", htlFile.getAbsolutePath());
 
         List<String> lines = Files.readAllLines(htlFile.toPath());
         for (String line : lines) {
@@ -823,78 +518,22 @@ public class ComponentServiceImpl implements ComponentService {
             if (line.contains(DATA_SLY_USE)) {
                 int eqIndex = line.indexOf("=");
                 if (eqIndex > 0) {
-                    // Clean up the reference string
                     String ref = line.substring(eqIndex + 1)
-                            .replaceAll("[\"';]", "")        // remove quotes and semicolons
-                            .replaceAll("[/>].*$", "")       // remove trailing HTML characters
+                            .replaceAll("[\"';]", "")
+                            .replaceAll("[/>].*$", "")
                             .trim();
 
-                    // Include only project-specific packages (starting with "com.")
                     if (ref.startsWith("com.")) {
                         classes.add(ref);
-                        log.debug("Found Sling Model reference: '{}'", ref);
+                        log.debug("[extractSlingModelsFromHTL] Found Sling Model reference: '{}'", ref);
                     }
                 }
             }
         }
 
-        log.info("Extracted Sling Models from '{}': {}", htlFile.getName(), classes);
+        log.info("[extractSlingModelsFromHTL] Extracted Sling Models from '{}': {}", htlFile.getName(), classes);
         return classes;
     }
-
-
-    /* *//**
-     * Recursively collect a Java class and all child classes via @ChildResource or multifield variable
-     *//*
-    private void collectClassAndChildren(Path javaRoot, String className,
-                                         Set<String> javaClassesToDelete,
-                                         Set<String> processedClasses,
-                                         Set<String> multifieldNames) throws IOException {
-        if (processedClasses.contains(className)) return;
-        processedClasses.add(className);
-
-        Path classPath = findJavaClassRecursive(javaRoot, className + ".java");
-        if (classPath == null) {
-            log.warn("Java class '{}' not found under '{}'", className, javaRoot);
-            return;
-        }
-        log.info("Found Java class '{}' at '{}'", className, classPath);
-
-        javaClassesToDelete.add(classPath.getFileName().toString());
-
-        List<String> lines = Files.readAllLines(classPath);
-
-        for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i).trim();
-
-            // 1. Detect @ChildResource field
-            if (line.contains("@ChildResource")) {
-                // Check the next few lines for field declaration (skip annotations)
-                for (int j = i + 1; j < Math.min(i + 4, lines.size()); j++) {
-                    String fieldLine = lines.get(j).trim();
-                    Matcher m = Pattern.compile("(?:private|protected|public)?\\s*(?:List<([A-Z]\\w+)>|Set<([A-Z]\\w+)>|([A-Z]\\w+))\\s+\\w+;").matcher(fieldLine);
-                    if (m.find()) {
-                        String childClass = m.group(1) != null ? m.group(1) :
-                                m.group(2) != null ? m.group(2) : m.group(3);
-                        if (childClass != null && !childClass.equals(className)) {
-                            log.info("Found @ChildResource child class '{}' in '{}'", childClass, className);
-                            collectClassAndChildren(javaRoot, childClass, javaClassesToDelete, processedClasses, multifieldNames);
-                        }
-                    }
-                }
-            }
-
-            // 2. Detect multifield child classes
-            for (String mfName : multifieldNames) {
-                if (line.matches(".*\\b([A-Z]\\w+)\\s+" + mfName + ";.*")) {
-                    String childClassName = line.replaceAll(".*\\b([A-Z]\\w+)\\s+" + mfName + ";.*", "$1");
-                    log.info("Found child class '{}' for multifield '{}' in '{}'", childClassName, mfName, className);
-                    collectClassAndChildren(javaRoot, childClassName, javaClassesToDelete, processedClasses, multifieldNames);
-                }
-            }
-        }
-    }*/
-
 
     /**
      * Recursively collects a Java class and all its child classes.
@@ -922,7 +561,6 @@ public class ComponentServiceImpl implements ComponentService {
         }
         processedClasses.add(className);
 
-        // Locate the Java class file
         Path classPath = findJavaClassRecursive(javaRoot, className + JAVA_EXTENSION);
         if (classPath == null) {
             log.warn("Java class '{}' not found under '{}'", className, javaRoot);
@@ -932,15 +570,12 @@ public class ComponentServiceImpl implements ComponentService {
 
         javaClassesToDelete.add(classPath.getFileName().toString());
 
-        // Read all lines from the class
         List<String> lines = Files.readAllLines(classPath);
 
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i).trim();
 
-            // 1. Detect @ChildResource fields
             if (line.contains(CHILD_RESOURCE_ANNOTATION)) {
-                // Check the next few lines for the actual field declaration (skip annotations)
                 for (int j = i + 1; j < Math.min(i + 4, lines.size()); j++) {
                     String fieldLine = lines.get(j).trim();
                     Matcher m = Pattern.compile(CHILD_CLASS_FIELD_PATTERN).matcher(fieldLine);
@@ -955,15 +590,6 @@ public class ComponentServiceImpl implements ComponentService {
                 }
             }
 
-           /* // 2. Detect multifield child references (optional based on variable names)
-            for (String mfName : multifieldNames) {
-                if (line.matches(String.format(MULTIFIELD_CHILD_PATTERN, className, mfName))) {
-                    log.info("Detected multifield child reference '{}' in class '{}'", mfName, className);
-                    collectClassAndChildren(javaRoot, mfName, javaClassesToDelete, processedClasses, multifieldNames);
-                }
-            }*/
-
-            // 2. Detect multifield child classes
             for (String mfName : multifieldNames) {
                 if (line.matches(".*\\b([A-Z]\\w+)\\s+" + mfName + ";.*")) {
                     String childClassName = line.replaceAll(".*\\b([A-Z]\\w+)\\s+" + mfName + ";.*", "$1");
@@ -973,17 +599,6 @@ public class ComponentServiceImpl implements ComponentService {
             }
         }
     }
-
-    /**
-     * Recursively find Java class by simple file name under javaRoot
-     *//*
-    private Path findJavaClassRecursive(Path javaRoot, String className) throws IOException {
-        try (Stream<Path> paths = Files.walk(javaRoot)) {
-            return paths.filter(p -> p.getFileName().toString().equals(className))
-                    .findFirst()
-                    .orElse(null);
-        }
-    }*/
 
     /**
      * Recursively searches for a Java class file by its simple name under the given root directory.
@@ -1016,21 +631,6 @@ public class ComponentServiceImpl implements ComponentService {
         }
     }
 
-
-   /* @Override
-    public String getComponentHtml(String projectName, String componentName) {
-
-
-        String componentPathExact = findComponentPathExact(projectName, componentName);
-        Path htmlPath = Paths.get(componentPathExact, componentName + ".html");
-        try {
-            return Files.readString(htmlPath);
-        } catch (IOException e) {
-            log.error("Failed to read HTML for component {}", componentName, e);
-            return "";
-        }
-    }*/
-
     /**
      * Reads and returns the HTML content of a specific AEM component.
      *
@@ -1043,17 +643,14 @@ public class ComponentServiceImpl implements ComponentService {
 
         log.info("Fetching HTML for component '{}' in project '{}'", componentName, projectName);
 
-        // 1. Find exact component folder
         String componentPathExact = findComponentPathExact(projectName, componentName);
         if (componentPathExact == null) {
             log.warn("Component '{}' not found in project '{}'", componentName, projectName);
             return "";
         }
 
-        // 2. Use constant for HTL extension instead of hardcoded ".html"
         Path htmlPath = Paths.get(componentPathExact, componentName + HTL_FILE_EXTENSION);
 
-        // 3. Read file content
         try {
             String htmlContent = Files.readString(htmlPath);
             log.info("Successfully read HTML for component '{}'", componentName);
@@ -1063,77 +660,6 @@ public class ComponentServiceImpl implements ComponentService {
             return "";
         }
     }
-/*
-    @Override
-    public String getComponentJava(String projectName, String componentName) {
-        try {
-            String htlContent = getComponentHtml(projectName, componentName);
-
-            if (htlContent == null || htlContent.isEmpty()) {
-                return "// No HTL found for component: " + componentName;
-            }
-
-            // Extract Sling Model class from HTL
-            Pattern pattern = Pattern.compile("data-sly-use(?:\\.[A-Za-z0-9_-]+)?\\s*=\\s*\"([^\"]+)\"");
-            Matcher matcher = pattern.matcher(htlContent);
-
-            String modelClass = null;
-            while (matcher.find()) {
-                String candidate = matcher.group(1);
-                if (!candidate.endsWith(".html") && candidate.contains(".")) {
-                    modelClass = candidate;
-                    break;
-                }
-            }
-
-            if (modelClass == null) {
-                return "// No Sling Model binding found in HTL for: " + componentName;
-            }
-
-            StringBuilder result = new StringBuilder();
-            Set<String> processed = new HashSet<>();
-
-            Deque<String> stack = new ArrayDeque<>();
-            stack.push(modelClass);
-
-            while (!stack.isEmpty()) {
-                String current = stack.pop();
-
-                // Skip duplicates
-                if (!processed.add(current)) continue;
-
-                Path javaFile = Paths.get(
-                        PROJECTS_DIR, projectName, "core", "src", "main", "java",
-                        current.replace(".", "/") + ".java"
-                );
-
-                if (!Files.exists(javaFile)) continue;
-
-                String code = Files.readString(javaFile);
-                String simpleName = current.substring(current.lastIndexOf(".") + 1);
-                String packageName = current.substring(0, current.lastIndexOf("."));
-
-                result.append("// -------------------------------------------------\n")
-                        .append(simpleName).append(" =====\n\n")
-                        .append(code).append("\n\n");
-
-                // 🔍 Find possible child class references
-                Matcher refMatcher = Pattern.compile("\\b([A-Z][A-Za-z0-9_]+)\\b").matcher(code);
-                while (refMatcher.find()) {
-                    String refClass = refMatcher.group(1);
-                    if (!refClass.equals(simpleName)) {
-                        stack.push(packageName + "." + refClass);
-                    }
-                }
-            }
-
-            return result.toString();
-
-        } catch (Exception e) {
-            log.error("Failed while resolving Sling Model for component {}", componentName, e);
-            return "// Error while resolving Sling Model: " + e.getMessage();
-        }
-    }*/
 
     /**
      * Reads and returns the Java code of the Sling Model(s) used in a specific AEM component.
@@ -1155,7 +681,6 @@ public class ComponentServiceImpl implements ComponentService {
                 return "// No HTL found for component: " + componentName;
             }
 
-            // Extract Sling Model class from HTL using a constant for the attribute name
             Pattern pattern = Pattern.compile(DATA_SLY_USE_PATTERN);
             Matcher matcher = pattern.matcher(htlContent);
 
@@ -1178,7 +703,6 @@ public class ComponentServiceImpl implements ComponentService {
             Deque<String> stack = new ArrayDeque<>();
             stack.push(modelClass);
 
-            // Use constant for Java source path instead of hardcoding
             Path javaRoot = Paths.get(PROJECTS_DIR, projectName, JAVA_SRC_PATH);
 
             while (!stack.isEmpty()) {
@@ -1197,7 +721,6 @@ public class ComponentServiceImpl implements ComponentService {
                         .append(simpleName).append(" =====\n\n")
                         .append(code).append("\n\n");
 
-                // Detect possible child class references
                 Matcher refMatcher = Pattern.compile(JAVA_CLASS_REF_PATTERN).matcher(code);
                 while (refMatcher.find()) {
                     String refClass = refMatcher.group(1);
@@ -1220,23 +743,6 @@ public class ComponentServiceImpl implements ComponentService {
         return (input == null || input.isEmpty()) ? input
                 : input.substring(0, 1).toUpperCase() + input.substring(1);
     }
-
-
-    /*private String getFieldTypeFromResource(String resourceType) {
-        if (resourceType == null || resourceType.isEmpty()) {
-            return "";
-        }
-
-        // Reverse lookup directly from FieldType enum with control over precedence
-        String fieldType = "";
-        for (FieldType ft : FieldType.values()) {
-            if (ft.getResourceType().equals(resourceType)) {
-                // later matches overwrite earlier ones
-                fieldType = ft.getType();
-            }
-        }
-        return fieldType;
-    }*/
 
     /**
      * Determines the field type corresponding to a given AEM resource type.
@@ -1270,26 +776,6 @@ public class ComponentServiceImpl implements ComponentService {
         return fieldType;
     }
 
-    /*private String determineFieldType(Element elem) {
-        String resourceType = elem.getAttribute("sling:resourceType");
-        String type = getFieldTypeFromResource(resourceType);
-        if ("granite/ui/components/coral/foundation/form/multifield".equals(resourceType)) {
-            type = "multifield";
-        } else if ("granite/ui/components/coral/foundation/form/select".equals(resourceType)
-                && "true".equalsIgnoreCase(elem.getAttribute("multiple"))) {
-            type = "multiselect";
-        }
-        if ("cq/gui/components/authoring/dialog/fileupload".equals(resourceType)) {
-            String node = elem.getNodeName().toLowerCase();
-            if (node.contains("file")) {
-                type = "fileupload";
-            } else if (node.contains("image")) {
-                type = "image";
-            }
-        }
-        return type;
-    }*/
-
     /**
      * Determines the field type for a given XML element from the component dialog.
      * <p>
@@ -1306,18 +792,16 @@ public class ComponentServiceImpl implements ComponentService {
 
         log.debug("Determining field type for resourceType '{}'", resourceType);
 
-        // Check for multifield
         if (GRANITE_MULTIFIELD.equals(resourceType)) {
             type = TYPE_MULTIFIELD;
             log.debug("Detected multifield for element '{}'", elem.getNodeName());
         }
-        // Check for multiselect
+
         else if (GRANITE_SELECT.equals(resourceType)
                 && "true".equalsIgnoreCase(elem.getAttribute("multiple"))) {
             type = TYPE_MULTISELECT;
             log.debug("Detected multiselect for element '{}'", elem.getNodeName());
         }
-        // Check for file or image upload
         else if (CQ_FILEUPLOAD.equals(resourceType)) {
             String node = elem.getNodeName().toLowerCase();
             if (node.contains("file")) {
@@ -1331,106 +815,6 @@ public class ComponentServiceImpl implements ComponentService {
         log.info("Final field type for element '{}': '{}'", elem.getNodeName(), type);
         return type;
     }
-
-    /*private List<ComponentField> parseField(Element elem) {
-        List<ComponentField> result = new ArrayList<>();
-
-        String fieldLabel = elem.getAttribute("fieldLabel");
-        String nameAttr = elem.getAttribute("name");
-        String fileRefAttr = elem.getAttribute("fileReferenceParameter");
-        String resourceType = elem.getAttribute("sling:resourceType");
-        String fieldType = getFieldTypeFromResource(resourceType);
-
-        String fieldName = null;
-
-        // --- Multifield naming resolution
-        if ("multifield".equals(fieldType) && (nameAttr == null || nameAttr.isBlank())) {
-            NodeList fieldNodes = elem.getElementsByTagName("field");
-            if (fieldNodes.getLength() > 0) {
-                Element fieldElem = (Element) fieldNodes.item(0);
-                String nestedFieldName = fieldElem.getAttribute("name");
-                if (nestedFieldName != null && !nestedFieldName.isBlank()) {
-                    fieldName = nestedFieldName.startsWith("./") ? nestedFieldName.substring(2) : nestedFieldName;
-                }
-            }
-        }
-
-        // --- Normal field name resolution
-        if (fieldName == null && nameAttr != null && !nameAttr.isBlank()) {
-            if ("fileupload".equals(fieldType) && fileRefAttr != null && !fileRefAttr.isBlank()) {
-                fieldName = fileRefAttr.startsWith("./") ? fileRefAttr.substring(2) : fileRefAttr;
-            } else {
-                fieldName = nameAttr.startsWith("./") ? nameAttr.substring(2) : nameAttr;
-            }
-        }
-
-        log.info("Parsing field: label='{}', name='{}', type='{}', resourceType='{}'",
-                fieldLabel, fieldName, fieldType, resourceType);
-
-        List<OptionItem> options = null;
-        List<ComponentField> nested = null;
-
-        // --- Handle multifield
-        if ("multifield".equals(fieldType)) {
-            nested = new ArrayList<>();
-            NodeList fieldNodes = elem.getElementsByTagName("items");
-            if (fieldNodes.getLength() > 0) {
-                Element itemsElem = (Element) fieldNodes.item(0);
-                collectFields(itemsElem, nested); // ✅ recurse into children
-            }
-        }
-
-        // --- Handle select / multiselect / radiogroup
-        else if ("select".equals(fieldType) || "multiselect".equals(fieldType) || "radiogroup".equals(fieldType)) {
-            if ("select".equals(fieldType)) {
-                String multipleAttr = elem.getAttribute("multiple");
-                if ("true".equalsIgnoreCase(multipleAttr)) {
-                    fieldType = "multiselect";
-                }
-            }
-            NodeList itemsNodes = elem.getElementsByTagName("items");
-            if (itemsNodes.getLength() > 0) {
-                Element itemsElem = (Element) itemsNodes.item(0);
-                options = new ArrayList<>();
-                NodeList optionNodes = itemsElem.getChildNodes();
-                for (int i = 0; i < optionNodes.getLength(); i++) {
-                    Node n = optionNodes.item(i);
-                    if (n instanceof Element optionElem) {
-                        String text = optionElem.getAttribute("text");
-                        String value = optionElem.getAttribute("value");
-                        if ((text != null && !text.isBlank()) || (value != null && !value.isBlank())) {
-                            options.add(new OptionItem(text, value));
-                        }
-                    }
-                }
-            }
-        }
-
-        // --- Handle tab containers (granite/ui/components/coral/foundation/container)
-        else if ("tabs".equals(fieldType)) {
-            String jcrTitle = elem.getAttribute("jcr:title");
-            if (jcrTitle != null && !jcrTitle.isBlank()) {
-                fieldLabel = jcrTitle;
-            }
-            String tabName = elem.getNodeName();
-
-            nested = new ArrayList<>();
-            NodeList childNodes = elem.getChildNodes();
-            for (int i = 0; i < childNodes.getLength(); i++) {
-                Node n = childNodes.item(i);
-                if (n instanceof Element childElem && "items".equals(childElem.getNodeName())) {
-                    collectFields(childElem, nested);
-                }
-            }
-
-            result.add(new ComponentField(fieldLabel, tabName, "tabs", false, nested, null));
-            return result;
-        }
-
-        // --- Default: simple field
-        result.add(new ComponentField(fieldLabel, fieldName, fieldType, false, nested, options));
-        return result;
-    }*/
 
     /**
      * Parses a dialog XML element into one or more {@link ComponentField} objects.
@@ -1455,7 +839,6 @@ public class ComponentServiceImpl implements ComponentService {
 
         log.debug("Parsing field element '{}', resourceType='{}'", elem.getNodeName(), resourceType);
 
-        // --- Multifield naming resolution
         if (TYPE_MULTIFIELD.equals(fieldType) && (nameAttr == null || nameAttr.isBlank())) {
             NodeList fieldNodes = elem.getElementsByTagName(ATTR_FIELD);
             if (fieldNodes.getLength() > 0) {
@@ -1468,7 +851,6 @@ public class ComponentServiceImpl implements ComponentService {
             log.debug("Resolved multifield name: '{}'", fieldName);
         }
 
-        // --- Normal field name resolution
         if (fieldName == null && nameAttr != null && !nameAttr.isBlank()) {
             if (FILEUPLOAD.equals(fieldType) && fileRefAttr != null && !fileRefAttr.isBlank()) {
                 fieldName = fileRefAttr.startsWith("./") ? fileRefAttr.substring(2) : fileRefAttr;
@@ -1483,16 +865,14 @@ public class ComponentServiceImpl implements ComponentService {
         List<OptionItem> options = null;
         List<ComponentField> nested = null;
 
-        // --- Handle multifield
         if (TYPE_MULTIFIELD.equals(fieldType)) {
             nested = new ArrayList<>();
             NodeList fieldNodes = elem.getElementsByTagName(ITEMS);
             if (fieldNodes.getLength() > 0) {
                 Element itemsElem = (Element) fieldNodes.item(0);
-                collectFields(itemsElem, nested); // recursive parsing
+                collectFields(itemsElem, nested);
             }
         }
-        // --- Handle select / multiselect / radiogroup
         else if (SELECT.equals(fieldType) || TYPE_MULTISELECT.equals(fieldType) || RADIOGROUP.equals(fieldType)) {
             if (SELECT.equals(fieldType)) {
                 String multipleAttr = elem.getAttribute(ATTR_MULTIPLE);
@@ -1518,7 +898,6 @@ public class ComponentServiceImpl implements ComponentService {
             }
         }
 
-        // --- Handle tab containers
         else if (TYPE_TABS.equals(fieldType)) {
             String jcrTitle = elem.getAttribute(JCR_TITLE);
             if (jcrTitle != null && !jcrTitle.isBlank()) {
@@ -1539,56 +918,9 @@ public class ComponentServiceImpl implements ComponentService {
             return result;
         }
 
-        // --- Default: simple field
         result.add(new ComponentField(fieldLabel, fieldName, fieldType, false, nested, options));
         return result;
     }
-
-
-
-    /* *//**
-     * Recursively collects dialog fields from the given parent node.
-     * Skips technical containers but continues traversing into their children.
-     *//*
-    private void collectFields(Element parent, List<ComponentField> fields) {
-        NodeList children = parent.getChildNodes();
-        for (int i = 0; i < children.getLength(); i++) {
-            Node node = children.item(i);
-            if (!(node instanceof Element elem)) {
-                continue;
-            }
-
-            String resourceType = elem.getAttribute("sling:resourceType");
-            String type = determineFieldType(elem);
-
-            // --- Special handling for container nodes ---
-            if ("granite/ui/components/coral/foundation/container".equals(resourceType)) {
-                String parentResourceType = getParentResourceType(elem);
-
-                log.info("Checking container: nodeName={}, resourceType={}, parentResourceType={}",
-                        elem.getNodeName(), resourceType, parentResourceType);
-
-                // If container is not part of tabs, skip it as a field but still traverse inside
-                if (!"granite/ui/components/coral/foundation/tabs".equals(parentResourceType)) {
-                    log.info("Skipping container '{}' as field, but parsing its children", elem.getNodeName());
-                    collectFields(elem, fields);
-                    continue;
-                }
-            }
-
-            // --- Normal field processing ---
-            if (!type.isEmpty()) {
-                List<ComponentField> parsed = parseField(elem);
-                if (parsed != null && !parsed.isEmpty()) {
-                    fields.addAll(parsed);
-                }
-            } else {
-                // Recurse into children for nested items
-                collectFields(elem, fields);
-            }
-        }
-    }*/
-
 
     /**
      * Recursively collects dialog fields from the given parent XML element.
@@ -1610,14 +942,12 @@ public class ComponentServiceImpl implements ComponentService {
             String resourceType = elem.getAttribute(SLING_RESOURCE_TYPE);
             String type = determineFieldType(elem);
 
-            // --- Special handling for container nodes ---
             if (GRANITE_CONTAINER.equals(resourceType)) {
                 String parentResourceType = getParentResourceType(elem);
 
                 log.info("Checking container: nodeName='{}', resourceType='{}', parentResourceType='{}'",
                         elem.getNodeName(), resourceType, parentResourceType);
 
-                // If container is not part of tabs, skip it as a field but still traverse inside
                 if (!GRANITE_TABS.equals(parentResourceType)) {
                     log.info("Skipping container '{}' as field, but parsing its children", elem.getNodeName());
                     collectFields(elem, fields);
@@ -1625,7 +955,6 @@ public class ComponentServiceImpl implements ComponentService {
                 }
             }
 
-            // --- Normal field processing ---
             if (!type.isEmpty()) {
                 List<ComponentField> parsed = parseField(elem);
                 if (parsed != null && !parsed.isEmpty()) {
@@ -1635,32 +964,11 @@ public class ComponentServiceImpl implements ComponentService {
                     log.info("No valid fields parsed from node '{}'", elem.getNodeName());
                 }
             } else {
-                // Recurse into children for nested items
                 log.info("Recursing into children of node '{}' with unknown or empty type", elem.getNodeName());
                 collectFields(elem, fields);
             }
         }
     }
-
-    /*
-
-     */
-/**
- * Finds the nearest ancestor that has a sling:resourceType.
- * Useful because many AEM dialog wrapper nodes (like <items>) don't define one.
- *//*
-
-    private String getParentResourceType(Element elem) {
-        Node parent = elem.getParentNode();
-        while (parent != null && parent instanceof Element parentElem) {
-            if (parentElem.hasAttribute("sling:resourceType")) {
-                return parentElem.getAttribute("sling:resourceType");
-            }
-            parent = parent.getParentNode();
-        }
-        return "";
-    }
-*/
 
     /**
      * Finds the nearest ancestor element that defines a sling:resourceType.
@@ -1684,12 +992,6 @@ public class ComponentServiceImpl implements ComponentService {
     }
 
 
-   /* @Override
-    public List<String> getProjectComponentsMap(String projectName) {
-        Map<String, String> components = fetchComponentsWithGroups(projectName);
-        return new ArrayList<>(components.keySet());
-    }*/
-
     /**
      * Retrieves a list of all component names for a given project.
      *
@@ -1706,23 +1008,6 @@ public class ComponentServiceImpl implements ComponentService {
         return new ArrayList<>(components.keySet());
     }
 
-    /*@Override
-    public void addComponentsToExistingProject(String projectName, List<String> selectedComponents) {
-        try {
-            String baseDir = System.getProperty("user.dir") + "/generated-projects/";
-            String contentFolderPath = baseDir + projectName +
-                    "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
-
-            copySelectedComponents(selectedComponents, contentFolderPath, projectName);
-            System.out.println(" Selected components copied to content folder in project: " + projectName);
-
-        } catch (Exception e) {
-            System.err.println("Error while adding components to project.");
-            e.printStackTrace();
-        }
-    }*/
-
-
     /**
      * Adds the selected AEM components to an existing project by copying them into the project's
      * content folder. This does not overwrite existing components unless explicitly handled in
@@ -1736,17 +1021,15 @@ public class ComponentServiceImpl implements ComponentService {
         log.info("Adding {} components to existing project '{}'", selectedComponents.size(), projectName);
 
         try {
-            // Base directory for generated projects
+
             String baseDir = System.getProperty(USER_DIR_SYS_PROP) + "/" + PROJECTS_DIR + "/";
             String appId = AemUtil.getAppId(PROJECTS_DIR, projectName);
 
-            // Full path to the components folder inside the project
             String contentFolderPath = baseDir + projectName + CONTENT_ROOT_PATH +
                     appId + "/" + COMPONENTS_FOLDER;
 
             log.info("Copying components {} to '{}'", selectedComponents, contentFolderPath);
 
-            // Copy components to target project
             copySelectedComponents(selectedComponents, contentFolderPath, projectName);
 
             log.info("Successfully added components to project '{}'", projectName);
@@ -1755,84 +1038,6 @@ public class ComponentServiceImpl implements ComponentService {
             log.error("Error while adding components to project '{}'", projectName, e);
         }
     }
-
-   /* @Override
-    public void copySelectedComponents(List<String> selectedComponents, String targetPath, String projectName) {
-        if (selectedComponents == null || selectedComponents.isEmpty())
-            return;
-
-        String slingModelsSourcePath = System.getProperty("user.dir") + "/src/main/java/com/aem/builder/slingModels";
-
-        Path javaSourceRoot = Paths.get("generated-projects/" + projectName + "/core/src/main/java/");
-
-        // Find models directory
-        Path modelPath = findModelBasePath(javaSourceRoot);
-        log.info("ModelPath{}", modelPath);
-
-        // Get full model base path
-        String modelBasePath = modelPath.toString();
-
-        log.info("ModelBasePath{}", modelBasePath);
-
-        // 5. Convert to Java package name
-        String packageName = javaSourceRoot.relativize(modelPath).toString().replace(File.separatorChar, '.');
-
-        Set<String> copiedModels = new HashSet<>();
-
-        for (String component : selectedComponents) {
-            try {
-                File source = new File("src/main/resources/aem-components/" + component);
-                File destination = new File(targetPath + "/" + component);
-                if (!source.exists()) {
-                    System.err.println("Source component not found: " + source.getAbsolutePath());
-                    continue;
-                }
-
-                if (destination.exists()) {
-                    FileUtils.deleteDirectory(destination);
-                }
-
-                FileUtils.copyDirectory(source, destination);
-                System.out.println("Copied component: " + component + " → " + destination.getAbsolutePath());
-
-                // Update sling:resourceType in .content.xml
-                File contentXml = new File(destination, ".content.xml");
-                if (contentXml.exists()) {
-                    String content = FileUtils.readFileToString(contentXml, "UTF-8");
-                    content = content.replaceAll("sling:resourceType=\"[^\"]+\"",
-                            "sling:resourceType=\"" + projectName + "/components/" + component.toLowerCase() + "\"");
-                    FileUtils.writeStringToFile(contentXml, content, "UTF-8");
-                }
-
-                // Update HTML to use correct model reference
-                File html = new File(destination, component + ".html");
-                File parentModel = findMatchingModelFile(slingModelsSourcePath, component);
-
-                if (html.exists() && parentModel != null) {
-                    String htmlContent = FileUtils.readFileToString(html, "UTF-8");
-                    //String fqcn = extractFullyQualifiedClassName(parentModel, "com." + projectName + ".core.models");
-                    String fqcn = extractFullyQualifiedClassName(parentModel, packageName);
-
-                    if (fqcn != null) {
-                        htmlContent = htmlContent.replaceAll("data-sly-use\\.model=\"[^\"]+\"",
-                                "data-sly-use.model=\"" + fqcn + "\"");
-                        FileUtils.writeStringToFile(html, htmlContent, "UTF-8");
-                    }
-                }
-
-                // Copy model and its dependencies
-                if (parentModel != null && parentModel.exists()) {
-                    copyModelAndDependencies(parentModel, slingModelsSourcePath, modelBasePath, packageName, copiedModels);
-
-                } else {
-                    System.out.println("No matching Sling Model found for: " + component);
-                }
-            } catch (IOException e) {
-                System.err.println("Failed to process component: " + component);
-                e.printStackTrace();
-            }
-        }
-    }*/
 
     /**
      * Copies the selected AEM components into the project.
@@ -1854,10 +1059,9 @@ public class ComponentServiceImpl implements ComponentService {
             return;
         }
 
-        String slingModelsSourcePath = System.getProperty(USER_DIR_SYS_PROP)+"/"+SLING_MODELS_SOURCE;
+        String slingModelsSourcePath = System.getProperty(USER_DIR_SYS_PROP) + "/" + SLING_MODELS_SOURCE;
         Path javaSourceRoot = Paths.get(PROJECTS_DIR, projectName, JAVA_SRC_PATH);
 
-        // Find models directory
         Path modelPath = findModelBasePath(javaSourceRoot);
         log.info("Model path found: {}", modelPath);
 
@@ -1868,7 +1072,7 @@ public class ComponentServiceImpl implements ComponentService {
 
         for (String component : selectedComponents) {
             try {
-                File source = new File(AEM_COMPONENTS_SOURCE +"/" + component);
+                File source = new File(AEM_COMPONENTS_SOURCE + "/" + component);
                 File destination = new File(targetPath + "/" + component);
 
                 if (!source.exists()) {
@@ -1884,7 +1088,6 @@ public class ComponentServiceImpl implements ComponentService {
                 FileUtils.copyDirectory(source, destination);
                 log.info("Copied component '{}' to '{}'", component, destination.getAbsolutePath());
 
-                // Update sling:resourceType in .content.xml
                 File contentXml = new File(destination, CONTENT_XML);
                 if (contentXml.exists()) {
                     String content = FileUtils.readFileToString(contentXml, UTF_8);
@@ -1894,10 +1097,9 @@ public class ComponentServiceImpl implements ComponentService {
                     log.info("Updated sling:resourceType in {}", contentXml.getAbsolutePath());
                 }
 
-                // Update HTML model reference
                 File html = new File(destination, component + HTL_FILE_EXTENSION);
                 File parentModel = findMatchingModelFile(slingModelsSourcePath, component);
-                log.info("ParentModel......{}",parentModel);
+                log.info("ParentModel......{}", parentModel);
                 if (html.exists() && parentModel != null) {
                     String htmlContent = FileUtils.readFileToString(html, UTF_8);
                     String fqcn = extractFullyQualifiedClassName(parentModel, packageName);
@@ -1909,7 +1111,6 @@ public class ComponentServiceImpl implements ComponentService {
                     }
                 }
 
-                // Copy model and dependencies
                 if (parentModel != null && parentModel.exists()) {
                     copyModelAndDependencies(parentModel, slingModelsSourcePath, modelBasePath, packageName, copiedModels);
                     log.info("Copied Sling Model and dependencies for component '{}'", component);
@@ -1922,20 +1123,6 @@ public class ComponentServiceImpl implements ComponentService {
             }
         }
     }
-
-    /*private static Path findModelBasePath(Path javaSourceRoot) {
-        try (Stream<Path> paths = Files.walk(javaSourceRoot)) {
-            Optional<Path> modelPath = paths
-                    .filter(Files::isDirectory)
-                    .filter(p -> p.getFileName().toString().equals("models"))
-                    .findFirst();
-
-            return modelPath.orElseThrow(() ->
-                    new IOException("models directory not found under: " + javaSourceRoot));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }*/
 
     /**
      * Recursively searches for the first "models" directory under the given Java source root.
@@ -1973,33 +1160,6 @@ public class ComponentServiceImpl implements ComponentService {
         }
     }
 
-    /*private File findMatchingModelFile(String modelsDirPath, String componentName) {
-        File dir = new File(modelsDirPath);
-        if (!dir.exists() || !dir.isDirectory()) return null;
-
-        File[] files = dir.listFiles((d, name) -> name.endsWith(".java"));
-        if (files == null) return null;
-
-        String lcComponent = componentName.toLowerCase();
-
-        // First look for exact match
-        for (File file : files) {
-            String lcFile = file.getName().toLowerCase();
-            if (lcFile.equals(lcComponent + "model.java")) {
-                return file;
-            }
-        }
-
-        // Fallback: partial match
-        for (File file : files) {
-            String lcFile = file.getName().toLowerCase();
-            if (lcFile.contains(lcComponent) && lcFile.endsWith("model.java")) {
-                return file;
-            }
-        }
-
-        return null;
-    }*/
 
     /**
      * Finds the Java Sling Model file corresponding to a given component.
@@ -2030,7 +1190,6 @@ public class ComponentServiceImpl implements ComponentService {
 
         String lcComponent = componentName.toLowerCase();
 
-        // 1. Attempt exact match
         for (File file : files) {
             String lcFile = file.getName().toLowerCase();
             if (lcFile.equals(lcComponent + MODEL_FILE_SUFFIX)) {
@@ -2039,7 +1198,6 @@ public class ComponentServiceImpl implements ComponentService {
             }
         }
 
-        // 2. Fallback: partial match
         for (File file : files) {
             String lcFile = file.getName().toLowerCase();
             if (lcFile.contains(lcComponent) && lcFile.endsWith(MODEL_FILE_SUFFIX)) {
@@ -2051,50 +1209,6 @@ public class ComponentServiceImpl implements ComponentService {
         log.warn("No matching Sling Model found for component '{}'", componentName);
         return null;
     }
-
-    /*private void copyModelAndDependencies(File modelFile, String sourceBase, String targetBase, String targetPackageName, Set<String> copiedModels) throws IOException {
-        if (modelFile == null || !modelFile.exists()) return;
-
-        String modelName = modelFile.getName();
-        if (copiedModels.contains(modelName)) return;
-
-        String originalContent = FileUtils.readFileToString(modelFile, "UTF-8");
-
-        String content = originalContent.replaceFirst(
-                "package\\s+com\\.aem\\.builder\\.[\\w.]+;",
-                "package " + targetPackageName + ";"
-        );
-
-
-        // Update import statements for internal model classes
-        Pattern importPattern = Pattern.compile("import\\s+com\\.aem\\.builder\\.slingModels\\.(\\w+);");
-        Matcher importMatcher = importPattern.matcher(content);
-        StringBuffer updatedContent = new StringBuffer();
-        while (importMatcher.find()) {
-            String className = importMatcher.group(1);
-            String newImport = "import " + targetPackageName + "." + className + ";";
-            importMatcher.appendReplacement(updatedContent, Matcher.quoteReplacement(newImport));
-        }
-        importMatcher.appendTail(updatedContent);
-        content = updatedContent.toString();
-
-        // Write to destination file
-        File destFile = new File(targetBase, modelFile.getName());
-        destFile.getParentFile().mkdirs();
-        FileUtils.writeStringToFile(destFile, content, "UTF-8");
-        copiedModels.add(modelName);
-        System.out.println("Sling Model copied: " + destFile.getAbsolutePath());
-
-// Recursively copy dependencies
-        Set<String> dependentTypes = extractReferencedModelTypes(originalContent);
-        for (String type : dependentTypes) {
-            File depFile = new File(sourceBase, type + ".java");
-            if (depFile.exists()) {
-                copyModelAndDependencies(depFile, sourceBase, targetBase, targetPackageName, copiedModels);
-            }
-        }
-
-    }*/
 
     /**
      * Copies a Sling Model Java file to the target location, updating the package
@@ -2121,16 +1235,13 @@ public class ComponentServiceImpl implements ComponentService {
 
         log.info("Copying Sling Model '{}'", modelName);
 
-        // Read original model content
         String originalContent = FileUtils.readFileToString(modelFile, UTF_8);
 
-        // Update package declaration
         String content = originalContent.replaceFirst(
                 PACKAGE_DECLARATION_REGEX,
                 "package " + targetPackageName + ";"
         );
 
-        // Update import statements for internal model classes
         Pattern importPattern = Pattern.compile(IMPORT_STATEMENT_REGEX);
         Matcher importMatcher = importPattern.matcher(content);
         StringBuffer updatedContent = new StringBuffer();
@@ -2143,14 +1254,12 @@ public class ComponentServiceImpl implements ComponentService {
         importMatcher.appendTail(updatedContent);
         content = updatedContent.toString();
 
-        // Write the updated content to target file
         File destFile = new File(targetBase, modelFile.getName());
         destFile.getParentFile().mkdirs();
         FileUtils.writeStringToFile(destFile, content, UTF_8);
         copiedModels.add(modelName);
         log.info("Sling Model '{}' copied to '{}'", modelName, destFile.getAbsolutePath());
 
-        // Recursively copy dependent model classes
         Set<String> dependentTypes = extractReferencedModelTypes(originalContent);
         for (String type : dependentTypes) {
             File depFile = new File(sourceBase, type + JAVA_EXTENSION);
@@ -2163,38 +1272,6 @@ public class ComponentServiceImpl implements ComponentService {
         }
     }
 
-
-    /*private Set<String> extractReferencedModelTypes(String content) {
-        Set<String> types = new HashSet<>();
-
-        // 1. Check import statements for custom sling models
-        Pattern importPattern = Pattern.compile("import\\s+com\\.aem\\.builder\\.slingModels\\.(\\w+);");
-        Matcher importMatcher = importPattern.matcher(content);
-        while (importMatcher.find()) {
-            types.add(importMatcher.group(1));
-        }
-
-
-        File modelsDir = new File(System.getProperty("user.dir") + "/src/main/java/com/aem/builder/slingModels");
-
-        if (modelsDir.exists() && modelsDir.isDirectory()) {
-            File[] modelFiles = modelsDir.listFiles((dir, name) -> name.endsWith(".java"));
-            if (modelFiles != null) {
-                for (File modelFile : modelFiles) {
-                    String className = modelFile.getName().replace(".java", "");
-                    // Look for direct usage of the class name
-                    Pattern usagePattern = Pattern.compile("\\b" + className + "\\b");
-                    Matcher usageMatcher = usagePattern.matcher(content);
-                    if (usageMatcher.find()) {
-                        types.add(className);
-                    }
-                }
-            }
-        }
-
-        return types;
-    }*/
-
     /**
      * Extracts referenced Sling Model class names from a given Java source content.
      * This includes classes referenced via imports and direct usage in the code.
@@ -2205,7 +1282,6 @@ public class ComponentServiceImpl implements ComponentService {
     private Set<String> extractReferencedModelTypes(String content) {
         Set<String> types = new HashSet<>();
 
-        // 1️⃣ Check import statements for custom Sling Models
         Pattern importPattern = Pattern.compile(IMPORT_STATEMENT_REGEX);
         Matcher importMatcher = importPattern.matcher(content);
         while (importMatcher.find()) {
@@ -2214,7 +1290,6 @@ public class ComponentServiceImpl implements ComponentService {
             log.info("Found referenced model via import: {}", type);
         }
 
-        // 2️⃣ Scan source models directory for direct class usage
         File modelsDir = new File(System.getProperty(USER_DIR_SYS_PROP) + "/" + SLING_MODELS_SOURCE);
 
         if (modelsDir.exists() && modelsDir.isDirectory()) {
@@ -2236,24 +1311,6 @@ public class ComponentServiceImpl implements ComponentService {
 
         return types;
     }
-
-
-    /*private String extractFullyQualifiedClassName(File javaFile, String targetPackage) {
-        try {
-            String content = FileUtils.readFileToString(javaFile, "UTF-8");
-            Pattern classPattern = Pattern.compile("public\\s+class\\s+(\\w+)");
-            Matcher matcher = classPattern.matcher(content);
-
-            if (matcher.find()) {
-                String className = matcher.group(1);
-                return targetPackage + "." + className;
-            }
-        } catch (IOException e) {
-            System.err.println("Failed to extract FQCN from model file.");
-            e.printStackTrace();
-        }
-        return null;
-    }*/
 
     /**
      * Extracts the fully qualified class name (FQCN) from a Java file.
@@ -2288,35 +1345,6 @@ public class ComponentServiceImpl implements ComponentService {
         return null;
     }
 
-/*
-    @Override
-    public List<String> getComponentGroups(String projectName) {
-        String appTitle = readAppTitleFromPom(projectName);
-        if (appTitle == null || appTitle.isBlank()) {
-            appTitle = projectName;
-        }
-
-        String path = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
-        File folder = new File(path);
-        Set<String> groups = new HashSet<>();
-        groups.add(appTitle);
-
-        if (folder.exists()) {
-            collectComponentGroupsRecursive(folder, groups);
-        }
-
-        final String finalAppTitle = appTitle;
-        // Remove unwanted groups consistently
-        groups.removeIf(g -> {
-            String trimmed = g.trim();
-            return trimmed.equals(finalAppTitle + " - Structure") // exclude Structure
-                    || trimmed.equals(".hidden")                // exclude hidden
-                    || trimmed.contains(" - Form");               // exclude Form
-        });
-
-        return groups.isEmpty() ? List.of(appTitle) : new ArrayList<>(groups);
-    }*/
-
     /**
      * Fetches all component groups for a given project.
      * <p>
@@ -2330,7 +1358,6 @@ public class ComponentServiceImpl implements ComponentService {
     public List<String> getComponentGroups(String projectName) {
         log.info("Starting to fetch component groups for project '{}'", projectName);
 
-        // 1️⃣ Read application title from POM; fallback to project name if missing
         String appTitle = readAppTitleFromPom(projectName);
         if (appTitle == null || appTitle.isBlank()) {
             log.info("App title not found in POM, using project name '{}'", projectName);
@@ -2338,7 +1365,6 @@ public class ComponentServiceImpl implements ComponentService {
         }
         String appId = AemUtil.getAppId(PROJECTS_DIR, projectName);
 
-        // 2️⃣ Define components folder path using constants
         String componentsPath = PROJECTS_DIR + "/" + projectName + CONTENT_ROOT_PATH + appId + "/" + COMPONENTS_FOLDER;
         log.info("Components folder path resolved to '{}'", componentsPath);
 
@@ -2346,7 +1372,6 @@ public class ComponentServiceImpl implements ComponentService {
         Set<String> groups = new HashSet<>();
         groups.add(appTitle);
 
-        // 3️⃣ Recursively collect component groups if folder exists
         if (folder.exists() && folder.isDirectory()) {
             log.info("Collecting component groups from folder '{}'", componentsPath);
             collectComponentGroupsRecursive(folder, groups);
@@ -2355,7 +1380,6 @@ public class ComponentServiceImpl implements ComponentService {
             log.warn("Components folder '{}' does not exist for project '{}'", componentsPath, projectName);
         }
 
-        // 4️⃣ Remove unwanted/technical groups
         final String finalAppTitle = appTitle;
         groups.removeIf(g -> {
             String trimmed = g.trim();
@@ -2369,40 +1393,11 @@ public class ComponentServiceImpl implements ComponentService {
         });
         log.info("Groups after filtering: {}", groups);
 
-        // 5️⃣ Return results; fallback to appTitle if no groups left
         List<String> result = groups.isEmpty() ? List.of(appTitle) : new ArrayList<>(groups);
         log.info("Final component groups for project '{}': {}", projectName, result);
 
         return result;
     }
-
-   /* private void collectComponentGroupsRecursive(File dir, Set<String> groups) {
-        if (!dir.isDirectory()) return;
-
-        String dirName = dir.getName();
-        // Skip excluded folders like _cq_, hidden, new/old/backup
-        if (EXCLUDED_FOLDERS.stream().anyMatch(ex -> dirName.equalsIgnoreCase(ex) || dirName.startsWith(ex))) {
-            return;
-        }
-
-        // Check for .content.xml in this folder
-        File contentXml = new File(dir, ".content.xml");
-        if (contentXml.exists()) {
-            String content = FileGenerationUtil.readFile(contentXml);
-            String group = extractProperty(content, "componentGroup").trim();
-            if (!group.isEmpty()) {
-                groups.add(group); // add all groups; exclusion handled later
-            }
-        }
-
-        // Recurse into subdirectories
-        File[] subDirs = dir.listFiles(File::isDirectory);
-        if (subDirs != null) {
-            for (File subDir : subDirs) {
-                collectComponentGroupsRecursive(subDir, groups);
-            }
-        }
-    }*/
 
     /**
      * Recursively collects component groups from a directory.
@@ -2418,17 +1413,15 @@ public class ComponentServiceImpl implements ComponentService {
         }
 
         String dirName = dir.getName();
-        // 1️⃣ Skip excluded or technical folders
         if (EXCLUDED_FOLDERS.stream().anyMatch(ex -> dirName.equalsIgnoreCase(ex) || dirName.startsWith(ex))) {
             log.debug("Skipping excluded folder '{}'", dir.getAbsolutePath());
             return;
         }
 
-        // 2️⃣ Check for .content.xml to extract componentGroup
         File contentXml = new File(dir, CONTENT_XML);
         if (contentXml.exists()) {
             String content = FileGenerationUtil.readFile(contentXml);
-            String group = extractProperty(content, COMPONENT_GROUP_PROP).trim();
+            String group = extractProperty(content, COMPONENT_GROUP).trim();
             if (!group.isEmpty()) {
                 log.info("Found component group '{}' in folder '{}'", group, dir.getAbsolutePath());
                 groups.add(group); // add all groups; filtering is done later
@@ -2437,7 +1430,6 @@ public class ComponentServiceImpl implements ComponentService {
             }
         }
 
-        // 3️⃣ Recurse into subdirectories
         File[] subDirs = dir.listFiles(File::isDirectory);
         if (subDirs != null) {
             for (File subDir : subDirs) {
@@ -2448,22 +1440,6 @@ public class ComponentServiceImpl implements ComponentService {
         }
     }
 
-    /*public String readAppTitleFromPom(String projectName) {
-        File pom = new File(PROJECTS_DIR + "/" + projectName + "/pom.xml");
-
-        if (!pom.exists()) {
-            return null;
-        }
-        try {
-            Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(pom);
-            doc.getDocumentElement().normalize();
-            return doc.getElementsByTagName("componentGroupName").item(0).getTextContent();
-        } catch (Exception e) {
-            System.err.println("Failed to read app title from pom.xml: " + e.getMessage());
-            return null;
-        }
-    }*/
-
     /**
      * Reads the app title (componentGroupName) from a project's pom.xml file.
      *
@@ -2473,18 +1449,15 @@ public class ComponentServiceImpl implements ComponentService {
     public String readAppTitleFromPom(String projectName) {
         File pom = new File(PROJECTS_DIR + "/" + projectName + "/" + POM_FILE_NAME);
 
-        // 1️⃣ Check if pom.xml exists
         if (!pom.exists()) {
             log.warn("pom.xml not found for project '{}'", projectName);
             return null;
         }
 
         try {
-            // 2️⃣ Parse XML document
             Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(pom);
             doc.getDocumentElement().normalize();
 
-            // 3️⃣ Retrieve <componentGroupName> element
             Node node = doc.getElementsByTagName("componentGroupName").item(0);
             if (node != null) {
                 String title = node.getTextContent().trim();
@@ -2500,12 +1473,6 @@ public class ComponentServiceImpl implements ComponentService {
         }
     }
 
-   /* @Override
-    public void generateComponent(String projectName, ComponentRequest request) {
-        FileGenerationUtil.generateAllFiles(projectName, request);
-    }
-*/
-
     /**
      * Generates all files for a given component request within the specified project.
      *
@@ -2519,31 +1486,6 @@ public class ComponentServiceImpl implements ComponentService {
         log.info("Component '{}' generation completed for project '{}'", request.getComponentName(), projectName);
     }
 
-
-    /*//component checking
-    @Override
-    public boolean isComponentNameAvailable(String projectName, String componentName) {
-        String basePath = findComponentPathExact(projectName, componentName);
-
-        if (basePath == null || basePath.isBlank()) {
-            log.warn("Base path not found for project '{}' and component '{}'", projectName, componentName);
-            // If no base path is found, we assume component does not exist → available
-            return true;
-        }
-
-        File componentDir = new File(basePath);
-
-        // If component folder already exists, name is NOT available
-        if (componentDir.exists() && componentDir.isDirectory()) {
-            log.info("Component '{}' already exists at path {}", componentName, basePath);
-            return false;
-        }
-
-        // Otherwise, name is available
-        log.info("Component '{}' is available at path {}", componentName, basePath);
-        return true;
-    }*/
-
     /**
      * Checks if a given component name is available within a project.
      *
@@ -2553,10 +1495,9 @@ public class ComponentServiceImpl implements ComponentService {
      */
     @Override
     public boolean isComponentNameAvailable(String projectName, String componentName) {
-        // 1️⃣ Find the exact base path for the component
+
         String basePath = findComponentPathExact(projectName, componentName);
 
-        // 2️⃣ If no path is found, we assume the component does not exist → name is available
         if (basePath == null || basePath.isBlank()) {
             log.warn("Base path not found for project '{}' and component '{}'. Assuming available.", projectName, componentName);
             return true;
@@ -2564,28 +1505,14 @@ public class ComponentServiceImpl implements ComponentService {
 
         File componentDir = new File(basePath);
 
-        // 3️⃣ If the component directory exists, the name is NOT available
         if (componentDir.exists() && componentDir.isDirectory()) {
             log.info("Component '{}' already exists at path '{}'", componentName, basePath);
             return false;
         }
 
-        // 4️⃣ Otherwise, the component name is available
         log.info("Component '{}' is available at path '{}'", componentName, basePath);
         return true;
     }
-
-    /**
-     * Fetch all components from local project structure.
-     *//*
-    public Map<String, List<String>> getComponentsByGroup(String projectName) {
-        String COMPONENTS_PATH =
-                "generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components";
-
-        Map<String, List<String>> groupedComponents = new HashMap<>();
-        scanComponents(new File(COMPONENTS_PATH), groupedComponents, "/apps/" + projectName + "/components");
-        return groupedComponents;
-    }*/
 
     /**
      * Fetch all components from the local project structure, grouped by their component group.
@@ -2594,7 +1521,7 @@ public class ComponentServiceImpl implements ComponentService {
      * @return a map where key = component group, value = list of component names
      */
     public Map<String, List<String>> getComponentsByGroup(String projectName) {
-        // Base path for components in the project
+
         String appId = AemUtil.getAppId(PROJECTS_DIR, projectName);
 
         String componentsPath = PROJECTS_DIR + "/" + projectName + CONTENT_ROOT_PATH + appId + "/" + COMPONENTS_FOLDER;
@@ -2603,7 +1530,6 @@ public class ComponentServiceImpl implements ComponentService {
 
         Map<String, List<String>> groupedComponents = new HashMap<>();
 
-        // Scan recursively and populate the map
         scanComponents(new File(componentsPath), groupedComponents, APPS_PATH_PREFIX + appId + "/" + COMPONENTS_FOLDER);
 
         log.info("Completed fetching components. Total groups found: {}", groupedComponents.size());
@@ -2611,37 +1537,6 @@ public class ComponentServiceImpl implements ComponentService {
         return groupedComponents;
     }
 
-    /*private void scanComponents(File folder, Map<String, List<String>> groupedComponents, String basePath) {
-        if (!folder.exists() || !folder.isDirectory()) return;
-
-        for (File file : folder.listFiles()) {
-            if (!file.isDirectory()) continue;
-
-            String name = file.getName();
-
-            // Skip internal folders
-            if (name.startsWith("_cq") || name.equals("new")) continue;
-
-            File contentXml = new File(file, ".content.xml");
-
-            if (contentXml.exists() && isComponent(contentXml)) {
-                String group = getComponentGroup(contentXml);
-                if (group == null) continue; // skip .hidden
-
-                groupedComponents.computeIfAbsent(group, k -> new ArrayList<>());
-
-                // build full relative path like /apps/project/components/form/options
-                String relativePath = basePath + "/" + name;
-
-                if (!groupedComponents.get(group).contains(relativePath)) {
-                    groupedComponents.get(group).add(relativePath);
-                }
-            }
-
-            // recurse deeper
-            scanComponents(file, groupedComponents, basePath + "/" + name);
-        }
-    }*/
 
     /**
      * Recursively scans a folder to find AEM components and groups them by component group.
@@ -2664,7 +1559,6 @@ public class ComponentServiceImpl implements ComponentService {
 
             String name = file.getName();
 
-            // Skip internal / technical folders
             if (EXCLUDED_FOLDERS.stream().anyMatch(ex -> name.equalsIgnoreCase(ex) || name.startsWith(ex))) {
                 log.debug("Skipping excluded folder: {}", name);
                 continue;
@@ -2681,7 +1575,6 @@ public class ComponentServiceImpl implements ComponentService {
 
                 groupedComponents.computeIfAbsent(group, k -> new ArrayList<>());
 
-                // Build full relative path like /apps/project/components/componentName
                 String relativePath = basePath + "/" + name;
 
                 if (!groupedComponents.get(group).contains(relativePath)) {
@@ -2690,24 +1583,9 @@ public class ComponentServiceImpl implements ComponentService {
                 }
             }
 
-            // Recurse into subdirectories
             scanComponents(file, groupedComponents, basePath + "/" + name);
         }
     }
-
-
-   /* private boolean isComponent(File contentXml) {
-        try {
-            Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(contentXml);
-            Element root = doc.getDocumentElement();
-
-            // Only consider actual components
-            return "cq:Component".equals(root.getAttribute("jcr:primaryType"));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return false;
-    }*/
 
     /**
      * Checks whether the given .content.xml file represents an actual AEM component.
@@ -2739,25 +1617,6 @@ public class ComponentServiceImpl implements ComponentService {
         }
     }
 
-    /*private String getComponentGroup(File contentXml) {
-        try {
-            Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(contentXml);
-            Element root = doc.getDocumentElement();
-
-            if (root.hasAttribute("componentGroup")) {
-                String group = root.getAttribute("componentGroup");
-                if (".hidden".equalsIgnoreCase(group)) {
-                    return null; // special case: skip hidden
-                }
-                return group;
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return "Others";
-    }*/
-
-
     /**
      * Retrieves the component group from the given .content.xml file.
      *
@@ -2774,10 +1633,9 @@ public class ComponentServiceImpl implements ComponentService {
             Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(contentXml);
             Element root = doc.getDocumentElement();
 
-            if (root.hasAttribute(COMPONENT_GROUP_ATTR)) {
-                String group = root.getAttribute(COMPONENT_GROUP_ATTR).trim();
+            if (root.hasAttribute(COMPONENT_GROUP)) {
+                String group = root.getAttribute(COMPONENT_GROUP).trim();
 
-                // Skip hidden group
                 if (HIDDEN_GROUP.equalsIgnoreCase(group)) {
                     log.debug("Component '{}' is hidden; skipping group.", contentXml.getName());
                     return null;
@@ -2794,32 +1652,6 @@ public class ComponentServiceImpl implements ComponentService {
         return DEFAULT_COMPONENT_GROUP;
     }
 
-/*
-
-Updating logic below
- */
-
-    /*
-     *//**
-     * Search for a component anywhere under the project's components folder
-     * Stops at the first match since component names are unique
-     *
-     * @param projectName   - AEM project name
-     * @param componentName - Exact name of the component to search
-     * @return Full path of the component if found, otherwise null
-     *//*
-    public String findComponentPathExact(String projectName, String componentName) {
-        File componentsRoot = new File(PROJECTS_DIR,
-                projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName + "/components");
-
-        if (componentsRoot.exists()) {
-            return searchComponentRecursiveExact(componentsRoot, componentName);
-        }
-
-        return null;
-    }*/
-
-
     /**
      * Search for a component anywhere under the project's components folder.
      * Stops at the first match since component names are unique.
@@ -2831,7 +1663,6 @@ Updating logic below
     public String findComponentPathExact(String projectName, String componentName) {
         String appId = AemUtil.getAppId(PROJECTS_DIR, projectName);
 
-        // Construct the root path to the components folder
         File componentsRoot = new File(PROJECTS_DIR + "/" + projectName + CONTENT_ROOT_PATH + appId + "/" + COMPONENTS_FOLDER);
 
         log.debug("Searching for component '{}' in project '{}', under path '{}'", componentName, projectName, componentsRoot.getAbsolutePath());
@@ -2849,29 +1680,6 @@ Updating logic below
             return null;
         }
     }
-
-
-    /*public String searchComponentRecursiveExact(File dir, String componentName) {
-        if (!dir.isDirectory()) return null;
-
-        // Exact case-sensitive match
-        if (dir.getName().equals(componentName)) {
-            return dir.getPath();
-        }
-
-        // Recurse into subdirectories
-        File[] subDirs = dir.listFiles(File::isDirectory);
-        if (subDirs != null) {
-            for (File subDir : subDirs) {
-                String found = searchComponentRecursiveExact(subDir, componentName);
-                if (found != null) {
-                    return found; // stop as soon as we find it
-                }
-            }
-        }
-
-        return null; // not found in this branch
-    }*/
 
     /**
      * Recursively search for a component folder by exact case-sensitive name.
@@ -2893,92 +1701,19 @@ Updating logic below
             return dir.getPath();
         }
 
-        // Recurse into subdirectories
         File[] subDirs = dir.listFiles(File::isDirectory);
         if (subDirs != null) {
             for (File subDir : subDirs) {
                 String found = searchComponentRecursiveExact(subDir, componentName);
                 if (found != null) {
-                    return found; // stop as soon as we find it
+                    return found;
                 }
             }
         }
 
         log.trace("Component '{}' not found in directory '{}'", componentName, dir.getPath());
-        return null; // not found in this branch
+        return null;
     }
-
-    /*@Override
-    public Map<String, String> fetchComponentSuperTypes(String projectName) {
-        Map<String, String> superTypeMap = new LinkedHashMap<>();
-
-        final String CONTENT_XML = ".content.xml";
-        final String SLING_RESOURCE_SUPER_TYPE = "sling:resourceSuperType";
-
-        try {
-            Map<String, String> components = fetchComponentsWithGroups(projectName);
-
-            for (String componentName : components.keySet()) {
-                String componentPath = findComponentPathExact(projectName, componentName);
-
-                File contentXml = new File(componentPath, CONTENT_XML);
-                String superType = null;
-
-                if (contentXml.exists()) {
-                    try (InputStream is = new FileInputStream(contentXml)) {
-                        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-                        factory.setNamespaceAware(true);
-                        DocumentBuilder builder = factory.newDocumentBuilder();
-                        Document doc = builder.parse(is);
-
-                        Element root = doc.getDocumentElement();
-                        if (root.hasAttribute(SLING_RESOURCE_SUPER_TYPE)) {
-                            superType = root.getAttribute(SLING_RESOURCE_SUPER_TYPE);
-                        }
-                    } catch (Exception e) {
-                        log.error("Error parsing .content.xml for component {}", componentName, e);
-                    }
-                } else {
-                    log.warn(".content.xml not found for component {}", componentName);
-                }
-
-                // normalize to repo path under /apps
-                String normalized = componentPath.replace(File.separatorChar, '/');
-                int idx = normalized.indexOf("/apps/");
-                String componentRepoPath = (idx != -1) ? normalized.substring(idx) : componentName;
-
-                String compLastName = componentRepoPath.substring(componentRepoPath.lastIndexOf('/') + 1);
-
-                if (superType != null && !superType.isBlank()) {
-                    String superLastName = superType.substring(superType.lastIndexOf('/') + 1);
-
-                    // build version-aware label
-                    String versionAwareName = extractVersionAwareName(superType);
-
-                    if (superLastName.equals(compLastName)) {
-                        putIfNotExists(superTypeMap, superType, versionAwareName);
-                    } else {
-                        putIfNotExists(superTypeMap, superType, versionAwareName);
-                        putIfNotExists(superTypeMap, componentRepoPath, compLastName);
-                    }
-                } else {
-                    putIfNotExists(superTypeMap, componentRepoPath, compLastName);
-                }
-            }
-        } catch (Exception e) {
-            log.error("Error fetching component supertypes for project {}", projectName, e);
-        }
-
-        // sort by value (component label) instead of key (path)
-        return superTypeMap.entrySet().stream()
-                .sorted(Map.Entry.comparingByValue(String.CASE_INSENSITIVE_ORDER))
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        Map.Entry::getValue,
-                        (oldVal, newVal) -> oldVal,
-                        LinkedHashMap::new
-                ));
-    }*/
 
     /**
      * Fetch all component supertypes defined in the given AEM project.
@@ -2999,7 +1734,6 @@ Updating logic below
         final String ATTR_SUPER_TYPE = "sling:resourceSuperType";
 
         try {
-            // Get all project components (name → path)
             Map<String, String> components = fetchComponentsWithGroups(projectName);
             log.info("Fetching component supertypes for project '{}', found {} components",
                     projectName, components.size());
@@ -3033,7 +1767,6 @@ Updating logic below
                     log.warn("{} not found for component '{}'", CONTENT_XML, componentName);
                 }
 
-                // Normalize path to repo-style (/apps/...)
                 String normalized = componentPath.replace(File.separatorChar, '/');
                 int idx = normalized.indexOf(APPS_PATH_PREFIX);
                 String componentRepoPath = (idx != -1) ? normalized.substring(idx) : componentName;
@@ -3044,7 +1777,6 @@ Updating logic below
                     String superLastName = superType.substring(superType.lastIndexOf('/') + 1);
                     String versionAwareName = extractVersionAwareName(superType);
 
-                    // If supertype and component share the same name, map only once
                     if (superLastName.equals(compLastName)) {
                         putIfNotExists(superTypeMap, superType, versionAwareName);
                     } else {
@@ -3059,7 +1791,6 @@ Updating logic below
             log.error("Error fetching component supertypes for project '{}'", projectName, e);
         }
 
-        // Sort map by value (label) for user-friendly ordering
         return superTypeMap.entrySet().stream()
                 .sorted(Map.Entry.comparingByValue(String.CASE_INSENSITIVE_ORDER))
                 .collect(Collectors.toMap(
@@ -3069,17 +1800,6 @@ Updating logic below
                         LinkedHashMap::new
                 ));
     }
-
-    /**
-     * Insert into map only if key and value are not already present.
-     *//*
-    private void putIfNotExists(Map<String, String> map, String key, String value) {
-        if (!map.containsKey(key) && !map.containsValue(value)) {
-            map.put(key, value);
-        }
-    }
-*/
-
     /**
      * Inserts a key-value pair into the provided map only if:
      * <ul>
@@ -3100,28 +1820,6 @@ Updating logic below
             log.trace("Skipping duplicate entry for key [{}] or value [{}]", key, value);
         }
     }
-
-    /**
-     * Extracts version-aware name from supertype path.
-     * Example:
-     * core/wcm/components/button/v1/button → button (v1)
-     * core/wcm/components/container/v2/container → container (v2)
-     * custom/components/teaser → teaser
-     */
-    /*private String extractVersionAwareName(String superTypePath) {
-        String[] parts = superTypePath.split("/");
-        if (parts.length >= 2) {
-            String last = parts[parts.length - 1];
-            String secondLast = parts[parts.length - 2];
-
-            if (secondLast.matches("v\\d+")) {
-                return last + " (" + secondLast + ")";
-            }
-            return last;
-        }
-        return superTypePath;
-    }*/
-
 
     /**
      * Extracts a human-readable, version-aware label from a component supertype path.
@@ -3168,28 +1866,6 @@ Updating logic below
         return superTypePath;
     }
 
-
-   /* @Override
-    public Map<String, Object> getParentTabs(String projectName, String superType) {
-        Map<String, Object> result = new HashMap<>();
-        Set<String> tabs = new LinkedHashSet<>(); // preserve order, avoid duplicates
-
-        try {
-            collectTabsRecursively(projectName, superType, tabs);
-
-            result.put("hasTabs", !tabs.isEmpty());
-            result.put("tabs", new ArrayList<>(tabs));
-            log.info("✅ Final merged tabs for {} -> {}", superType, tabs);
-
-        } catch (Exception e) {
-            log.error("❌ Error while fetching parent tabs for {}", superType, e);
-            result.put("hasTabs", false);
-            result.put("tabs", new ArrayList<>());
-        }
-
-        return result;
-    }*/
-
     /**
      * Fetches all parent dialog tabs from a given component's supertype hierarchy.
      * <p>
@@ -3209,21 +1885,21 @@ Updating logic below
     @Override
     public Map<String, Object> getParentTabs(String projectName, String superType) {
         Map<String, Object> result = new HashMap<>();
-        Set<String> tabs = new LinkedHashSet<>(); // preserve order, avoid duplicates
+        Set<String> tabs = new LinkedHashSet<>();
 
         try {
-            // Traverse the hierarchy to collect parent tabs
+
             collectTabsRecursively(projectName, superType, tabs);
 
             boolean hasTabs = !tabs.isEmpty();
             result.put("hasTabs", hasTabs);
             result.put("tabs", new ArrayList<>(tabs));
 
-            log.info("✅ Final merged tabs for superType '{}' in project '{}': {}",
+            log.info("Final merged tabs for superType '{}' in project '{}': {}",
                     superType, projectName, tabs);
 
         } catch (Exception e) {
-            log.error("❌ Error while fetching parent tabs for superType '{}' in project '{}'",
+            log.error(" Error while fetching parent tabs for superType '{}' in project '{}'",
                     superType, projectName, e);
 
             result.put("hasTabs", false);
@@ -3232,52 +1908,6 @@ Updating logic below
 
         return result;
     }
-
-    /**
-     * Recursively collects tabs from current component and its superTypes.
-     *//*
-    private void collectTabsRecursively(String projectName, String superType, Set<String> tabs) throws Exception {
-        boolean isCore = superType.startsWith("core/");
-        String basePath = System.getProperty("user.dir") +
-                (isCore
-                        ? "/src/main/resources/" + superType
-                        : "/generated-projects/" + projectName + "/ui.apps/src/main/content/jcr_root" + superType);
-
-        // Step 1: parse dialog
-        File dialogFile = new File(basePath + "/_cq_dialog/.content.xml");
-        if (dialogFile.exists()) {
-            List<String> currentTabs = isCore
-                    ? parseCoreTabsFromDialog(dialogFile)
-                    : parseProjectTabsFromDialog(dialogFile);
-            tabs.addAll(currentTabs);
-            log.info("➡️ Tabs collected from {}: {}", superType, currentTabs);
-        }
-
-        // Step 2: check superType in .content.xml
-        File compContentFile = new File(basePath + "/.content.xml");
-        if (compContentFile.exists()) {
-            log.info("componentFile for supertype,{}", compContentFile);
-            String parentSuperType = readSuperType(compContentFile);
-            log.info("parent,{}", parentSuperType);
-            if (parentSuperType != null && !parentSuperType.isEmpty()) {
-                if (parentSuperType.startsWith("core/")) {
-                    // Only collect core tabs once
-                    String corePath = System.getProperty("user.dir") + "/src/main/resources/" + parentSuperType;
-                    File coreDialog = new File(corePath + "/_cq_dialog/.content.xml");
-                    if (coreDialog.exists()) {
-                        List<String> coreTabs = parseCoreTabsFromDialog(coreDialog);
-                        tabs.addAll(coreTabs);
-                        log.info("➡️ Core Tabs collected from {}: {}", parentSuperType, coreTabs);
-                    } else {
-                        log.warn("⚠️ Core dialog not found at {}", coreDialog.getAbsolutePath());
-                    }
-                } else {
-                    // Recurse for project parent
-                    collectTabsRecursively(projectName, parentSuperType, tabs);
-                }
-            }
-        }
-    }*/
 
     /**
      * Recursively collects dialog tabs from the given component and its superTypes.
@@ -3296,7 +1926,7 @@ Updating logic below
      */
     private void collectTabsRecursively(String projectName, String superType, Set<String> tabs) throws Exception {
         if (superType == null || superType.isBlank()) {
-            log.warn("⚠️ Skipping empty superType for project '{}'", projectName);
+            log.warn("Skipping empty superType for project '{}'", projectName);
             return;
         }
 
@@ -3306,7 +1936,6 @@ Updating logic below
                         ? CORE_RESOURCE_PATH_PREFIX + superType
                         : "/" + GENERATED_PROJECTS_DIR + "/" + projectName + UI_APPS_JCR_ROOT + superType);
 
-        // Step 1: parse tabs from _cq_dialog
         File dialogFile = new File(basePath, DIALOG_FILE);
         if (dialogFile.exists()) {
             List<String> currentTabs = isCore
@@ -3315,27 +1944,25 @@ Updating logic below
 
             if (!currentTabs.isEmpty()) {
                 tabs.addAll(currentTabs);
-                log.info("➡️ Tabs collected from '{}' [{}]: {}", superType, (isCore ? "core" : "project"), currentTabs);
+                log.info("Tabs collected from '{}' [{}]: {}", superType, (isCore ? "core" : "project"), currentTabs);
             }
         }
 
-        // Step 2: resolve parent superType from .content.xml
         File compContentFile = new File(basePath, CONTENT_XML);
         if (!compContentFile.exists()) {
-            log.debug("ℹ️ No .content.xml found for '{}'", superType);
+            log.debug("No .content.xml found for '{}'", superType);
             return;
         }
 
         String parentSuperType = readSuperType(compContentFile);
         if (parentSuperType == null || parentSuperType.isBlank()) {
-            log.debug("ℹ️ No parent superType defined for '{}'", superType);
+            log.debug("No parent superType defined for '{}'", superType);
             return;
         }
 
-        log.info("🔗 '{}' extends '{}'", superType, parentSuperType);
+        log.info(" '{}' extends '{}'", superType, parentSuperType);
 
         if (parentSuperType.startsWith(CORE_PREFIX)) {
-            // Core superType: only collect once (no recursion needed)
             String corePath = System.getProperty(USER_DIR_SYS_PROP) + CORE_RESOURCE_PATH_PREFIX + parentSuperType;
             File coreDialog = new File(corePath, DIALOG_FILE);
 
@@ -3343,64 +1970,15 @@ Updating logic below
                 List<String> coreTabs = parseCoreTabsFromDialog(coreDialog);
                 if (!coreTabs.isEmpty()) {
                     tabs.addAll(coreTabs);
-                    log.info("➡️ Core Tabs collected from '{}': {}", parentSuperType, coreTabs);
+                    log.info("Core Tabs collected from '{}': {}", parentSuperType, coreTabs);
                 }
             } else {
-                log.warn("⚠️ Core dialog not found for '{}': {}", parentSuperType, coreDialog.getAbsolutePath());
+                log.warn("Core dialog not found for '{}': {}", parentSuperType, coreDialog.getAbsolutePath());
             }
         } else {
-            // Project-level superType → recurse
             collectTabsRecursively(projectName, parentSuperType, tabs);
         }
     }
-
-    /* *//**
-     * Parse dialog file and extract tab names for project (normal) components.
-     *//*
-    private List<String> parseProjectTabsFromDialog(File dialogFile) throws Exception {
-        List<String> tabs = new ArrayList<>();
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder builder = factory.newDocumentBuilder();
-        Document doc = builder.parse(dialogFile);
-
-        NodeList nodes = doc.getElementsByTagName("*");
-        for (int i = 0; i < nodes.getLength(); i++) {
-            org.w3c.dom.Node node = nodes.item(i);
-            NamedNodeMap attrs = node.getAttributes();
-            if (attrs == null) continue;
-
-            org.w3c.dom.Node resType = attrs.getNamedItem("sling:resourceType");
-            if (resType != null && "granite/ui/components/coral/foundation/tabs".equals(resType.getNodeValue())) {
-                NodeList itemsNodes = node.getChildNodes();
-                for (int j = 0; j < itemsNodes.getLength(); j++) {
-                    org.w3c.dom.Node itemsNode = itemsNodes.item(j);
-                    if (!"items".equals(itemsNode.getNodeName())) continue;
-
-                    NodeList tabNodes = itemsNode.getChildNodes();
-                    for (int k = 0; k < tabNodes.getLength(); k++) {
-                        org.w3c.dom.Node tabNode = tabNodes.item(k);
-                        if (tabNode.getNodeType() != org.w3c.dom.Node.ELEMENT_NODE) continue;
-
-                        NamedNodeMap tabAttrs = tabNode.getAttributes();
-                        if (tabAttrs == null) continue;
-
-                        org.w3c.dom.Node tabResType = tabAttrs.getNamedItem("sling:resourceType");
-                        if (tabResType != null && "granite/ui/components/coral/foundation/container".equals(tabResType.getNodeValue())) {
-                            String tabTitle = tabAttrs.getNamedItem("jcr:title") != null
-                                    ? tabAttrs.getNamedItem("jcr:title").getNodeValue()
-                                    : tabNode.getNodeName();
-                            tabs.add(tabTitle);
-                            log.info("   ➕ Project Tab detected: {}", tabTitle);
-                        }
-                    }
-                }
-            }
-        }
-        return tabs;
-    }
-
-*/
-
 
     /**
      * Parse dialog file (.content.xml) and extract tab names for project-specific (non-core) components.
@@ -3414,7 +1992,7 @@ Updating logic below
      * @throws Exception if XML parsing fails
      */
     private List<String> parseProjectTabsFromDialog(File dialogFile) throws Exception {
-        log.info("🔍 Parsing project dialog for tabs: {}", dialogFile.getAbsolutePath());
+        log.info("Parsing project dialog for tabs: {}", dialogFile.getAbsolutePath());
 
         List<String> tabs = new ArrayList<>();
 
@@ -3431,14 +2009,13 @@ Updating logic below
             // Check if this node is a <tabs> definition (granite resource type)
             org.w3c.dom.Node resType = attrs.getNamedItem(SLING_RESOURCE_TYPE);
             if (resType != null && GRANITE_TABS.equals(resType.getNodeValue())) {
-                log.debug("   📑 Found granite tabs node at index {}", i);
+                log.debug(" Found granite tabs node at index {}", i);
 
                 NodeList itemsNodes = node.getChildNodes();
                 for (int j = 0; j < itemsNodes.getLength(); j++) {
                     org.w3c.dom.Node itemsNode = itemsNodes.item(j);
                     if (!ITEMS.equals(itemsNode.getNodeName())) continue;
 
-                    // Traverse each child tab under <items>
                     NodeList tabNodes = itemsNode.getChildNodes();
                     for (int k = 0; k < tabNodes.getLength(); k++) {
                         org.w3c.dom.Node tabNode = tabNodes.item(k);
@@ -3447,10 +2024,9 @@ Updating logic below
                         NamedNodeMap tabAttrs = tabNode.getAttributes();
                         if (tabAttrs == null) continue;
 
-                        // Verify if tab is a container
                         org.w3c.dom.Node tabResType = tabAttrs.getNamedItem(SLING_RESOURCE_TYPE);
                         if (tabResType != null && GRANITE_CONTAINER.equals(tabResType.getNodeValue())) {
-                            // Extract title (fallback: node name)
+
                             String tabTitle = tabAttrs.getNamedItem(JCR_TITLE) != null
                                     ? tabAttrs.getNamedItem(JCR_TITLE).getNodeValue()
                                     : tabNode.getNodeName();
@@ -3464,29 +2040,13 @@ Updating logic below
         }
 
         if (tabs.isEmpty()) {
-            log.warn("⚠️ No project tabs found in {}", dialogFile.getName());
+            log.warn("No project tabs found in {}", dialogFile.getName());
         } else {
-            log.info("✅ Total project tabs collected: {}", tabs.size());
+            log.info("Total project tabs collected: {}", tabs.size());
         }
 
         return tabs;
     }
-
-    /**
-     * Parse dialog file and extract tab names for Core components.
-     * Stops at first <tabs> found.
-     *//*
-    private List<String> parseCoreTabsFromDialog(File dialogFile) throws Exception {
-        List<String> tabs = new ArrayList<>();
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        factory.setNamespaceAware(true);
-        DocumentBuilder builder = factory.newDocumentBuilder();
-        Document doc = builder.parse(dialogFile);
-
-        org.w3c.dom.Node root = doc.getDocumentElement();
-        parseTabsRecursive(root, tabs);
-        return tabs;
-    }*/
 
     /**
      * Parse dialog file and extract tab names for Core components.
@@ -3499,65 +2059,18 @@ Updating logic below
     private List<String> parseCoreTabsFromDialog(File dialogFile) throws Exception {
         List<String> tabs = new ArrayList<>();
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        factory.setNamespaceAware(true); // required for some AEM XMLs
+        factory.setNamespaceAware(true);
         DocumentBuilder builder = factory.newDocumentBuilder();
         Document doc = builder.parse(dialogFile);
 
         org.w3c.dom.Node root = doc.getDocumentElement();
-        log.debug("🔍 Starting recursive parsing for Core tabs in file: {}", dialogFile.getAbsolutePath());
+        log.debug("Starting recursive parsing for Core tabs in file: {}", dialogFile.getAbsolutePath());
 
         parseTabsRecursive(root, tabs);
 
-        log.info("✅ Core tabs parsed from {}: {}", dialogFile.getName(), tabs);
+        log.info("Core tabs parsed from {}: {}", dialogFile.getName(), tabs);
         return tabs;
     }
-
-    /*private void parseTabsRecursive(org.w3c.dom.Node node, List<String> tabs) {
-        if (node.getNodeType() != org.w3c.dom.Node.ELEMENT_NODE) return;
-
-        NamedNodeMap attrs = node.getAttributes();
-
-        // Case 1: Node is <tabs>
-        if ("tabs".equals(node.getNodeName()) ||
-                (attrs != null && attrs.getNamedItem("sling:resourceType") != null &&
-                        "granite/ui/components/coral/foundation/tabs".equals(attrs.getNamedItem("sling:resourceType").getNodeValue()))) {
-
-            NodeList itemsNodes = node.getChildNodes();
-            for (int i = 0; i < itemsNodes.getLength(); i++) {
-                org.w3c.dom.Node itemsNode = itemsNodes.item(i);
-                if (!"items".equals(itemsNode.getNodeName())) continue;
-
-                NodeList tabNodes = itemsNode.getChildNodes();
-                for (int j = 0; j < tabNodes.getLength(); j++) {
-                    org.w3c.dom.Node tabNode = tabNodes.item(j);
-                    if (tabNode.getNodeType() != org.w3c.dom.Node.ELEMENT_NODE) continue;
-
-                    NamedNodeMap tabAttrs = tabNode.getAttributes();
-                    if (tabAttrs == null) continue;
-
-                    org.w3c.dom.Node resTypeAttr = tabAttrs.getNamedItem("sling:resourceType");
-                    if (resTypeAttr != null &&
-                            "granite/ui/components/coral/foundation/container".equals(resTypeAttr.getNodeValue())) {
-
-                        org.w3c.dom.Node titleAttr = tabAttrs.getNamedItem("jcr:title");
-                        if (titleAttr != null) {
-                            tabs.add(titleAttr.getNodeValue());
-                            log.info("   ➕ Core Tab detected: {}", titleAttr.getNodeValue());
-                        }
-                    }
-
-                    // Recurse into nested <tabs> inside this tab node
-                    parseTabsRecursive(tabNode, tabs);
-                }
-            }
-        } else {
-            // Recurse into child nodes
-            NodeList children = node.getChildNodes();
-            for (int i = 0; i < children.getLength(); i++) {
-                parseTabsRecursive(children.item(i), tabs);
-            }
-        }
-    }*/
 
     /**
      * Recursively parses XML nodes to extract tab names.
@@ -3576,12 +2089,11 @@ Updating logic below
 
         NamedNodeMap attrs = node.getAttributes();
 
-        // ✅ Case 1: Node is <tabs> or has tabs resourceType
         if (TYPE_TABS.equals(node.getNodeName()) ||
                 (attrs != null && attrs.getNamedItem(SLING_RESOURCE_TYPE) != null &&
                         GRANITE_TABS.equals(attrs.getNamedItem(SLING_RESOURCE_TYPE).getNodeValue()))) {
 
-            log.debug("🔍 Found <tabs> node at: {}", node.getNodeName());
+            log.debug(" Found <tabs> node at: {}", node.getNodeName());
 
             NodeList itemsNodes = node.getChildNodes();
             for (int i = 0; i < itemsNodes.getLength(); i++) {
@@ -3606,12 +2118,11 @@ Updating logic below
                         log.info("   ➕ Core Tab detected: {}", tabTitle);
                     }
 
-                    // Recurse into nested <tabs> inside this tab node
                     parseTabsRecursive(tabNode, tabs);
                 }
             }
         } else {
-            // ✅ Case 2: No <tabs>, recurse into child nodes
+
             NodeList children = node.getChildNodes();
             for (int i = 0; i < children.getLength(); i++) {
                 parseTabsRecursive(children.item(i), tabs);
@@ -3620,32 +2131,6 @@ Updating logic below
     }
 
 
-    /* *//**
-     * Reads sling:resourceSuperType from .content.xml.
-     *//*
-    private String readSuperType(File compContentFile) throws Exception {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        factory.setNamespaceAware(true); // important
-        DocumentBuilder builder = factory.newDocumentBuilder();
-        Document doc = builder.parse(compContentFile);
-
-        NodeList rootNodes = doc.getElementsByTagName("*");
-        for (int i = 0; i < rootNodes.getLength(); i++) {
-            org.w3c.dom.Node node = rootNodes.item(i);
-            NamedNodeMap attrs = node.getAttributes();
-            if (attrs != null) {
-                for (int j = 0; j < attrs.getLength(); j++) {
-                    org.w3c.dom.Node attr = attrs.item(j);
-                    String name = attr.getNodeName();
-                    if ("sling:resourceSuperType".equals(name) || name.endsWith(":resourceSuperType")) {
-                        log.info("Super Type....,{}", attr.getNodeValue());
-                        return attr.getNodeValue();
-                    }
-                }
-            }
-        }
-        return null;
-    }*/
 
     /**
      * Reads sling:resourceSuperType from .content.xml.
@@ -3656,10 +2141,10 @@ Updating logic below
      * @return the value of sling:resourceSuperType if found, otherwise null
      */
     private String readSuperType(File compContentFile) throws Exception {
-        log.info("🔍 Reading superType from file: {}", compContentFile.getAbsolutePath());
+        log.info(" Reading superType from file: {}", compContentFile.getAbsolutePath());
 
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        factory.setNamespaceAware(true); // Enable namespace awareness (important for AEM XML files)
+        factory.setNamespaceAware(true);
         DocumentBuilder builder = factory.newDocumentBuilder();
         Document doc = builder.parse(compContentFile);
 
@@ -3669,17 +2154,15 @@ Updating logic below
             NamedNodeMap attrs = node.getAttributes();
 
             if (attrs != null) {
-                // Iterate through all attributes of the current node
                 for (int j = 0; j < attrs.getLength(); j++) {
                     org.w3c.dom.Node attr = attrs.item(j);
                     String name = attr.getNodeName();
                     String value = attr.getNodeValue();
 
-                    log.debug("   📑 Attribute found: {} = {}", name, value);
+                    log.debug("Attribute found: {} = {}", name, value);
 
-                    // Check for sling:resourceSuperType or namespaced versions (e.g., cq:resourceSuperType)
                     if (SLING_RESOURCE_SUPER_TYPE.equals(name) || name.endsWith(SUFFIX_RESOURCE_SUPER_TYPE)) {
-                        log.info("✅ Found superType: {}", value);
+                        log.info(" Found superType: {}", value);
                         return value;
                     }
                 }
@@ -3688,25 +2171,6 @@ Updating logic below
 
         log.warn("No sling:resourceSuperType found in {}", compContentFile.getName());
         return null;
-    }
-
-    /**
-     * Returns a sorted map of field types (alphabetically by key).
-     * Used for populating dialog field options in views.
-     *
-     * @return Sorted LinkedHashMap of field types
-     */
-    public static Map<String, String> getSortedFieldTypes() {
-        var typeResourceMap = FieldType.getTypeResourceMap();
-        return typeResourceMap.entrySet()
-                .stream()
-                .sorted(Map.Entry.comparingByKey())
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        Map.Entry::getValue,
-                        (v1, v2) -> v1,
-                        LinkedHashMap::new
-                ));
     }
 
 }

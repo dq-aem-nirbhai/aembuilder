@@ -37,7 +37,7 @@ public class DeployController {
     public String projectDetails(@PathVariable String projectName, Model model) {
         log.info("DEPLOY: Fetching project details for project: {}", projectName);
         List<String> templates = templateService.fetchTemplatesFromGeneratedProjects(projectName);
-        Map<String, String> compMap = componentService.fetchComponentsWithGroups(projectName);
+        Map<String, String> compMap = componentService.fetchComponentsWithGroups (projectName);
 
         // If project not found or no components/templates
         if ((templates == null || templates.isEmpty()) &&
