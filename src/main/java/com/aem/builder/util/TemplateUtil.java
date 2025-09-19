@@ -110,7 +110,8 @@ public class TemplateUtil {
      */
 
     public static String getPoliciesFilePath(String projectName) {
-        return String.format(POLICIES_BASE_PATH, projectName, projectName);
+       String appId= AemUtil.getAppId(PROJECTS_DIR,projectName);
+        return String.format(POLICIES_BASE_PATH, projectName, appId);
     }
 
     /**

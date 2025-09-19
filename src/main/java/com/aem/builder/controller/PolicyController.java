@@ -37,7 +37,6 @@ public class PolicyController {
                                                     @RequestParam String templateName,
                                                     @RequestBody PolicyRequest request) {
         try {
-            System.out.println(request);
             // This should create OR update the policy:
             policyXmlUpdater.saveOrUpdatePolicy(projectName, templateName, request);
             return ResponseEntity.ok("Policy saved");
@@ -150,7 +149,6 @@ public class PolicyController {
                                              @PathVariable String template,
                                              @RequestParam String resource,
                                              @RequestBody PolicyModel policy) {
-
         String id = policyService.savePolicy(project, template, resource, policy);
         return ResponseEntity.ok(id);
     }

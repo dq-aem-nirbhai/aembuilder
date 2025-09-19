@@ -369,7 +369,7 @@ public class TemplateServiceImpl implements TemplateService {
         String appId=getAppId(PROJECTS_DIR,projectName);
 
         String basePath = GENERATED_PROJECTS_PATH+ projectName + UI_CONTENT_PATH  +
-                appId + "/settings/wcm/templates/";
+                appId + WCM_TEMPLATES_RELATIVE_PATH;
         String targetpath=basePath+updatedModel.getName();
         File oldFolder = new File(basePath + oldTemplateName);
         File newFolder = new File(basePath + updatedModel.getName());
