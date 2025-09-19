@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
+
 @Service
 @AllArgsConstructor
 @Slf4j
@@ -113,7 +114,7 @@ public class AemProjectServiceImpl implements AemProjectService {
             if (Files.exists(pomFile)) {
                 updatePomProperty(pomFile, "createdDate", List.of("importDate", "cloneDate"));
             }
-            updateConfFilterMode(baseDir,appId);
+            updateConfFilterMode(baseDir, appId);
             String componentsTargetPath = baseDir + appId + "/ui.apps/src/main/content/jcr_root/apps/" + appId + "/components/";
             File contentFolder = new File(componentsTargetPath);
             if (!contentFolder.exists()) {
@@ -125,7 +126,6 @@ public class AemProjectServiceImpl implements AemProjectService {
             throw new IOException("Project generation interrupted", e);
         }
     }
-
 
 
     @Override
@@ -142,7 +142,7 @@ public class AemProjectServiceImpl implements AemProjectService {
                 String createdDate = "Unknown";
                 String importDate = "Unknown";
                 String cloneDate = "Unknown";
-                String displayName="Unknown";
+                String displayName = "Unknown";
                 String path = new File(projectsFolder, name).getPath();
 
                 try {
@@ -186,7 +186,7 @@ public class AemProjectServiceImpl implements AemProjectService {
                 } catch (Exception ignored) {
                 }
 
-                projects.add(new ProjectDetails(displayName,name, version, groupId, createdDate, importDate, cloneDate,
+                projects.add(new ProjectDetails(displayName, name, version, groupId, createdDate, importDate, cloneDate,
                         path));
             }
         }
@@ -493,7 +493,8 @@ public class AemProjectServiceImpl implements AemProjectService {
                 return true;
             }
 
-        } catch (IOException ignore) {}
+        } catch (IOException ignore) {
+        }
         return false;
     }
 
@@ -513,7 +514,8 @@ public class AemProjectServiceImpl implements AemProjectService {
             if (Files.exists(tempDir)) {
                 FileUtils.deleteDirectory(tempDir.toFile());
             }
-        } catch (IOException ignore) {}
+        } catch (IOException ignore) {
+        }
     }
 
     private Path findPom(Path root) throws IOException {
