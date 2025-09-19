@@ -19,6 +19,8 @@ import java.util.stream.Collectors;
 import static com.aem.builder.constants.AemProjectConstants.*;
 import static com.aem.builder.constants.ComponentConstants.*;
 import static com.aem.builder.constants.ModelAttributeKeys.*;
+import static com.aem.builder.constants.ModelAttributeKeys.ERROR;
+import static com.aem.builder.constants.ModelAttributeKeys.MESSAGE;
 import static com.aem.builder.constants.UrlMappings.*;
 import static com.aem.builder.constants.ViewNames.*;
 

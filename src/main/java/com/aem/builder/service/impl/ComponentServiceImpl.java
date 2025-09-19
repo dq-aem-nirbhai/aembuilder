@@ -7,9 +7,16 @@ import com.aem.builder.model.Enum.FieldType;
 import com.aem.builder.service.ComponentService;
 import com.aem.builder.util.AemUtil;
 import com.aem.builder.util.FileGenerationUtil;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Service;
+import org.w3c.dom.*;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -18,19 +25,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.stream.Collectors;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-
-import lombok.RequiredArgsConstructor;
-import org.apache.commons.io.FileUtils;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
-import org.w3c.dom.*;
-
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.aem.builder.constants.AemProjectConstants.USER_DIR_SYS_PROP;
@@ -2172,5 +2169,29 @@ public class ComponentServiceImpl implements ComponentService {
         log.warn("No sling:resourceSuperType found in {}", compContentFile.getName());
         return null;
     }
+    /**
+     * Returns a list of editable components by filtering out hidden/system structure components.
+     *
+     * @param compMap Map of componentName → componentGroup
+     * @param appTitle The title of the application/project (used to filter "Structure" group)
+     * @return List of editable component names
+     */
+    public List<String> getEditableComponents(Map<String, String> compMap, String appTitle) {
+        if (compMap == null || compMap.isEmpty()) {
+            return List.of();
+        }
 
+        return compMap.entrySet()
+                .stream()
+                .filter(entry -> {
+                    String group = Optional.ofNullable(entry.getValue())
+                            .map(String::trim)
+                            .orElse(null);
+                    // Editable if group is null, or not structure, and not hidden
+                    return group == null
+                            || (!group.equals(appTitle + " - Structure") && !group.equals(".hidden"));
+                })
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+    }
 }

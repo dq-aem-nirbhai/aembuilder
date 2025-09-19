@@ -80,7 +80,6 @@ public final class ComponentConstants {
     public static final String DIALOG_FILE = "_cq_dialog/.content.xml";
     public static final String CORE_PREFIX = "core/";
     public static final String MSM_FOLDER = "msm";
-    public static final String MESSAGE = "message";
     public static final String ERROR = "error";
     public static final String KEY_NAME = "name";
     public static final String KEY_PATH = "path";
