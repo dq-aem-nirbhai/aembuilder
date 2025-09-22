@@ -73,25 +73,6 @@ public class ComponentServiceImpl implements ComponentService {
         return value;
     }
 
-    /**
-     * Fetches a list of component names for the specified generated project.
-     * <p>
-     * This method retrieves components with their groups and returns only the
-     * component names as a list.
-     *
-     * @param projectName the name of the project whose components are being fetched
-     * @return a list of component names belonging to the project
-     */
-    @Override
-    public List<String> fetchComponentsFromGeneratedProjects(String projectName) {
-        log.info("[fetchComponentsFromGeneratedProjects] Starting fetch for project: {}", projectName);
-
-        log.info("Fetching components for project: {}", projectName);
-        Map<String, String> components = fetchComponentsWithGroups(projectName);
-
-        log.info("Fetched {} components for project '{}'", components.size(), projectName);
-        return new ArrayList<>(components.keySet());
-    }
 
     /**
      * Fetches all components of a given project along with their component groups.
@@ -249,42 +230,6 @@ public class ComponentServiceImpl implements ComponentService {
         log.debug("[getDistinctComponents] Distinct components list: {}", distinct);
 
         return distinct;
-    }
-
-
-    /**
-     * Retrieves a list of existing generated projects from the workspace.
-     * <p>
-     * This method checks the default generated projects directory and returns
-     * the names of all existing projects. If the directory does not exist or
-     * is empty, it returns an empty list.
-     * </p>
-     *
-     * @return a list of existing project names; empty if none are found
-     */
-    @Override
-    public List<String> getExistingProjects() {
-        String projectsPath = System.getProperty(USER_DIR_SYS_PROP) + GENERATED_PROJECTS_DIR;
-        File projectsDir = new File(projectsPath);
-
-        log.info("[getExistingProjects] Checking for existing projects in: {}", projectsPath);
-
-        if (!projectsDir.exists() || !projectsDir.isDirectory()) {
-            log.warn("[getExistingProjects] No 'generated-projects' directory found at path: {}", projectsPath);
-            return Collections.emptyList();
-        }
-
-        String[] names = projectsDir.list();
-        if (names == null || names.length == 0) {
-            log.info("[getExistingProjects] No existing projects found in directory: {}", projectsPath);
-            return Collections.emptyList();
-        }
-
-        List<String> existingProjects = Arrays.asList(names);
-        log.info("[getExistingProjects] Found {} existing projects.", existingProjects.size());
-        log.debug("[getExistingProjects] Existing projects list: {}", existingProjects);
-
-        return existingProjects;
     }
 
     /**

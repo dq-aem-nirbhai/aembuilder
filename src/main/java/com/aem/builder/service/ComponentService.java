@@ -12,13 +12,6 @@ import java.util.Map;
  */
 public interface ComponentService {
 
-    /**
-     * Fetch all components from a given generated project.
-     *
-     * @param projectName the project name
-     * @return list of component names
-     */
-    List<String> fetchComponentsFromGeneratedProjects(String projectName);
 
     /**
      * Get all components across available projects.
@@ -45,12 +38,6 @@ public interface ComponentService {
      */
     void addComponentsToExistingProject(String projectName, List<String> selectedComponents);
 
-    /**
-     * Retrieve all existing project names.
-     *
-     * @return list of project names
-     */
-    List<String> getExistingProjects();
 
     /**
      * Retrieve all components for a specific project.

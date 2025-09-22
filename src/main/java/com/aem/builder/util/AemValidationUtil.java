@@ -17,30 +17,4 @@ public class AemValidationUtil {
         return structureExists;
     }
 
-    /** Checks if pom.xml contains AEM-specific packaging or dependencies */
-    public static boolean isAemModulePom(Path pomPath) {
-        try {
-            String xml = Files.readString(pomPath);
-            if (xml.contains("<packaging>bundle</packaging>")
-                    || xml.contains("<packaging>content-package</packaging>")
-                    || xml.contains("<packaging>all</packaging>")
-                    || xml.contains("filevault-package-maven-plugin")
-                    || xml.contains("content-package-maven-plugin")
-                    || xml.contains("com.day.jcr.vault")
-                    || xml.contains("com.adobe.cq")) {
-                return true;
-            }
-        } catch (IOException e) {
-            log.warn("[AemValidationUtil] Failed to read pom.xml at '{}': {}", pomPath, e.getMessage());
-        }
-        return false;
-    }
-
-    /** Filter out junk paths like .git, target, node_modules */
-    public static boolean isNotJunk(Path path) {
-        String p = path.toString().toLowerCase();
-        boolean result = !(p.contains(".git") || p.contains("target") || p.contains("node_modules"));
-        if (!result) log.debug("[AemValidationUtil] Skipping junk path '{}'", path);
-        return result;
-    }
 }
