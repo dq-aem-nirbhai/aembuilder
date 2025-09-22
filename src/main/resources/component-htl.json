@@ -1,0 +1,61 @@
+{
+  "declarations": {
+    "modelUse": "<sly data-sly-use.model=\"${packageName}.${modelClassName}\"/>",
+    "placeholderTemplate": "<sly data-sly-use.placeholderTemplate=\"core/wcm/components/commons/v1/templates.html\"/>",
+    "startTest": "<sly data-sly-test.hasContent=\"${!model.empty}\">",
+    "endTest": "</sly>",
+    "placeholderCall": "<sly data-sly-call=\"${placeholderTemplate.placeholder @ isEmpty = !hasContent}\"/>",
+    "extendOnly": "<sly data-sly-resource=\"${@ resourceType='${superType}'}\"/>"
+  },
+  "fieldTemplates": {
+    "text": [
+      "<sly data-sly-test=\"${${modelVar}.${fieldName}}\">",
+      "  <p>${fieldLabel}: ${${modelVar}.${fieldName}}</p>",
+      "</sly>"
+    ],
+    "richtext": [
+      "<sly data-sly-test=\"${${modelVar}.${fieldName}}\">",
+      "  <p>${fieldLabel}: ${${modelVar}.${fieldName} @ context='html'}</p>",
+      "</sly>"
+    ],
+    "fileupload": [
+      "<sly data-sly-test=\"${${modelVar}.${fieldName}}\">",
+      "  <p>${fieldLabel}: <img src=\"${${modelVar}.${fieldName}}\" alt=\"${fieldLabel}\" style=\"max-width:100%; height:auto;\"/></p>",
+      "</sly>"
+    ],
+    "switch": [
+      "<sly data-sly-test=\"${${modelVar}.${fieldName}}\">",
+      "  <p>${fieldLabel}: <input type='checkbox' disabled checked='checked'/></p>",
+      "</sly>"
+    ],
+    "multiselect": [
+      "<sly data-sly-test=\"${${modelVar}.${fieldName} && ${modelVar}.${fieldName}.size > 0}\">",
+      "  <ul data-sly-list.item=\"${${modelVar}.${fieldName}}\">",
+      "    <li>${item}</li>",
+      "  </ul>",
+      "</sly>"
+    ],
+    "multifield": [
+      "<sly data-sly-test=\"${${modelVar}.${fieldName} && ${modelVar}.${fieldName}.size > 0}\">",
+      "  <ul data-sly-list.item=\"${${modelVar}.${fieldName}}\">",
+      "    ${nestedFields}",
+      "  </ul>",
+      "</sly>"
+    ],
+    "tabs": ["${nestedFields}"],
+    "pathfield": [
+      "<sly data-sly-test=\"${${modelVar}.${fieldName}}\">",
+      "  <p>${fieldLabel}: <a href=\"${${modelVar}.${fieldName}}\">${${modelVar}.${fieldName}}</a></p>",
+      "</sly>"
+    ],
+    "default": [
+      "<sly data-sly-test=\"${${modelVar}.${fieldName}}\">",
+      "  <p>${fieldLabel}: ${${modelVar}.${fieldName}}</p>",
+      "</sly>"
+    ]
+  },
+  "aliases": {
+    "tagfield": "multiselect",
+    "checkbox": "switch"
+  }
+}
