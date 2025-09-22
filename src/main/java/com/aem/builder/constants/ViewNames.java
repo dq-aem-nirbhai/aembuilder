@@ -11,7 +11,7 @@ public final class ViewNames {
     public static final String DEPLOY_LOGS_PAGE = "deployLogs";
     public static final String ERROR_PAGE= "error";
     public static final String INDEX_PAGE = "indexpage";
-    public static final String DASHBOARD_PAGE="dashboard";
+    
     /*URL Redirections...*/
     public static final String DASHBOARD_REDIRECT = "redirect:/dashboard";
     public static final String CREATE_TEMPLATE_VIEW = "createtemplate";
