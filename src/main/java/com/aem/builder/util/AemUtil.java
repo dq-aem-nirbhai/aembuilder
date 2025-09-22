@@ -1,8 +1,8 @@
 package com.aem.builder.util;
 import java.io.File;
 
-import static com.aem.builder.constants.AemProjectConstants.COMPONENTS_PATH;
-import static com.aem.builder.constants.AemProjectConstants.MSM_FOLDER;
+import static com.aem.builder.constants.ComponentConstants.COMPONENTS_PATH;
+import static com.aem.builder.constants.ComponentConstants.MSM_FOLDER;
 
 public class AemUtil{
 
