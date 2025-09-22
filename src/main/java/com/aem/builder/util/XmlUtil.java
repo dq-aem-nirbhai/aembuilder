@@ -1,10 +1,9 @@
 package com.aem.builder.util;
 
+
 import lombok.extern.slf4j.Slf4j;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
+import org.w3c.dom.*;
+import org.xml.sax.InputSource;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -14,13 +13,20 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.StringReader;
+import java.io.StringWriter;
+
+
+import static com.aem.builder.constants.XmlConstants.METHOD_SAFE_NODE_NAME;
+import static com.aem.builder.constants.XmlConstants.NODE_NAME_REGEX;
+
 
 /**
  * Utility class for XML-related operations.
  */
 @Slf4j
 public final class XmlUtil {
-
 
     /**
      * Creates a new DocumentBuilder instance.
@@ -37,6 +43,7 @@ public final class XmlUtil {
             throw new RuntimeException("Failed to create DocumentBuilder", e);
         }
     }
+
 
     /**
      * Returns a child element by name if it exists, otherwise creates it.
@@ -63,7 +70,6 @@ public final class XmlUtil {
                 return (Element) child;
             }
         }
-
         // Create new child element if not found
         Element newChild = doc.createElement(childName);
         newChild.setAttribute("jcr:primaryType", "nt:unstructured");
@@ -71,7 +77,6 @@ public final class XmlUtil {
         log.info("{}Created new child element '{}'", methodPrefix, childName);
         return newChild;
     }
-
 
     /**
      * Writes a DOM Document to a file with indentation.
@@ -86,16 +91,143 @@ public final class XmlUtil {
             log.warn("{}Document or file is null", methodPrefix);
             return;
         }
-
+        StringWriter writer = new StringWriter();
         Transformer transformer = TransformerFactory.newInstance().newTransformer();
-        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
-
-        DOMSource source = new DOMSource(doc);
-        StreamResult result = new StreamResult(file);
-        transformer.transform(source, result);
-
+        transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
+        transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+        transformer.transform(new DOMSource(doc), new StreamResult(writer));
+        String rawXml = writer.toString();
+        String formattedXml = formatXml(rawXml);
+        try (FileWriter fw = new FileWriter(file)) {
+            fw.write(formattedXml);
+        }
         log.info("{}XML document written to {}", methodPrefix, file.getAbsolutePath());
     }
 
+
+    /**
+     * Formats a raw XML string into a properly indented XML.
+     *
+     * @param xml Raw XML string
+     * @return Formatted XML string
+     */
+    public static String formatXml(String xml) {
+        if (xml == null || xml.isBlank()) return "";
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setIgnoringElementContentWhitespace(true);
+            factory.setNamespaceAware(true);
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document doc = builder.parse(new InputSource(new StringReader(xml)));
+            doc.normalizeDocument();
+            StringBuilder sb = new StringBuilder();
+            printElement(doc.getDocumentElement(), sb, 0);
+            return sb.toString();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return xml;
+        }
+    }
+
+    /**
+     * Recursively prints an XML element and its children into a formatted string.
+     * <p>
+     * This method handles:
+     * <ul>
+     *   <li>Indentation for nested elements</li>
+     *   <li>Escaping of attribute values and text content</li>
+     *   <li>Self-closing tags if there are no children</li>
+     * </ul>
+     *
+     * @param element the DOM {@link Element} to format
+     * @param sb      the {@link StringBuilder} where formatted XML is appended
+     * @param indent  the current indentation level (0 for root)
+     */
+    private static void printElement(Element element, StringBuilder sb, int indent) {
+        final String methodPrefix = "PRINT_ELEMENT: ";
+        if (element == null) {
+            log.warn("{}Provided element is null, skipping", methodPrefix);
+            return;
+        }
+        String indentStr = "    ".repeat(indent);
+        String tagName = element.getTagName();
+        log.debug("{}Processing element <{}> at indent {}", methodPrefix, tagName, indent);
+        sb.append(indentStr).append("<").append(tagName);
+        NamedNodeMap attributes = element.getAttributes();
+        for (int i = 0; i < attributes.getLength(); i++) {
+            Node attr = attributes.item(i);
+            log.trace("{}Attribute found: {}=\"{}\"", methodPrefix, attr.getNodeName(), attr.getNodeValue());
+            sb.append("\n")
+                    .append(indentStr).append("    ")
+                    .append(attr.getNodeName())
+                    .append("=\"")
+                    .append(escapeXml(attr.getNodeValue()))
+                    .append("\"");
+        }
+        NodeList children = element.getChildNodes();
+        if (children.getLength() == 0) {
+            log.debug("{}Element <{}> has no children, using self-closing tag", methodPrefix, tagName);
+            sb.append("/>\n");
+        } else {
+            sb.append(">\n");
+            for (int i = 0; i < children.getLength(); i++) {
+                Node child = children.item(i);
+                if (child instanceof Element) {
+                    printElement((Element) child, sb, indent + 1);
+                } else if (child instanceof Text) {
+                    String text = ((Text) child).getWholeText().trim();
+                    if (!text.isEmpty()) {
+                        log.trace("{}Text node in <{}>: {}", methodPrefix, tagName, text);
+                        sb.append(indentStr).append("    ")
+                                .append(escapeXml(text))
+                                .append("\n");
+                    }
+                }
+            }
+            sb.append(indentStr).append("</").append(tagName).append(">\n");
+            log.debug("{}Closed element </{}>", methodPrefix, tagName);
+        }
+    }
+
+    /**
+     * Escapes XML special characters in attribute values or text content.
+     *
+     * @param value raw string
+     * @return escaped XML-safe string
+     */
+    private static String escapeXml(String value) {
+        if (value == null) return "";
+        return value.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&apos;");
+    }
+
+    /**
+     * Sanitizes field name for safe XML node naming.
+     *
+     * @param fieldName Raw field name
+     * @param fallback  Fallback name if invalid
+     * @return Sanitized safe XML node name
+     */
+    public static String safeNodeName(String fieldName, String fallback) {
+        log.info("{}: Sanitizing fieldName='{}' with fallback='{}'", METHOD_SAFE_NODE_NAME, fieldName, fallback);
+        if (fieldName == null || fieldName.isBlank()) {
+            log.info("{}: Field name is null/blank, using fallback '{}'", METHOD_SAFE_NODE_NAME, fallback);
+            return fallback;
+        }
+        String sanitized = fieldName.replaceAll(NODE_NAME_REGEX, "");
+        if (sanitized.isEmpty()) {
+            log.info("{}: Sanitized name is empty, using fallback '{}'", METHOD_SAFE_NODE_NAME, fallback);
+            return fallback;
+        }
+
+        log.info("{}: Returning sanitized name '{}'", METHOD_SAFE_NODE_NAME, sanitized);
+        return sanitized;
+    }
+
 }
+
+
+

@@ -44,5 +44,8 @@ public class UrlMappings {
     public static final String SHOW_TEMPLATE_COMPONENTS = "/{project}/templates/{template}/components";
     public static final String SHOW_POLICY_EDITOR = "/{project}/templates/{template}/component";
     public static final String SAVE_COMPONENT_POLICY = "/api/{project}/templates/{template}/component/policy";
+    public static final String REDIRECT_VIEW_PREFIX = "redirect:/view/";
+    public static final String DASHBOARD_REDIRECT = "redirect:/dashboard";
+
 
 }

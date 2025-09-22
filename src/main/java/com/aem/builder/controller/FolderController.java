@@ -10,7 +10,7 @@ import java.io.File;
 import java.io.IOException;
 
 import static com.aem.builder.constants.UrlMappings.SHOW_FOLDER_URL;
-import static com.aem.builder.constants.ViewNames.DASHBOARD_REDIRECT;
+import static com.aem.builder.constants.UrlMappings.DASHBOARD_REDIRECT;
 
 @Controller
 @Slf4j
