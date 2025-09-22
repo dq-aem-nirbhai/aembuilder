@@ -907,21 +907,48 @@ public class UpdateComponentImpl implements UpdateComponent {
 
     private String updateIsEmpty(String content, List<ComponentField> fields) {
         StringBuilder checks = new StringBuilder();
+
         for (ComponentField f : fields) {
-            if ("numberfield".equalsIgnoreCase(f.getFieldType())) {
-                checks.append("        if (").append(f.getFieldName()).append(" != 0) empty = false;\n");
-            } else if ("checkbox".equalsIgnoreCase(f.getFieldType())) {
-                checks.append("        if (").append(f.getFieldName()).append(") empty = false;\n");
-            } else {
-                checks.append("        if (").append(f.getFieldName())
-                        .append(" != null && !").append(f.getFieldName()).append(".toString().isEmpty()) empty = false;\n");
+            String name = f.getFieldName();
+            String type = f.getFieldType().toLowerCase();
+
+            switch (type) {
+                case "numberfield":
+                    checks.append("        if (").append(name).append(" != 0) return false;\n");
+                    break;
+
+
+                case "checkbox":
+                    checks.append("        if (").append(name).append(") return false;\n");
+                    break;
+
+                case "multiselect":
+                case "tags":
+                case "multifield":
+                    checks.append("        if (").append(name).append(" != null && !").append(name).append(".isEmpty()) return false;\n");
+                    break;
+
+                case "switch":
+                case "radiogroup":
+                case "select":
+                case "richtext":
+                case "textarea":
+                case "pathfield":
+                case "fileupload":
+                case "datepicker":
+                case "colorfield":
+                case "email":
+                case "password":
+                case "text":
+                default:
+                    checks.append("        if (").append(name).append(" != null && !").append(name).append(".isEmpty()) return false;\n");
+                    break;
             }
         }
 
         String newBody =
-                "        boolean empty = true;\n" +
-                        checks +
-                        "        return empty;\n";
+                checks.toString() +
+                        "        return true;\n";
 
         // Regex to replace only the body of isEmpty()
         String regex = "(?s)(public\\s+boolean\\s+isEmpty\\s*\\(\\)\\s*\\{).*?(\\})";
@@ -938,6 +965,7 @@ public class UpdateComponentImpl implements UpdateComponent {
             return content.substring(0, insertPos) + isEmptyMethod + "}\n";
         }
     }
+
 
 
 
