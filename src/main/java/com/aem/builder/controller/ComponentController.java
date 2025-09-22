@@ -16,6 +16,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
+import com.aem.builder.model.DTO.ComponentField;
+
 
 @Controller
 @RequiredArgsConstructor
@@ -232,16 +234,22 @@ public class ComponentController {
 
 //    logic for Check Parent Having tabs
 @PostMapping("/checkTabs")
-public Map<String, Object> checkIfParentHasTabs(@RequestBody Map<String, String> request) throws Exception {
-    String projectName = request.get("projectName");
-    String superType = request.get("superType");
+@ResponseBody
+public Map<String, Object> checkIfParentHasTabs(@RequestBody Map<String, String> request) {
+    try {
+        String projectName = request.get("projectName");
+        String superType = request.get("superType");
 
-    log.info("Parent Tabs........., {}", componentService.getParentTabs(projectName, superType));
-    return componentService.getParentTabs(projectName, superType);
+        // Directly return whatever your service provides
+        Map<String, Object> parentData = componentService.getParentTabs(projectName, superType);
+        log.info("Parent tabs fetched: {}", parentData);
+
+        // Ensure it’s not null
+        return parentData != null ? parentData : new HashMap<>();
+    } catch (Exception e) {
+        log.error("Error fetching parent component fields", e);
+        // Return empty map on error
+        return new HashMap<>();
+    }
 }
-
-
-
 }
-
-                                                                                                                                                                                                                                                                                                                                                    

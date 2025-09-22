@@ -123,36 +123,31 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Update selected paths
- // Update selected groups instead of component paths
- function updateComponentPath() {
-   const selectedItems = [];
+  // Update selected groups instead of component paths
+  function updateComponentPath() {
+    const selectedItems = [];
 
-   document.querySelectorAll(".accordion-item").forEach((item) => {
-     const groupName = item.querySelector(".accordion-header").textContent.trim();
-     const selectAll = item.querySelector('.select-all');
-     const checkboxes = item.querySelectorAll(
-       '.accordion-content input[type="checkbox"]:not(.select-all)'
-     );
+    document.querySelectorAll(".accordion-item").forEach((item) => {
+      const groupName = item.querySelector(".accordion-header").textContent.trim();
+      const selectAll = item.querySelector(".select-all");
+      const checkboxes = item.querySelectorAll(
+        '.accordion-content input[type="checkbox"]:not(.select-all)'
+      );
 
-     if (selectAll && selectAll.checked) {
-       // Case 1: Select All checked → store group
-       selectedItems.push(`group:${groupName}`);
-     } else {
-       // Case 2: Some individual items checked → store their values
-       checkboxes.forEach((cb) => {
-         if (cb.checked) {
-           selectedItems.push(cb.value);
-         }
-       });
-     }
-   });
+      if (selectAll && selectAll.checked) {
+        selectedItems.push(`group:${groupName}`);
+      } else {
+        checkboxes.forEach((cb) => {
+          if (cb.checked) {
+            selectedItems.push(cb.value);
+          }
+        });
+      }
+    });
 
-   document.getElementById("componentPathOutput").textContent =
-     `[${selectedItems.join(",")}]`;
- }
-
-
+    document.getElementById("componentPathOutput").textContent =
+      `[${selectedItems.join(",")}]`;
+  }
 
   // Add Style Group
   function addStyleGroup() {
@@ -167,7 +162,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
 
       <div class="styles"></div>
-            <button type="button" class="add-btn" onclick="addStyleRow(this)">+ Add Style</button>
+      <button type="button" class="add-btn" onclick="addStyleRow(this)">+ Add Style</button>
     `;
     container.appendChild(groupDiv);
   }
@@ -181,7 +176,7 @@ document.addEventListener("DOMContentLoaded", function () {
       <input type="text" placeholder="Style Label" class="style-label" value="${style.label}" required>
       <input type="text" placeholder="CSS Class" class="style-class" value="${style.cls}" required>
       <select class="style-element" required>
-        <option value="">Element --</option>
+        <option value="Element">Element</option>
         <option value="div" ${style.element === "div" ? "selected" : ""}>div</option>
         <option value="section" ${style.element === "section" ? "selected" : ""}>section</option>
         <option value="article" ${style.element === "article" ? "selected" : ""}>article</option>
@@ -216,34 +211,30 @@ document.addEventListener("DOMContentLoaded", function () {
       data.styleDefaultElement || "";
 
     // Component paths
-   const paths = data.componentPath
-     ? data.componentPath.replace(/[\[\]]/g, "").split(",")
-     : [];
+    const paths = data.componentPath
+      ? data.componentPath.replace(/[\[\]]/g, "").split(",")
+      : [];
 
-   document.querySelectorAll(".accordion-item").forEach((item) => {
-     const groupName = `group:${item.querySelector(".accordion-header").textContent.trim()}`;
-     const selectAll = item.querySelector(".select-all");
-     const checkboxes = item.querySelectorAll(
-       '.accordion-content input[type=checkbox]:not(.select-all)'
-     );
+    document.querySelectorAll(".accordion-item").forEach((item) => {
+      const groupName = `group:${item.querySelector(".accordion-header").textContent.trim()}`;
+      const selectAll = item.querySelector(".select-all");
+      const checkboxes = item.querySelectorAll(
+        '.accordion-content input[type=checkbox]:not(.select-all)'
+      );
 
-     if (paths.includes(groupName)) {
-       // Case 1: group saved → check "Select All"
-       if (selectAll) selectAll.checked = true;
-       checkboxes.forEach((cb) => (cb.checked = true));
-     } else {
-       // Case 2: some individual paths saved → match them
-       checkboxes.forEach((cb) => {
-         cb.checked = paths.includes(cb.value);
-       });
-       if (selectAll) {
-         selectAll.checked = Array.from(checkboxes).every((cb) => cb.checked);
-       }
-     }
-   });
-   updateComponentPath();
-
-
+      if (paths.includes(groupName)) {
+        if (selectAll) selectAll.checked = true;
+        checkboxes.forEach((cb) => (cb.checked = true));
+      } else {
+        checkboxes.forEach((cb) => {
+          cb.checked = paths.includes(cb.value);
+        });
+        if (selectAll) {
+          selectAll.checked = Array.from(checkboxes).every((cb) => cb.checked);
+        }
+      }
+    });
+    updateComponentPath();
 
     // Style groups
     const container = document.getElementById("styleGroups");
@@ -257,8 +248,8 @@ document.addEventListener("DOMContentLoaded", function () {
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <input type="text" class="group-name" value="${groupName}" required>
              <label><input type="checkbox" class="group-checkbox" ${
-                        groupObj.multiple ? "checked" : ""
-                      }> styles can be combined</label>
+               groupObj.multiple ? "checked" : ""
+             }> styles can be combined</label>
             <button type="button" class="remove-btn" onclick="this.closest('.style-group').remove()">❌ Remove Group</button>
           </div>
 
@@ -268,13 +259,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const stylesDiv = groupDiv.querySelector(".styles");
 
-
-Object.entries(groupObj.items).forEach(([label, def]) => {
-  addStyleRow(
-    { parentElement: groupDiv },
-    { label, cls: def.cls || "", element: def.element || "div" }
-  );
-});
+        Object.entries(groupObj.items).forEach(([label, def]) => {
+          addStyleRow(
+            { parentElement: groupDiv },
+            { label, cls: def.cls || "", element: def.element || "div" }
+          );
+        });
 
         container.appendChild(groupDiv);
       });
@@ -291,13 +281,12 @@ Object.entries(groupObj.items).forEach(([label, def]) => {
       if (!groupName) return;
 
       const styles = {};
-     group.querySelectorAll(".style-row").forEach((row) => {
-       const label = row.querySelector(".style-label").value.trim();
-       const cls = row.querySelector(".style-class").value.trim();
-       const element = row.querySelector(".style-element").value.trim();
-       if (label && cls) styles[label] = { class: cls, element };
-     });
-
+      group.querySelectorAll(".style-row").forEach((row) => {
+        const label = row.querySelector(".style-label").value.trim();
+        const cls = row.querySelector(".style-class").value.trim();
+        const element = row.querySelector(".style-element").value.trim();
+        if (label && cls) styles[label] = { class: cls, element };
+      });
 
       styleGroups[groupName] = {
         multiple: group.querySelector(".group-checkbox").checked,

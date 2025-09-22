@@ -1244,7 +1244,7 @@ Updating logic below
             result.put("hasTabs", false);
             result.put("tabs", new ArrayList<>());
         }
-
+log.info("eeeeee,{}",result);
         return result;
     }
 
