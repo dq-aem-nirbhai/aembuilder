@@ -81,7 +81,7 @@ public class GitBranchServiceImpl implements GitBranchService {
             log.info(LOG_PREFIX + "Repo {} has stash: {}", repoPath, hasStash);
             return hasStash;
         } catch (Exception e) {
-            log.error(LOG_PREFIX + "Failed to check stash for repo {}", repoPath, e);
+            log.error(LOG_PREFIX + "Failed to check stash for repo {}", repoPath);
             return false;
         }
     }

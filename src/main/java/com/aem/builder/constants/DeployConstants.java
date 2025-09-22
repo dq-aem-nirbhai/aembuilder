@@ -5,8 +5,6 @@ package com.aem.builder.constants;
  */
 public final class DeployConstants {
 
-    private DeployConstants() {} // Prevent instantiation
-
     /** Log prefix for deployment-related logs */
     public static final String DEPLOY_LOG_PREFIX = "[deployProject]";
 

@@ -562,14 +562,15 @@ public class AemProjectServiceImpl implements AemProjectService {
     /**
      * Updates the filter.xml mode for /conf/{appId} from "merge" → "replace".
      */
-    private void updateConfFilterMode(String baseDir, String appId) throws IOException {
-        Path filterPath = Paths.get(baseDir, appId, "ui.content/src/main/content/META-INF/vault/filter.xml");
+    private void updateConfFilterMode(String baseDir, String projectName) throws IOException {
+        Path filterPath = Paths.get(baseDir, projectName, "ui.content/src/main/content/META-INF/vault/filter.xml");
+
 
         if (Files.notExists(filterPath)) {
             log.warn("[updateConfFilterMode] filter.xml not found at {}", filterPath);
             return;
         }
-
+        String appId= AemUtil.getAppId(PROJECTS_DIR,projectName);
         List<String> lines = Files.readAllLines(filterPath);
         List<String> updatedLines = new ArrayList<>();
         boolean updated = false;

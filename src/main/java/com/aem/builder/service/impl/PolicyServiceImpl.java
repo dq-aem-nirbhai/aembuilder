@@ -7,10 +7,7 @@ import com.aem.builder.model.PolicyModel;
 import com.aem.builder.model.StyleGroupModel;
 import com.aem.builder.model.StyleModel;
 import com.aem.builder.service.PolicyService;
-import com.aem.builder.util.FolderUtil;
-import com.aem.builder.util.PathUtil;
-import com.aem.builder.util.PolicyUtil;
-import com.aem.builder.util.XmlUtil;
+import com.aem.builder.util.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,7 +55,8 @@ public class PolicyServiceImpl implements PolicyService {
      * @return full configuration path
      */
     private String buildConfPath(String project) {
-        String path = PROJECTS_DIR + "/" + project +CONF_RELATIVE_PATH+ project;
+        String appId = AemUtil.getAppId(PROJECTS_DIR, project);
+        String path = PROJECTS_DIR + "/" + project +CONF_RELATIVE_PATH+ appId;
         log.info("BUILD_CONF_PATH: {}", path); // method name as prefix
         return path;
     }
