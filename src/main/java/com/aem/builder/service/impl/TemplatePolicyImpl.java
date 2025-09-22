@@ -2,7 +2,9 @@ package com.aem.builder.service.impl;
 
 import com.aem.builder.model.PolicyRequest;
 import com.aem.builder.service.TemplatePolicy;
+import com.aem.builder.util.DateUtil;
 import com.aem.builder.util.TemplateUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.*;
 
@@ -10,124 +12,152 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
+import static com.aem.builder.constants.AemProjectConstants.*;
+import static com.aem.builder.constants.PolicyConstants.*;
+import static com.aem.builder.util.AemUtil.getAppId;
+
 @Service
+@Slf4j
 public class TemplatePolicyImpl implements TemplatePolicy {
 
+    /**
+     * Adds a new policy node to the policies XML file.
+     */
     @Override
-    public String addPolicy(String projectname, String policyName, String componentGroups,
+    public String addPolicy(String projectName, String policyName, String componentGroups,
                             String styleDefaultClasses, String styleDefaultElement,
                             Map<String, Map<String, Object>> styles) throws Exception {
+        log.info("[addPolicy] Adding policy '{}' for project '{}'", policyName, projectName);
 
-        String POLICIES_PATH =
-                "generated-projects/" + projectname +
-                        "/ui.content/src/main/content/jcr_root/conf/" + projectname +
-                        "/settings/wcm/policies/.content.xml";
+        String policiesPath = TemplateUtil.getPoliciesFilePath(projectName);
+        File xmlFile = new File(policiesPath);
 
-        File xmlFile = new File(POLICIES_PATH);
-        DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-        Document doc = builder.parse(xmlFile);
+        if (!xmlFile.exists()) {
+            log.error("[addPolicy] Policies file not found at path '{}'", policiesPath);
+            throw new IllegalStateException("Policies file not found: " + policiesPath);
+        }
 
-        Node containerNode = getOrCreateContainerNode(doc);
+        Document doc = TemplateUtil.parseXmlFile(xmlFile);
+        Node containerNode = getOrCreateContainerNode(doc); // Assuming this method exists and works safely
+        log.info("[addPolicy] Container node obtained");
 
-        // Create policy node
         String policyNodeName = "policy_" + System.currentTimeMillis();
-        Element policy = doc.createElement(policyNodeName);
+        Element policy = TemplateUtil.createElement(doc, policyNodeName, NT_UNSTRUCTURED);
+        setPolicyAttributes(policy, policyName, componentGroups, styleDefaultClasses, styleDefaultElement);
+        log.debug("[addPolicy] Attributes set for policy node '{}'", policyNodeName);
 
-        policy.setAttribute("cq:styleDefaultClasses", styleDefaultClasses);
-        policy.setAttribute("cq:styleDefaultElement", styleDefaultElement);
-        String jcrDate = "{Date}" + ZonedDateTime.now()
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX"));
-
-        policy.setAttribute("jcr:lastModified", jcrDate);
-        policy.setAttribute("jcr:lastModifiedBy", "admin");
-        policy.setAttribute("jcr:primaryType", "nt:unstructured");
-        policy.setAttribute("jcr:title", policyName);
-        policy.setAttribute("sling:resourceType", "wcm/core/components/policy/policy");
-        policy.setAttribute("components", componentGroups);
-        policy.setAttribute("layoutDisabled", "false");
-
-        // jcr:content
-        Element jcrContent = doc.createElement("jcr:content");
-        jcrContent.setAttribute("jcr:primaryType", "nt:unstructured");
+        Element jcrContent = TemplateUtil.createElement(doc, JCR_CONTENT_TAG, NT_UNSTRUCTURED);
         policy.appendChild(jcrContent);
+        log.debug("[addPolicy] jcr:content node added for policy '{}'", policyNodeName);
 
-        // add styleGroups
         appendStyleGroups(doc, policy, styles);
+        log.debug("[addPolicy] Style groups appended for policy '{}'", policyNodeName);
 
         containerNode.appendChild(policy);
+        log.info("[addPolicy] Policy '{}' appended to container node", policyNodeName);
 
-        // Save XML back
-        Transformer transformer = TransformerFactory.newInstance().newTransformer();
-        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
-        transformer.transform(new DOMSource(doc), new StreamResult(xmlFile));
+        saveDocument(doc, xmlFile);
+        log.info("[addPolicy] Policy '{}' saved to file successfully", policyNodeName);
 
         return policy.getNodeName();
     }
 
-    public String updatePolicy(String policyname) {
-        return policyname;
+    /**
+     * Sets attributes for the policy element.
+     */
+    private void setPolicyAttributes(Element policy, String policyName, String componentGroups,
+                                     String styleDefaultClasses, String styleDefaultElement) {
+
+        policy.setAttribute(ATTR_STYLE_DEFAULT_CLASSES, styleDefaultClasses);
+        policy.setAttribute(ATTR_STYLE_DEFAULT_ELEMENT, styleDefaultElement);
+        String jcrDate = "{Date}" + ZonedDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX"));
+        policy.setAttribute(ATTR_JCR_LAST_MODIFIED, jcrDate);
+        policy.setAttribute(ATTR_JCR_LAST_MODIFIED_BY, "admin");
+        policy.setAttribute(ATTR_JCR_PRIMARY_TYPE, NT_UNSTRUCTURED);
+        policy.setAttribute(ATTR_JCR_TITLE, policyName);
+        policy.setAttribute(ATTR_SLING_RESOURCE_TYPE, POLICY_RESOURCE_TYPE);
+        policy.setAttribute(ATTR_COMPONENTS, componentGroups);
+        policy.setAttribute(ATTR_LAYOUT_DISABLED, "false");
+    }
+    /**
+     * Saves the XML document to a file with indentation for readability.
+     */
+    private void saveDocument(Document doc, File file) throws TransformerException, TransformerException {
+        Transformer transformer = TransformerFactory.newInstance().newTransformer();
+        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "1");
+        transformer.transform(new DOMSource(doc), new StreamResult(file));
     }
 
+
+    /**
+     * Retrieves the "container" node from the given XML document.
+     * If it doesn't exist, creates a new container node under the first "components" node.
+     */
     private Node getOrCreateContainerNode(Document doc) {
+        log.info("[getOrCreateContainerNode] Searching for existing 'container' node...");
         NodeList containerNodes = doc.getElementsByTagName("container");
         if (containerNodes.getLength() > 0) {
+            log.info("[getOrCreateContainerNode] Found existing 'container' node at index 1.");
             return containerNodes.item(1);
         }
+        log.info("[getOrCreateContainerNode] No existing 'container' node found. Creating new one...");
         Element container = doc.createElement("container");
         container.setAttribute("jcr:primaryType", "nt:unstructured");
         doc.getDocumentElement()
                 .getElementsByTagName("components")
                 .item(0)
                 .appendChild(container);
+        log.info("[getOrCreateContainerNode] New 'container' node created and appended.");
         return container;
     }
+
+    /**
+     * Assigns a policy to a template by updating the template's .content.xml file.
+     * Logs the action and template type, then calls TemplateUtil to update the policy reference.
+     */
 
     @Override
     public void assignPolicyToTemplate(String projectName, String templateName,
                                        String policyNodeName) throws Exception {
-        String templatePath = "generated-projects/" + projectName +
-                "/ui.content/src/main/content/jcr_root/conf/" + projectName +
-                "/settings/wcm/templates/" + templateName + "/policies/.content.xml";
+        String appId=getAppId(PROJECTS_DIR,projectName);
+        String templatePath = GENERATED_PROJECTS_PATH + projectName
+                + UI_CONTENT_PATH + appId
+                + TEMPLATES_SUBPATH + templateName
+                + POLICIES_SUBPATH;
+        log.info("[assignPolicyToTemplate] Assigning policy '{}' to template '{}'", policyNodeName, templateName);
+
         String templateType = getTemplateType(projectName, templateName);
-        System.out.println("Template Type for " + templateName + ": " + templateType);
+        log.info("[assignPolicyToTemplate] Template type for '{}' is '{}'", templateName, templateType);
 
         File xmlFile = new File(templatePath);
         try {
-            TemplateUtil.updatePolicyId(templatePath, policyNodeName,projectName,templateType);
+            TemplateUtil.updatePolicyId(templatePath, policyNodeName,appId,templateType);
         } catch (Exception e) {
-            throw new IOException("something happend");
+            log.error("[assignPolicyToTemplate] Failed to assign policy '{}' to template '{}'", policyNodeName, templateName, e);
+            throw new IOException("Error occurred while assigning policy to template", e);
         }
     }
 
-    void writeFile(String path, String content) throws IOException {
-        Path filePath = Paths.get(path);
-        Files.createDirectories(filePath.getParent());
-        Files.write(filePath, content.getBytes(StandardCharsets.UTF_8));
-    }
-
-    public void saveOrUpdatePolicy(String projectName, String templateName,
-                                   PolicyRequest request) throws Exception {
-
-        String POLICIES_PATH =
-                "generated-projects/" + projectName +
-                        "/ui.content/src/main/content/jcr_root/conf/" + projectName +
-                        "/settings/wcm/policies/.content.xml";
-
-        File xmlFile = new File(POLICIES_PATH);
+    /**
+     * Saves a new policy or updates an existing one in the policies XML file.
+     */
+@Override
+    public void saveOrUpdatePolicy(String projectName, String templateName, PolicyRequest request) throws Exception {
+    String appId = getAppId(PROJECTS_DIR, projectName);
+    String path = String.format(POLICIES_BASE_PATH, projectName, appId);
+    log.info("path.......,{}",path);
+        File xmlFile = new File(path);
         DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
         Document doc = builder.parse(xmlFile);
 
@@ -139,34 +169,25 @@ public class TemplatePolicyImpl implements TemplatePolicy {
             Node node = policyNodes.item(i);
             if (node.getNodeType() == Node.ELEMENT_NODE) {
                 Element policyEl = (Element) node;
+                if (policyEl.hasAttribute(ATTR_JCR_TITLE) &&
+                        policyEl.getAttribute(ATTR_JCR_TITLE).equals(request.getName())) {
 
-                if (policyEl.hasAttribute("jcr:title") &&
-                        policyEl.getAttribute("jcr:title").equals(request.getName())) {
+                    TemplateUtil.clearChildren(policyEl);
+                    TemplateUtil.setAttributes(policyEl, new String[][] {
+                            {ATTR_JCR_TITLE, request.getName()},
+                            {ATTR_SLING_RESOURCE_TYPE, POLICY_RESOURCE_TYPE},
+                            {ATTR_COMPONENTS, request.getComponentPath()},
+                            {ATTR_LAYOUT_DISABLED, "false"},
+                            {ATTR_JCR_LAST_MODIFIED, DateUtil.getCurrentJcrDate()},
+                            {ATTR_JCR_LAST_MODIFIED_BY, "admin"},
+                            {ATTR_CQ_STYLE_DEFAULT_CLASSES, request.getStyleDefaultClasses()},
+                            {ATTR_CQ_STYLE_DEFAULT_ELEMENT, request.getStyleDefaultElement()}
+                    });
 
-                    // Clear all children
-                    NodeList children = policyEl.getChildNodes();
-                    for (int j = children.getLength() - 1; j >= 0; j--) {
-                        policyEl.removeChild(children.item(j));
-                    }
-
-                    // overwrite attributes
-                    policyEl.setAttribute("jcr:title", request.getName());
-                    policyEl.setAttribute("sling:resourceType", "wcm/core/components/policy/policy");
-                    policyEl.setAttribute("components", request.getComponentPath());
-                    policyEl.setAttribute("layoutDisabled", "false");
-                    String jcrDate = "{Date}" + ZonedDateTime.now()
-                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX"));
-                    policyEl.setAttribute("jcr:lastModified", jcrDate);
-                    policyEl.setAttribute("jcr:lastModifiedBy", "admin");
-                    policyEl.setAttribute("cq:styleDefaultClasses", request.getStyleDefaultClasses());
-                    policyEl.setAttribute("cq:styleDefaultElement", request.getStyleDefaultElement());
-
-                    // jcr:content
-                    Element jcrContent = doc.createElement("jcr:content");
-                    jcrContent.setAttribute("jcr:primaryType", "nt:unstructured");
+                    Element jcrContent = TemplateUtil.createElement(doc, JCR_CONTENT_TAG);
+                    jcrContent.setAttribute(ATTR_PRIMARY_TYPE , NT_UNSTRUCTURED);
                     policyEl.appendChild(jcrContent);
 
-                    // styleGroups
                     appendStyleGroups(doc, policyEl, request.getStyles());
 
                     updated = true;
@@ -183,227 +204,252 @@ public class TemplatePolicyImpl implements TemplatePolicy {
             transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "1");
             transformer.transform(new DOMSource(doc), new StreamResult(xmlFile));
         } else {
-            String policynode = addPolicy(
-                    projectName,
-                    request.getName(),
-                    request.getComponentPath(),
-                    request.getStyleDefaultClasses(),
-                    request.getStyleDefaultElement(),
-                    request.getStyles()
-            );
+            String policynode = addPolicy(projectName, request.getName(), request.getComponentPath(),
+                    request.getStyleDefaultClasses(), request.getStyleDefaultElement(), request.getStyles());
             assignPolicyToTemplate(projectName, templateName, policynode);
         }
     }
 
+    /**
+     * Retrieves the list of existing policy names from the XML file.
+     */
     @Override
-    public List<String> getExistingPolicies(String projectName) throws Exception {
+    public List<String> getExistingPolicies(String projectName) {
+        String appId=getAppId(PROJECTS_DIR,projectName);
         List<String> policies = new ArrayList<>();
-        String path = "generated-projects/" + projectName +
-                "/ui.content/src/main/content/jcr_root/conf/" + projectName +
-                "/settings/wcm/policies/.content.xml";
-        File file = new File(path);
+        try {
+            String path = TemplateUtil.getPoliciesFilePath(projectName);
+            File file = new File(path);
 
-        if (!file.exists()) return policies;
+            if (!file.exists()) {
+                log.info("[getExistingPolicies] Policy file does not exist at path: {}", path);
+                return policies;
+            }
 
-        DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-        Document doc = builder.parse(file);
-        NodeList nodeList = doc.getElementsByTagName("container").item(1).getChildNodes();
+            Document doc = TemplateUtil.parseXmlFile(file);
+            NodeList nodeList = TemplateUtil.getChildNodesOfElement(doc, "container", 1);
 
-        for (int i = 0; i < nodeList.getLength(); i++) {
-            Node node = nodeList.item(i);
-            if (node.getNodeType() == Node.ELEMENT_NODE) {
-                Element element = (Element) node;
-                if (element.hasAttribute("jcr:title")) {
-                    policies.add(element.getAttribute("jcr:title"));
+            if (nodeList == null) {
+                log.warn("getExistingPolicies] No 'container' element found at index 1 in file: {}", path);
+                return policies;
+            }
+
+            for (int i = 0; i < nodeList.getLength(); i++) {
+                Node node = nodeList.item(i);
+                if (node.getNodeType() == Node.ELEMENT_NODE) {
+                    Element element = (Element) node;
+                    if (element.hasAttribute(ATTR_JCR_TITLE)) {
+                        String title = element.getAttribute(ATTR_JCR_TITLE);
+                        policies.add(title);
+                        log.debug("Found policy with title: {}", title);
+                    }
                 }
             }
+            log.info("[getExistingPolicies] Total policies found: {}", policies.size());
+        } catch (Exception e) {
+            log.error("[getExistingPolicies] Error while fetching existing policies for project: " + projectName, e);
         }
         return policies;
     }
 
+    /**
+     * Retrieves the details of a specific policy from the XML file.
+     */
     @Override
-    public PolicyRequest getPolicyDetails(String projectName, String policyTitle) throws Exception {
-        String path = "generated-projects/" + projectName +
-                "/ui.content/src/main/content/jcr_root/conf/" + projectName +
-                "/settings/wcm/policies/.content.xml";
+    public PolicyRequest getPolicyDetails(String projectName, String policyTitle) {
+        String appId=getAppId(PROJECTS_DIR,projectName);
+        try {
+            String path = TemplateUtil.getPoliciesFilePath(projectName);
+            File file = new File(path);
 
-        File file = new File(path);
-        if (!file.exists()) return null;
+            if (!file.exists()) {
+                log.info("[getPolicyDetails] Policy file not found at path: {}", path);
+                return null;
+            }
 
-        DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-        Document doc = builder.parse(file);
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            Document doc = factory.newDocumentBuilder().parse(file);
 
-        NodeList containers = doc.getElementsByTagName("container");
-        if (containers.getLength() < 2) return null;
-        Node container = containers.item(1);
+            NodeList containers = doc.getElementsByTagName("container");
+            if (containers.getLength() < 2) {
+                log.warn("[getPolicyDetails] No second container element found in file: {}", path);
+                return null;
+            }
 
-        NodeList policies = container.getChildNodes();
-        for (int i = 0; i < policies.getLength(); i++) {
-            Node node = policies.item(i);
-            if (node.getNodeType() == Node.ELEMENT_NODE) {
-                Element policyEl = (Element) node;
-                if (policyTitle.equals(policyEl.getAttribute("jcr:title"))) {
+            Node container = containers.item(1);
+            NodeList policies = container.getChildNodes();
 
-                    PolicyRequest request = new PolicyRequest();
-                    request.setName(policyEl.getAttribute("jcr:title"));
-                    request.setComponentPath(policyEl.getAttribute("components"));
-                    request.setStyleDefaultClasses(policyEl.getAttribute("cq:styleDefaultClasses"));
-                    request.setStyleDefaultElement(policyEl.getAttribute("cq:styleDefaultElement"));
-
-                    // Parse styles
-                    Map<String, Map<String, Object>> styleGroups = new LinkedHashMap<>();
-                    NodeList styleGroupsNode = policyEl.getElementsByTagName("cq:styleGroups");
-                    if (styleGroupsNode.getLength() > 0) {
-                        NodeList groups = styleGroupsNode.item(0).getChildNodes();
-                        for (int g = 0; g < groups.getLength(); g++) {
-                            Node groupNode = groups.item(g);
-                            if (groupNode.getNodeType() == Node.ELEMENT_NODE) {
-                                Element groupEl = (Element) groupNode;
-                                String groupName = groupEl.getAttribute("cq:styleGroupLabel");
-
-                                Map<String, Object> groupData = new LinkedHashMap<>();
-                                groupData.put("multiple", "true".equals(groupEl.getAttribute("cq:styleGroupMultiple")));
-
-                                Map<String, Object> items = new LinkedHashMap<>();
-                                NodeList stylesNodes = groupEl.getElementsByTagName("cq:styles");
-                                if (stylesNodes.getLength() > 0) {
-                                    NodeList styleItems = stylesNodes.item(0).getChildNodes();
-                                    for (int s = 0; s < styleItems.getLength(); s++) {
-                                        Node styleNode = styleItems.item(s);
-                                        if (styleNode.getNodeType() == Node.ELEMENT_NODE) {
-                                            Element styleEl = (Element) styleNode;
-                                            String label = styleEl.getAttribute("cq:styleLabel");
-                                            String cssClass = styleEl.getAttribute("cq:styleClasses");
-                                            String element = styleEl.getAttribute("cq:styleElement");
-
-                                            Map<String, String> def = new HashMap<>();
-                                            def.put("cls", cssClass);
-                                            System.out.println(cssClass);
-                                            def.put("element", element);
-                                            System.out.println(element);
-                                            System.out.println(label);
-                                            items.put(label, def);
-                                        }
-                                    }
-                                }
-                                groupData.put("items", items);
-                                styleGroups.put(groupName, groupData);
-                            }
-                        }
+            for (int i = 0; i < policies.getLength(); i++) {
+                Node node = policies.item(i);
+                if (node.getNodeType() == Node.ELEMENT_NODE) {
+                    Element policyEl = (Element) node;
+                    if (policyTitle.equals(policyEl.getAttribute(ATTR_JCR_TITLE))) {
+                        log.info("[getPolicyDetails] Found policy with title: {}", policyTitle);
+                        return parsePolicyElement(policyEl);
                     }
-
-                    request.setStyles(styleGroups);
-                    System.out.println(request.toString());
-                    return request;
                 }
             }
-        }
 
+            log.info("[getPolicyDetails] Policy with title '{}' not found.", policyTitle);
+
+        } catch (Exception e) {
+            log.error("[getPolicyDetails] Error retrieving policy details for project: " + projectName, e);
+        }
         return null;
     }
 
+    /**
+     * Parses a policy element from XML into a PolicyRequest object.
+     */
+    private PolicyRequest parsePolicyElement(Element policyEl) {
+        PolicyRequest request = new PolicyRequest();
+        request.setName(policyEl.getAttribute(ATTR_JCR_TITLE));
+        request.setComponentPath(policyEl.getAttribute(ATTR_COMPONENTS));
+        request.setStyleDefaultClasses(policyEl.getAttribute(ATTR_CQ_STYLE_DEFAULT_CLASSES));
+        request.setStyleDefaultElement(policyEl.getAttribute(ATTR_CQ_STYLE_DEFAULT_ELEMENT));
 
+        Map<String, Map<String, Object>> styleGroups = new LinkedHashMap<>();
 
+        NodeList styleGroupsNode = policyEl.getElementsByTagName(TAG_STYLE_GROUPS);
+        if (styleGroupsNode.getLength() > 0) {
+            Node styleGroupNode = styleGroupsNode.item(0);
+            NodeList groups = styleGroupNode.getChildNodes();
+            for (int g = 0; g < groups.getLength(); g++) {
+                Node groupNode = groups.item(g);
+                if (groupNode.getNodeType() == Node.ELEMENT_NODE) {
+                    Element groupEl = (Element) groupNode;
+                    String groupName = groupEl.getAttribute(ATTR_STYLE_GROUP_LABEL);
+                    log.debug("[parsePolicyElement] Parsing style group: {}", groupName);
+                    styleGroups.put(groupName, parseStyleGroup(groupEl));
+                }
+            }
+        }
+        request.setStyles(styleGroups);
+        return request;
+    }
+
+    /**
+     * Parses a style group element from XML into a Map structure.
+     */
+    private Map<String, Object> parseStyleGroup(Element groupEl) {
+        Map<String, Object> groupData = new LinkedHashMap<>();
+        groupData.put("multiple", "true".equals(groupEl.getAttribute(ATTR_STYLE_GROUP_MULTIPLE)));
+
+        Map<String, Object> items = new LinkedHashMap<>();
+        NodeList stylesNodes = groupEl.getElementsByTagName(TAG_CQ_STYLES);
+        if (stylesNodes.getLength() > 0) {
+            Node styleNode = stylesNodes.item(0);
+            NodeList styleItems = styleNode.getChildNodes();
+            for (int s = 0; s < styleItems.getLength(); s++) {
+                Node styleItem = styleItems.item(s);
+                if (styleItem.getNodeType() == Node.ELEMENT_NODE) {
+                    Element styleEl = (Element) styleItem;
+                    String label = styleEl.getAttribute(ATTR_STYLE_LABEL);
+                    log.debug("[parseStyleGroup] Parsing style: {}", label);
+
+                    Map<String, String> def = new HashMap<>();
+                    def.put("cls", styleEl.getAttribute(ATTR_STYLE_CLASSES));
+                    def.put("element", styleEl.getAttribute(ATTR_STYLE_ELEMENT));
+
+                    items.put(label, def);
+                }
+            }
+        }
+        groupData.put("items", items);
+        return groupData;
+    }
     /**
      * Appends style groups and their styles to the policy XML element.
      */
-    private void appendStyleGroups(Document doc, Element policyEl,
-                                   Map<String, Map<String, Object>> styles) {
-        if (styles == null || styles.isEmpty()) return;
+    private void appendStyleGroups(Document doc, Element policyEl, Map<String, Map<String, Object>> styles) {
+        if (styles == null || styles.isEmpty()) {
+            log.info("[appendStyleGroups] No styles to append for policy.");
+            return;
+        }
 
-        Element styleGroups = doc.createElement("cq:styleGroups");
-        styleGroups.setAttribute("jcr:primaryType", "nt:unstructured");
+        Element styleGroups = TemplateUtil.createElement(doc, TAG_STYLE_GROUPS, NT_UNSTRUCTURED);
+        log.info("[appendStyleGroups] Appending style groups...");
 
         int groupIndex = 0;
         for (Map.Entry<String, Map<String, Object>> groupEntry : styles.entrySet()) {
             String groupName = groupEntry.getKey();
             Map<String, Object> groupData = groupEntry.getValue();
 
-            // ✅ Items: Map<label, {class, element}>
             @SuppressWarnings("unchecked")
-            Map<String, Object> styleItems =
-                    (Map<String, Object>) groupData.getOrDefault("items", new LinkedHashMap<>());
+            Map<String, Object> styleItems = (Map<String, Object>) groupData.getOrDefault("items", new LinkedHashMap<>());
 
-            // ✅ Handle "multiple" as Boolean or String
-            boolean isMultiple = false;
-            if (groupData.containsKey("multiple")) {
-                Object multipleVal = groupData.get("multiple");
-                if (multipleVal instanceof Boolean) {
-                    isMultiple = (Boolean) multipleVal;
-                } else if (multipleVal instanceof String) {
-                    isMultiple = Boolean.parseBoolean((String) multipleVal);
-                }
-            }
+            boolean isMultiple = TemplateUtil.parseBoolean(groupData.get("multiple"));
 
-            Element styleGroup = doc.createElement("item" + groupIndex++);
-            styleGroup.setAttribute("jcr:primaryType", "nt:unstructured");
-            styleGroup.setAttribute("cq:styleGroupLabel", groupName);
-
+            Element styleGroup = TemplateUtil.createElement(doc, TAG_STYLE_GROUP + groupIndex++, NT_UNSTRUCTURED);
+            TemplateUtil.setAttribute(styleGroup,ATTR_STYLE_GROUP_LABEL, groupName);
             if (isMultiple) {
-                styleGroup.setAttribute("cq:styleGroupMultiple", "true");
+                TemplateUtil.setAttribute(styleGroup, ATTR_STYLE_GROUP_MULTIPLE, "true");
             }
 
-            Element cqStyles = doc.createElement("cq:styles");
-            cqStyles.setAttribute("jcr:primaryType", "nt:unstructured");
+            Element cqStyles = TemplateUtil.createElement(doc, TAG_CQ_STYLES, NT_UNSTRUCTURED);
 
             int iStyle = 0;
             for (Map.Entry<String, Object> styleEntry : styleItems.entrySet()) {
                 String label = styleEntry.getKey();
 
-                // Each item is expected to be a Map { class, element }
                 @SuppressWarnings("unchecked")
                 Map<String, String> styleDef = (Map<String, String>) styleEntry.getValue();
 
                 String cssClass = styleDef.getOrDefault("class", "");
-                String element = styleDef.getOrDefault("element", "div");
+                String element = styleDef.getOrDefault("element", "Element");
 
-                Element styleItem = doc.createElement("item" + iStyle++);
-                styleItem.setAttribute("jcr:primaryType", "nt:unstructured");
-                styleItem.setAttribute("cq:styleLabel", label);
-                styleItem.setAttribute("cq:styleClasses", cssClass);
-                styleItem.setAttribute("cq:styleElement", element);
-                styleItem.setAttribute("cq:styleId", String.valueOf(System.currentTimeMillis() + iStyle));
+                Element styleItem = TemplateUtil.createElement(doc, TAG_STYLE_ITEM + iStyle++,NT_UNSTRUCTURED);
+                TemplateUtil.setAttribute(styleItem, ATTR_STYLE_LABEL, label);
+                TemplateUtil.setAttribute(styleItem,ATTR_STYLE_CLASSES, cssClass);
+                TemplateUtil.setAttribute(styleItem, ATTR_STYLE_ELEMENT, element);
+                String styleId = String.valueOf(System.currentTimeMillis() + iStyle);
+                TemplateUtil.setAttribute(styleItem, ATTR_STYLE_ID, styleId);
+
+                log.debug("[appendStyleGroups] Appending style: {} with id {}", label, styleId);
 
                 cqStyles.appendChild(styleItem);
             }
 
             styleGroup.appendChild(cqStyles);
             styleGroups.appendChild(styleGroup);
+            log.info("[appendStyleGroups] Added style group '{}', multiple: {}", groupName, isMultiple);
         }
 
         policyEl.appendChild(styleGroups);
+        log.info("[appendStyleGroups] Style groups appended successfully.");
     }
 
-    private String getTemplateType(String projectName, String templateName) throws Exception {
-        String templatePath = "generated-projects/" + projectName +
-                "/ui.content/src/main/content/jcr_root/conf/" + projectName +
-                "/settings/wcm/templates/" + templateName + "/.content.xml";
-
+    /**
+     * Retrieves the template type from the template's XML file.
+     */
+    public String getTemplateType(String projectName, String templateName) throws Exception {
+        String templatePath = TemplateUtil.getTemplateContentFilePath(projectName, templateName);
         File xmlFile = new File(templatePath);
+
         if (!xmlFile.exists()) {
+            log.error("[getTemplateType] Template file not found: {}", templatePath);
             throw new IOException("Template .content.xml not found: " + templatePath);
         }
 
-        DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-        Document doc = builder.parse(xmlFile);
-
+        Document doc = TemplateUtil.parseXmlFile(xmlFile);
         Element root = doc.getDocumentElement();
 
-        // 🔎 Look for <jcr:content> element
-        NodeList contentNodes = root.getElementsByTagName("jcr:content");
-        if (contentNodes.getLength() > 0) {
-            Element content = (Element) contentNodes.item(0);
-            String templateType = content.getAttribute("cq:templateType");
+        Element content = TemplateUtil.getFirstElementByTagName(root, JCR_CONTENT_TAG);
+        if (content != null) {
+            String templateType = content.getAttribute(ATTR_TEMPLATE_TYPE);
             if (templateType != null && !templateType.isEmpty()) {
                 String[] parts = templateType.split("/");
-                return parts[parts.length - 1]; // returns "page"
+                String result = parts[parts.length - 1];
+                log.info("[getTemplateType] Template type found: {}", result);
+                return result;
+            } else {
+                log.warn("[getTemplateType] cq:templateType attribute is empty in file: {}", templatePath);
             }
-
+        } else {
+            log.warn("[getTemplateType] jcr:content element not found in template file: {}", templatePath);
         }
 
-        return ""; // No templateType → static template
+        log.info("[getTemplateType] Returning default template type (empty string) for template: {}", templateName);
+        return "";
     }
-
-
-
 }
