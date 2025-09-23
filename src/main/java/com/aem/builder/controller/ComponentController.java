@@ -1,8 +1,11 @@
 package com.aem.builder.controller;
 
+import com.aem.builder.model.DTO.ComponentField;
 import com.aem.builder.model.DTO.ComponentRequest;
 import com.aem.builder.model.Enum.FieldType;
 import com.aem.builder.service.ComponentService;
+import com.aem.builder.service.UpdateComponent;
+import com.aem.builder.service.UpdateHTL;
 import com.aem.builder.util.FileGenerationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +15,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -38,6 +42,8 @@ import static com.aem.builder.constants.ViewNames.*;
 public class ComponentController {
 
     private final ComponentService componentService;
+    private final UpdateComponent updateComponent;
+    private final UpdateHTL updatehtl;
 
     /**
      * Fetches the list of components for a given AEM project.
@@ -269,9 +275,6 @@ public class ComponentController {
      * the service layer to update the component’s configuration/files, and
      * redirects the user to the appropriate page with a success or error message.
      * </p>
-     *
-     * @param project            the name of the project containing the component
-     * @param request            the {@link ComponentRequest} object with updated component details
      * @param redirectAttributes the {@link RedirectAttributes} used to pass flash attributes
      *                           (success or error messages) after redirect
      * @return the redirect path:
@@ -281,23 +284,50 @@ public class ComponentController {
      *         – if an error occurs while updating</li>
      * </ul>
      */
-    @PostMapping(UPDATE_COMPONENT)
-    public String updateComponent(@PathVariable String project,
-                                  @ModelAttribute ComponentRequest request,
-                                  RedirectAttributes redirectAttributes) {
-        log.info("[updateComponent] Starting update for component '{}' in project '{}'", request.getComponentName(), project);
-        log.info("[updateComponent] Request details: {}", request);
+    @PostMapping("/component/update/{projectName}")
+    public String updateComponent(
+            @PathVariable String projectName,
+            @ModelAttribute ComponentRequest componentRequest,
+            RedirectAttributes redirectAttributes) throws Exception {
 
-        try {
-            componentService.updateComponent(project, request);
-            log.info("[updateComponent] Component '{}' updated successfully in project '{}'", request.getComponentName(), project);
-            redirectAttributes.addFlashAttribute(MESSAGE, request.getComponentName() + " Component updated successfully!");
-            return REDIRECT_VIEW + project;
-        } catch (Exception e) {
-            log.error("[updateComponent] Error updating component '{}' in project '{}': {}", request.getComponentName(), project, e.getMessage(), e);
-            redirectAttributes.addFlashAttribute(ERROR, "Failed to update component: " + e.getMessage());
-            return REDIRECT_INDEX + project + REDIRECT_EDIT_COMPONENT + request.getComponentName();
+        System.out.println("update request: " + componentRequest);
+
+        // Load old component state
+        ComponentRequest oldRequest = componentService.loadComponent(projectName, componentRequest.getComponentName());
+        System.out.println("Old request: " + oldRequest);
+
+        // Locate dialog.xml
+        String dialogPath = "generated-projects/" + projectName
+                + "/ui.apps/src/main/content/jcr_root/apps/"
+                + projectName + "/components/"
+                + componentRequest.getComponentName()
+                + "/_cq_dialog/.content.xml";
+
+        File dialogFile = new File(dialogPath);
+        if (!dialogFile.exists()) {
+            throw new IllegalStateException("Dialog file not found at " + dialogPath);
         }
+
+        // Call service method to update dialog only
+        updateComponent.updateDialog(dialogFile, componentRequest.getFields());
+
+
+
+        //sling model update
+        updateComponent.updateSlingModel(componentRequest);
+
+        // htl update
+        List<ComponentField> fields = componentRequest.getFields();
+        log.info("fields from the new request, {}", fields);
+        String htlFile = "generated-projects/" + projectName +
+                "/ui.apps/src/main/content/jcr_root/apps/" +
+                projectName + "/components/" + componentRequest.getComponentName() +
+                "/" + componentRequest.getComponentName() + ".html";
+        log.info("htl path to update {}", htlFile);
+        updatehtl.updateHTLFromRequest(componentRequest, htlFile);
+
+        redirectAttributes.addFlashAttribute("message", "Dialog updated successfully!");
+        return "redirect:/view/" + projectName;
     }
 
     /**

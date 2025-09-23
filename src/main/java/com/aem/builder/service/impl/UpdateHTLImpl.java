@@ -23,16 +23,35 @@ public class UpdateHTLImpl implements UpdateHTL {
         Path path = Path.of(filePath);
         String content = Files.readString(path);
 
+        log.info("[DEBUG] HTL content loaded:\n{}", content);
+        List<String>fieldsfromrequest=new ArrayList<>();
+        for(ComponentField field : request.getFields()){
+            fieldsfromrequest.add(field.getFieldName());
+        }
+        log.info("[updateHTLFromRequest] filed from request :{}",fieldsfromrequest);
+        Set<String> requestFieldSet = new HashSet<>(fieldsfromrequest);
         // --- Step 1: Extract existing top-level fields ---
         Set<String> existingFields = extractTopLevelFields(content);
+        log.info("[updateHTLFromRequest] existingFields : {} ",existingFields);
+// Find fields to remove (existing in HTL but not in request)
+        Set<String> obsoleteFields = new HashSet<>(existingFields);
+        obsoleteFields.removeAll(requestFieldSet);
+        log.info("[updateHTLFromRequest] fields to remove from htl: {}",obsoleteFields);
+
+        for(String removefiled:obsoleteFields){
+            content = removeFieldBlocks(content, removefiled); // assign back
+            log.info("removed........");
+        }
 
         // --- Step 2: Determine fields to remove ---
         List<String> requestFieldNames = request.getFields().stream()
                 .map(ComponentField::getFieldName)
                 .collect(Collectors.toList());
-        Set<String> fieldsToRemove = new HashSet<>(existingFields);
-        fieldsToRemove.removeAll(requestFieldNames);
 
+        log.info("[updateHTLFromRequest] request fields : {}",requestFieldNames);
+        Set<String> fieldsToRemove = new HashSet<>(existingFields);
+       // fieldsToRemove.removeAll(requestFieldNames);
+       log.info("[updateHTLFromRequest]  fields to remove : {}",requestFieldNames);
 
         // --- Step 2.1: Handle type changes ---
         Map<String, String> existingFieldTypes = extractFieldsWithTypes(content);
@@ -47,26 +66,23 @@ public class UpdateHTLImpl implements UpdateHTL {
 
 // Add fields with type changes to removal set
         fieldsToRemove.addAll(fieldsWithTypeChanges);
+       log.info("[updateHTLFromRequest] fields added when type changed : {}",fieldsWithTypeChanges);
 
-
-        // --- Step 3: Remove obsolete fields ---
-        for (String field : fieldsToRemove) {
-            content = removeFieldBlock(content, field);
-            log.info("Removed obsolete field: {}", field);
-        }
 
         // --- Step 4: Update or insert normal fields ---
-        existingFields = extractTopLevelFields(content); // refresh after removal
+        existingFields = fieldsToRemove; // refresh after removal
         StringBuilder normalFieldsToInsert = new StringBuilder();
-
-        List<ComponentField> multifields = new ArrayList<>();
+        log.info("[updateHTLFromRequest] existing fields : {}",existingFields );
+        Set<ComponentField> multifields = new LinkedHashSet<>();
 
         for (ComponentField field : request.getFields()) {
             if ("multifield".equalsIgnoreCase(field.getFieldType())) {
                 multifields.add(field); // handle separately
+                log.info("[updateHTLFromRequest] multifields added newly : {}",field);
             } else {
                 if (!existingFields.contains(field.getFieldName()) || fieldsToRemove.contains(field.getFieldName())) {
-                    normalFieldsToInsert.append(buildNormalFieldHTL(field));
+                    normalFieldsToInsert.append(buildNormalFieldHTL(field,existingFields));
+                    log.info("[updateHTLFromRequest] normal field added at top level : {}",field);
                 }
             }
         }
@@ -82,7 +98,7 @@ public class UpdateHTLImpl implements UpdateHTL {
 
         // --- Step 6: Update multifields in-place ---
         for (ComponentField mf : multifields) {
-            content = updateMultifieldInPlace(content, mf);
+            content = updateMultifieldInPlace(content, mf,existingFields);
         }
 
         // --- Step 7: Write updated content ---
@@ -96,52 +112,86 @@ public class UpdateHTLImpl implements UpdateHTL {
         Set<String> fields = new HashSet<>();
         Pattern pattern = Pattern.compile("\\$\\{model\\.([a-zA-Z0-9_]+)");
         Matcher matcher = pattern.matcher(content);
+        log.info("[extractTopLevelFields] pattern to extract fields : {}",pattern);
+        log.info("[extractTopLevelFields] matcher to extract fields : {}",matcher);
         while (matcher.find()) {
             fields.add(matcher.group(1));
+            log.info("[extractTopLevelFields] fields added to set : {}",matcher.group(1));
         }
         return fields;
     }
+    private String removeFieldBlocks(String content, String fieldName) {
+        // --- 1. Remove full <sly> blocks referencing the field ---
+        String regexSlyBlock =
+                "<sly[^>]*data-sly-test\\s*=\\s*\"\\$\\{model\\." + Pattern.quote(fieldName) + ".*?\\}\"[^>]*>.*?</sly>\\s*";
+        content = Pattern.compile(regexSlyBlock, Pattern.DOTALL).matcher(content).replaceAll("");
 
-    private String removeFieldBlock(String content, String fieldName) {
-        // Remove sly blocks
-        String regexSly = "<sly\\s+[^>]*data-sly-test\\s*=\\s*\"\\$\\{model\\."
-                + Pattern.quote(fieldName) + "(?:\\s*&&[^}]*)?}\"\\s*>.*?</sly>\\s*";
-        content = Pattern.compile(regexSly, Pattern.DOTALL).matcher(content).replaceAll("");
+        // --- 2. Remove <p>, <div>, <span>, etc. containing ${model.field} ---
+        String regexTag =
+                "<([a-zA-Z0-9]+)(\\s+[^>]*)?>[^<]*\\$\\{model\\." + Pattern.quote(fieldName) + ".*?\\}.*?</\\1>\\s*";
+        content = Pattern.compile(regexTag, Pattern.DOTALL).matcher(content).replaceAll("");
 
-        // Remove paragraphs
-        String regexP = "<p>.*?\\$\\{model\\." + Pattern.quote(fieldName) + ".*?\\}.*?</p>\\s*";
-        content = Pattern.compile(regexP, Pattern.DOTALL).matcher(content).replaceAll("");
+        // --- 3. Remove stray self-closing tags (edge cases) ---
+        String regexSelfClosing =
+                "<[a-zA-Z0-9]+[^>]*\\$\\{model\\." + Pattern.quote(fieldName) + ".*?\\}[^>]*/>\\s*";
+        content = Pattern.compile(regexSelfClosing, Pattern.DOTALL).matcher(content).replaceAll("");
+
+        // --- 4. Clean up empty sly blocks (after child removal) ---
+        content = content.replaceAll("<sly[^>]*>\\s*</sly>", "");
 
         return content;
     }
-    private String buildFieldHTL(ComponentField field, String context) {
+
+    private String buildFieldHTL(ComponentField field, String context,Set<String> existingFields) {
+
         String name = field.getFieldName();
         String label = field.getFieldLabel();
-
+        if (existingFields.contains(name)) {
+            log.info("[buildFieldHTL] Field '{}' already exists in HTL, skipping addition.", name);
+            return ""; // skip adding
+        }
+        log.info("[buildFieldHTL] added field in the htl: {}",name);
         switch (field.getFieldType().toLowerCase()) {
             case "fileupload":
+                log.info("[buildFieldHTL] add in the htl {}","<p>" + label + ": <img src=\"${" + context + "." + name +
+                        "}\" alt=\"Image\" style=\"max-width:100%; height:auto;\"/></p>\n");
                 return "<p>" + label + ": <img src=\"${" + context + "." + name +
                         "}\" alt=\"Image\" style=\"max-width:100%; height:auto;\"/></p>\n";
 
             case "pathfield":
+                log.info("[buildFieldHTL] add in the htl {}","<sly data-sly-test=\"${" + context + "." + name + "}\">\n" +
+                        "  <p>" + label + ": <a href=\"${" + context + "." + name + "}\">" + label + "</a></p>\n" +
+                        "</sly>\n");
                 return "<sly data-sly-test=\"${" + context + "." + name + "}\">\n" +
                         "  <p>" + label + ": <a href=\"${" + context + "." + name + "}\">" + label + "</a></p>\n" +
                         "</sly>\n";
 
             case "checkbox":
             case "switch":
+                log.info("[buildFieldHTL] add in the htl {}","<sly data-sly-test=\"${" + context + "." + name + "}\">\n" +
+                        "  <p>" + label + ": <input type=\"checkbox\" disabled checked=\"checked\"/></p>\n" +
+                        "</sly>\n");
                 return "<sly data-sly-test=\"${" + context + "." + name + "}\">\n" +
                         "  <p>" + label + ": <input type=\"checkbox\" disabled checked=\"checked\"/></p>\n" +
                         "</sly>\n";
 
             case "radiogroup":
             case "select":
+                log.info("[buildFieldHTL] add in the htl {}","<sly data-sly-test=\"${" + context + "." + name + "}\">\n" +
+                        "  <p>" + label + ": ${" + context + "." + name + "}</p>\n" +
+                        "</sly>\n");
                 return "<sly data-sly-test=\"${" + context + "." + name + "}\">\n" +
                         "  <p>" + label + ": ${" + context + "." + name + "}</p>\n" +
                         "</sly>\n";
 
             case "multiselect":
             case "tagfield":
+                log.info("[buildFieldHTL] add in the htl {}","<sly data-sly-test=\"${" + context + "." + name + " && " + context + "." + name + ".size > 0}\">\n" +
+                        "  <ul data-sly-list.item=\"${" + context + "." + name + "}\">\n" +
+                        "    <li>${item}</li>\n" +
+                        "  </ul>\n" +
+                        "</sly>\n");
+
                 return "<sly data-sly-test=\"${" + context + "." + name + " && " + context + "." + name + ".size > 0}\">\n" +
                         "  <ul data-sly-list.item=\"${" + context + "." + name + "}\">\n" +
                         "    <li>${item}</li>\n" +
@@ -149,112 +199,160 @@ public class UpdateHTLImpl implements UpdateHTL {
                         "</sly>\n";
 
             default:
+                log.info("[buildFieldHTL] add in the htl {}","<p>" + label + ": ${" + context + "." + name + " @ context=\"html\"}</p>\n");
                 return "<p>" + label + ": ${" + context + "." + name + " @ context=\"html\"}</p>\n";
         }
     }
 
     // For top-level fields (normal ones)
-    private String buildNormalFieldHTL(ComponentField field) {
-        return buildFieldHTL(field, "model");
+    private String buildNormalFieldHTL(ComponentField field,Set<String> existingFields) {
+        return buildFieldHTL(field,"model",existingFields );
     }
 
     // For nested fields (inside multifield)
-    private String buildNestedFieldHTL(ComponentField nested) {
-        return buildFieldHTL(nested, "item");
+    private String buildNestedFieldHTL(ComponentField nested,Set<String> existingFields) {
+        log.info("[buildNestedFieldHTL] nested fileds to add : {}",nested);
+        return buildFieldHTL(nested, "item",existingFields );
     }
 
 
     /**
      * Updates multifield in-place. Only adds missing nested fields, removes obsolete nested fields.
      */
-    private String updateMultifieldInPlace(String content, ComponentField multifield) {
+    private String updateMultifieldInPlace(String content, ComponentField multifield, Set<String> existingFields) {
         String fieldName = multifield.getFieldName();
 
-        // Regex to find multifield <ul> block
-        String regexMultifield = "<sly\\s+[^>]*data-sly-test\\s*=\\s*\"\\$\\{model\\." + Pattern.quote(fieldName) +
-                "(?:.*?)\\}\".*?>.*?<ul[^>]*>.*?</ul>.*?</sly>";
-        Pattern pattern = Pattern.compile(regexMultifield, Pattern.DOTALL);
+        // Pattern to find the multifield <ul> block (with or without sly)
+        String regexUl =
+                "(<sly[^>]*>\\s*)?<ul[^>]*data-sly-list\\.item=\"\\$\\{model\\."
+                        + Pattern.quote(fieldName) + "\\}\"[^>]*>.*?</ul>";
+        Pattern pattern = Pattern.compile(regexUl, Pattern.DOTALL);
         Matcher matcher = pattern.matcher(content);
 
         if (matcher.find()) {
-            String block = matcher.group(0);
-            String updatedBlock = mergeNestedFields(block, multifield);
+            String oldBlock = matcher.group(0);
+            // Wrap in sly if not present
+            boolean hasSly = oldBlock.trim().startsWith("<sly");
+            String workingBlock = hasSly ? oldBlock : "<sly>" + oldBlock+"</sly>";
+            System.out.println("old block ........................"+oldBlock);
+            // Merge nested fields
+            String updatedBlock = mergeNestedFields(workingBlock, multifield, existingFields);
+           log.info("[updateMultifieldInPlace] updatedBlock : {}",updatedBlock);
+            // If original had no sly, unwrap
+            if (!hasSly) {
+                System.out.println("*************************************");
+                updatedBlock = updatedBlock.replaceAll("^<sly>", "").replaceAll("</sly>$", "");
+            }
+            System.out.println("updated block &&&&&&&&&&&&&&&&&&&&&&&&& "+updatedBlock);
             content = matcher.replaceFirst(Matcher.quoteReplacement(updatedBlock));
-            log.info("Updated multifield block in-place: {}", fieldName);
+            log.info("[updateMultifieldInPlace] Updated multifield block in-place: {}", fieldName);
         } else {
-            // Multifield doesn't exist yet: append
-            String newBlock = buildFullMultifieldHTL(multifield);
+            // Multifield doesn't exist: insert new block
+            String newBlock = buildFullMultifieldHTL(multifield, existingFields);
             int insertIndex = content.lastIndexOf("</sly>");
             if (insertIndex == -1) insertIndex = content.length();
             content = content.substring(0, insertIndex) + "\n" + newBlock + content.substring(insertIndex);
-            log.info("Inserted new multifield block: {}", fieldName);
+            log.info("[updateMultifieldInPlace] Inserted new multifield block: {}", fieldName);
         }
 
         return content;
     }
 
+
     /**
      * Merge nested fields: remove deleted fields, append new fields
      */
-    private String mergeNestedFields(String block, ComponentField multifield) {
-        // Extract <ul> content
+    private String mergeNestedFields(String block, ComponentField multifield, Set<String> existingFields) {
+        log.info("[mergeNestedFields] Merging nested fields for '{}'", multifield.getFieldName());
+
         Pattern ulPattern = Pattern.compile("(<ul[^>]*>)(.*?)(</ul>)", Pattern.DOTALL);
         Matcher ulMatcher = ulPattern.matcher(block);
-
-        if (!ulMatcher.find()) {
-            return block; // fallback: no <ul> found
-        }
+        if (!ulMatcher.find()) return block;
 
         String ulStart = ulMatcher.group(1);
         String ulContent = ulMatcher.group(2);
         String ulEnd = ulMatcher.group(3);
 
-        // Map existing nested fields -> their raw block
+        // Map old blocks by field name
         Map<String, String> existingBlocks = new LinkedHashMap<>();
-        Pattern fieldPattern = Pattern.compile("(<p>.*?\\$\\{item\\.([a-zA-Z0-9_]+).*?</p>|<sly.*?\\$\\{item\\.([a-zA-Z0-9_]+).*?</sly>)", Pattern.DOTALL);
-        Matcher fieldMatcher = fieldPattern.matcher(ulContent);
-
-        while (fieldMatcher.find()) {
-            String raw = fieldMatcher.group(1);
-            String name = fieldMatcher.group(2) != null ? fieldMatcher.group(2) : fieldMatcher.group(3);
-            if (name != null) {
-                existingBlocks.put(name, raw);
+        Pattern childPattern = Pattern.compile("(<sly[^>]*>.*?</sly>|<p>.*?</p>)", Pattern.DOTALL);
+        Matcher childMatcher = childPattern.matcher(ulContent);
+        while (childMatcher.find()) {
+            String raw = childMatcher.group(1);
+            Matcher nameMatcher = Pattern.compile("\\$\\{item\\.([a-zA-Z0-9_]+)").matcher(raw);
+            if (nameMatcher.find()) {
+                existingBlocks.put(nameMatcher.group(1), raw);
             }
         }
+
+        // Build only requested nested fields
+        Set<String> requested = multifield.getNestedFields().stream()
+                .map(ComponentField::getFieldName)
+                .collect(Collectors.toSet());
 
         StringBuilder newUlContent = new StringBuilder();
-
-        // Rebuild in dialog order (request order)
         for (ComponentField nested : multifield.getNestedFields()) {
             String name = nested.getFieldName();
-            String requestedType = nested.getFieldType().toLowerCase();
-
             if (existingBlocks.containsKey(name)) {
-                String existingBlock = existingBlocks.get(name);
-
-                // Infer existing type
-                String existingType = inferType(existingBlock);
-
-                if (existingType.equalsIgnoreCase(requestedType)) {
-                    // Keep as-is
-                    newUlContent.append(existingBlock).append("\n");
-                } else {
-                    // Replace in-place
-                    newUlContent.append(buildNestedFieldHTL(nested));
-                    log.info("Replaced nested field '{}' in multifield '{}' due to type change", name, multifield.getFieldName());
-                }
+                newUlContent.append(existingBlocks.get(name)).append("\n");
             } else {
-                // New field → add
-                newUlContent.append(buildNestedFieldHTL(nested));
-                log.info("Added new nested field '{}' in multifield '{}'", name, multifield.getFieldName());
+                newUlContent.append(buildNestedFieldHTL(nested, existingFields));
             }
         }
 
-        // Fields missing in request → automatically dropped
-
-        // Rebuild final block
+        // Return cleaned UL without obsolete nested blocks
         return ulStart + "\n" + newUlContent + ulEnd;
     }
+
+//    private String mergeNestedFields(String block, ComponentField multifield, Set<String> existingFields) {
+//        log.info("[mergeNestedFields] Merging nested fields for '{}'", multifield.getFieldName());
+//
+//        // Extract the <ul> content
+//        Pattern ulPattern = Pattern.compile("(<ul[^>]*>)(.*?)(</ul>)", Pattern.DOTALL);
+//        Matcher ulMatcher = ulPattern.matcher(block);
+//        if (!ulMatcher.find()) return block;
+//
+//        String ulStart = ulMatcher.group(1);
+//        String ulContent = ulMatcher.group(2);
+//        String ulEnd = ulMatcher.group(3);
+//
+//        Map<String, String> existingBlocks = new LinkedHashMap<>();
+//
+//        // Split content by direct child blocks (<p> or <sly>)
+//        Pattern childPattern = Pattern.compile("(<sly[^>]*>.*?</sly>|<p>.*?</p>)", Pattern.DOTALL);
+//        Matcher childMatcher = childPattern.matcher(ulContent);
+//        while (childMatcher.find()) {
+//            String raw = childMatcher.group(1);
+//            // detect field name
+//            Matcher nameMatcher = Pattern.compile("\\$\\{item\\.([a-zA-Z0-9_]+)").matcher(raw);
+//            if (nameMatcher.find()) {
+//                String name = nameMatcher.group(1);
+//                existingBlocks.put(name, raw);
+//            }
+//        }
+//
+//        StringBuilder newUlContent = new StringBuilder();
+//
+//        for (ComponentField nested : multifield.getNestedFields()) {
+//            String name = nested.getFieldName();
+//            if (existingBlocks.containsKey(name)) {
+//                String existingBlock = existingBlocks.get(name);
+//                if ("multifield".equalsIgnoreCase(nested.getFieldType())) {
+//                    // recursive merge for nested multifield
+//                    newUlContent.append(mergeNestedFields(existingBlock, nested, existingFields)).append("\n");
+//                } else {
+//                    newUlContent.append(existingBlock).append("\n");
+//                }
+//            } else {
+//                // new nested field → add
+//                newUlContent.append(buildNestedFieldHTL(nested, existingFields));
+//            }
+//        }
+//
+//        return ulStart + "\n" + newUlContent + ulEnd;
+//    }
+
+
 
     private String inferType(String block) {
         block = block.toLowerCase();
@@ -314,19 +412,22 @@ public class UpdateHTLImpl implements UpdateHTL {
         // Remove paragraphs
         String regexP = "<p>.*?\\$\\{(?:item(?:_[a-zA-Z0-9_]+)?\\.)" + Pattern.quote(nestedName) + ".*?\\}.*?</p>\\s*";
         block = Pattern.compile(regexP, Pattern.DOTALL).matcher(block).replaceAll("");
-
+        log.info("[removeNestedField removed block: {}",block);
         return block;
     }
 
 
-    private String buildFullMultifieldHTL(ComponentField multifield) {
+    private String buildFullMultifieldHTL(ComponentField multifield,Set<String> existingFields) {
         String fieldName = multifield.getFieldName();
+        log.info("[buildFullMultifieldHTL] multifield name : {}",fieldName);
         StringBuilder sb = new StringBuilder();
         sb.append("<sly data-sly-test=\"${model.").append(fieldName).append(" && model.").append(fieldName).
                 append(".size > 0}\">\n")
                 .append("  <ul data-sly-list.item=\"${model.").append(fieldName).append("}\">\n");
         for (ComponentField nested : multifield.getNestedFields()) {
-            sb.append(buildNestedFieldHTL(nested));
+            log.info("[buildFullMultifieldHTL] nested multifield name : {}",nested);
+
+            sb.append(buildNestedFieldHTL(nested,existingFields));
         }
         sb.append("  </ul>\n</sly>\n");
         return sb.toString();

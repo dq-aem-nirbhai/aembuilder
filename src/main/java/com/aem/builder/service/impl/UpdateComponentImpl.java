@@ -120,7 +120,7 @@ public class UpdateComponentImpl implements UpdateComponent {
             parent.appendChild(el);
             return;
         }
-       else if("checkbox".equalsIgnoreCase(field.getFieldType())){
+        else if("checkbox".equalsIgnoreCase(field.getFieldType())){
             Element el = doc.createElement(field.getFieldName());
             el.setAttribute("jcr:primaryType", "nt:unstructured");
             el.setAttribute("sling:resourceType", getResourceType(field.getFieldType()));
@@ -131,7 +131,7 @@ public class UpdateComponentImpl implements UpdateComponent {
             el.setAttribute("uncheckedValue","false");
             parent.appendChild(el);
         }
-       else if("fileupload".equalsIgnoreCase(field.getFieldType())){
+        else if("fileupload".equalsIgnoreCase(field.getFieldType())){
             Element el = doc.createElement(field.getFieldName());
             el.setAttribute("sling:resourceType",getResourceType(field.getFieldType()));
             el.setAttribute("jcr:primaryType", "nt:unstructured");
@@ -506,7 +506,7 @@ public class UpdateComponentImpl implements UpdateComponent {
     }
 
 
-      @Override
+    @Override
     public  void updateComponentGroup(File xmlFile, String newGroup) {
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
