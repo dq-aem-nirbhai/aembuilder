@@ -324,7 +324,7 @@ public class ComponentController {
                 projectName + "/components/" + componentRequest.getComponentName() +
                 "/" + componentRequest.getComponentName() + ".html";
         log.info("htl path to update {}", htlFile);
-        updatehtl.updateHTLFromRequest(componentRequest, htlFile);
+        updatehtl.updateHTLFromRequest(componentRequest, htlFile,projectName,oldRequest);
 
         redirectAttributes.addFlashAttribute("message", "Dialog updated successfully!");
         return "redirect:/view/" + projectName;
