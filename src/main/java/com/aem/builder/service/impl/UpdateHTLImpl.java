@@ -17,14 +17,32 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class UpdateHTLImpl implements UpdateHTL {
+    public Map<String, String> fieldsWithChangedTypes(ComponentRequest newRequest, Map<String, String> existingFieldsWithType) {
+        Map<String, String> typeChangedFields = new LinkedHashMap<>();
+
+        for (ComponentField field : newRequest.getFields()) {
+            String fieldName = field.getFieldName();
+            String newType = field.getFieldType();
+
+            String existingType = existingFieldsWithType.get(fieldName);
+            // If field exists and type is different, add to map
+            if (existingType != null && !existingType.equalsIgnoreCase(newType)) {
+                typeChangedFields.put(fieldName, newType);
+            }
+        }
+
+        return typeChangedFields;
+    }
+
 
     @Override
-    public void updateHTLFromRequest(ComponentRequest request, String filePath) throws IOException {
+    public void updateHTLFromRequest(ComponentRequest request, String filePath,String projectName,ComponentRequest oldRequest) throws IOException {
         Path path = Path.of(filePath);
         String content = Files.readString(path);
 
         log.info("[DEBUG] HTL content loaded:\n{}", content);
         List<String>fieldsfromrequest=new ArrayList<>();
+
         for(ComponentField field : request.getFields()){
             fieldsfromrequest.add(field.getFieldName());
         }
@@ -33,7 +51,7 @@ public class UpdateHTLImpl implements UpdateHTL {
         // --- Step 1: Extract existing top-level fields ---
         Set<String> existingFields = extractTopLevelFields(content);
         log.info("[updateHTLFromRequest] existingFields : {} ",existingFields);
-// Find fields to remove (existing in HTL but not in request)
+        // Find fields to remove (existing in HTL but not in request)
         Set<String> obsoleteFields = new HashSet<>(existingFields);
         obsoleteFields.removeAll(requestFieldSet);
         log.info("[updateHTLFromRequest] fields to remove from htl: {}",obsoleteFields);
@@ -43,6 +61,12 @@ public class UpdateHTLImpl implements UpdateHTL {
             log.info("removed........");
         }
 
+
+        Map<String,String>existingFieldTypes=new LinkedHashMap<>();
+        for(ComponentField field:oldRequest.getFields()){
+            existingFieldTypes.put(field.getFieldName(),field.getFieldType());
+        }
+        log.info("[updateHTLFromRequest] existingFieldTypes : {}",existingFieldTypes);
         // --- Step 2: Determine fields to remove ---
         List<String> requestFieldNames = request.getFields().stream()
                 .map(ComponentField::getFieldName)
@@ -54,13 +78,14 @@ public class UpdateHTLImpl implements UpdateHTL {
        log.info("[updateHTLFromRequest]  fields to remove : {}",requestFieldNames);
 
         // --- Step 2.1: Handle type changes ---
-        Map<String, String> existingFieldTypes = extractFieldsWithTypes(content);
+        //Map<String, String> fieldsWithTypeChanges = fieldsWithChangedTypes(request, existingFieldTypes);
 
         Set<String> fieldsWithTypeChanges = new HashSet<>();
         for (ComponentField field : request.getFields()) {
             String existingType = existingFieldTypes.get(field.getFieldName());
             if (existingType != null && !existingType.equalsIgnoreCase(field.getFieldType())) {
                 fieldsWithTypeChanges.add(field.getFieldName());
+                log.info("[updateHTLFromRequest] field type changed : {}",field.getFieldName()+"    field type  "+field.getFieldType());
             }
         }
 
@@ -70,22 +95,32 @@ public class UpdateHTLImpl implements UpdateHTL {
 
 
         // --- Step 4: Update or insert normal fields ---
+        // --- Step 4: Update or insert normal fields ---
         existingFields = fieldsToRemove; // refresh after removal
         StringBuilder normalFieldsToInsert = new StringBuilder();
-        log.info("[updateHTLFromRequest] existing fields : {}",existingFields );
+        log.info("[updateHTLFromRequest] existing fields : {}", existingFields);
         Set<ComponentField> multifields = new LinkedHashSet<>();
 
         for (ComponentField field : request.getFields()) {
+            boolean typeChanged = fieldsWithTypeChanges.contains(field.getFieldName());
+
+            if (typeChanged) {
+                // Remove old block
+                content = removeFieldBlocks(content, field.getFieldName());
+                // Remove from existingFields so it gets re-added
+                existingFields.remove(field.getFieldName());
+                log.info("[updateHTLFromRequest] removed old block due to type change: {}", field.getFieldName());
+            }
+
             if ("multifield".equalsIgnoreCase(field.getFieldType())) {
                 multifields.add(field); // handle separately
-                log.info("[updateHTLFromRequest] multifields added newly : {}",field);
-            } else {
-                if (!existingFields.contains(field.getFieldName()) || fieldsToRemove.contains(field.getFieldName())) {
-                    normalFieldsToInsert.append(buildNormalFieldHTL(field,existingFields));
-                    log.info("[updateHTLFromRequest] normal field added at top level : {}",field);
-                }
+            } else if (!existingFields.contains(field.getFieldName())) {
+                // Rebuild the field with new type
+                normalFieldsToInsert.append(buildNormalFieldHTL(field, existingFields));
+                log.info("[updateHTLFromRequest] normal field added/updated at top level: {}", field);
             }
         }
+
 
         // --- Step 5: Insert normal fields before closing </sly> ---
         if (normalFieldsToInsert.length() > 0) {
