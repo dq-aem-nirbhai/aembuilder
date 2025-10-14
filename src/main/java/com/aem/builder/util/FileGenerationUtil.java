@@ -107,6 +107,7 @@ public class FileGenerationUtil {
 
 
 
+
     /**
      * Generates component folders, content.xml, HTL, dialog, and Sling model.
      */
