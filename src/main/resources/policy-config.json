@@ -1,0 +1,29 @@
+{
+  "jcr": {
+    "rootNode": "jcr:root",
+    "xmlns": {
+      "jcr": "http://www.jcp.org/jcr/1.0",
+      "cq": "http://www.day.com/jcr/cq/1.0",
+      "sling": "http://sling.apache.org/jcr/sling/1.0",
+      "nt": "http://www.jcp.org/jcr/nt/1.0"
+    },
+    "primaryType": "nt:unstructured",
+    "contentNode": "jcr:content"
+  },
+  "resourceTypes": {
+    "policy": "wcm/core/components/policy/policy"
+  },
+  "attributes": {
+    "title": "jcr:title",
+    "description": "jcr:description",
+    "styleDefaultClasses": "cq:styleDefaultClasses",
+    "styleGroups": "cq:styleGroups",
+    "styleLabel": "cq:styleLabel",
+    "styleClasses": "cq:styleClasses",
+    "styleId": "cq:styleId",
+    "styleGroupLabel": "cq:styleGroupLabel",
+    "styleGroupMultiple": "cq:styleGroupMultiple",
+    "lastModified": "jcr:lastModified",
+    "lastModifiedBy": "jcr:lastModifiedBy"
+  }
+}
