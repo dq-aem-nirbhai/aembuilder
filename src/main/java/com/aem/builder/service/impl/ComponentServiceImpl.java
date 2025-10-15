@@ -197,7 +197,7 @@ public class ComponentServiceImpl implements ComponentService {
         String compPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/" + projectName
                 + "/components/" + request.getComponentName();
         try {
-            FileUtils.deleteDirectory(new File(compPath));
+            FileUtils.deleteDirectory(new File(compPath));            
         } catch (IOException e) {
             log.warn("Could not clean component folder before update", e);
         }
