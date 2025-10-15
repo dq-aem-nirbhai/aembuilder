@@ -1,0 +1,80 @@
+{
+  "fields": [
+    {
+      "type": "textfield",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    fieldLabel=\"${label}\"\n    name=\"./${name}\"/>"
+    },
+    {
+      "type": "textarea",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    fieldLabel=\"${label}\"\n    name=\"./${name}\"\n    rows=\"5\"/>"
+    },
+    {
+      "type": "numberfield",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    fieldLabel=\"${label}\"\n    name=\"./${name}\"\n    min=\"0\" max=\"1000\"/>"
+    },
+    {
+      "type": "hidden",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    fieldLabel=\"${label}\"\n    name=\"./${name}\"/>"
+    },
+    {
+      "type": "password",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    fieldLabel=\"${label}\"\n    name=\"./${name}\"/>"
+    },
+    {
+      "type": "pathfield",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    fieldLabel=\"${label}\"\n    name=\"./${name}\"/>"
+    },
+    {
+      "type": "datepicker",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    fieldLabel=\"${label}\"\n    name=\"./${name}\"/>"
+    },
+    {
+      "type": "tagfield",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    fieldLabel=\"${label}\"\n    name=\"./${name}\"\n    autocompleter=\"true\"\n    multiple=\"true\"\n    rootPath=\"/content/cq:tags\"/>"
+    },
+    {
+      "type": "richtext",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    fieldLabel=\"${label}\"\n    name=\"./${name}\"\n    useFixedInlineToolbar=\"true\"\n    enableSourceEdit=\"true\"/>"
+    },
+    {
+      "type": "switch",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    fieldLabel=\"${label}\"\n    name=\"./${name}\"/>"
+    },
+    {
+      "type": "colorfield",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    fieldLabel=\"${label}\"\n    name=\"./${name}\"\n    emptyText=\"Choose a color\"\n    value=\"#ffffff\"\n    required=\"{Boolean}false\"/>"
+    },
+    {
+      "type": "checkbox",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    fieldLabel=\"${label}\"\n    name=\"./${name}\"\n    text=\"${label}\"\n    value=\"true\"\n    uncheckedValue=\"false\"/>"
+    },
+    {
+      "type": "radiogroup",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    fieldLabel=\"${label}\"\n    name=\"./${name}\">\n    <items jcr:primaryType=\"nt:unstructured\">\n${options}    </items>\n</${nodeName}>"
+    },
+    {
+      "type": "select",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    fieldLabel=\"${label}\"\n    name=\"./${name}\"\n    emptyText=\"Select...\">\n    <items jcr:primaryType=\"nt:unstructured\">\n${options}    </items>\n</${nodeName}>"
+    },
+    {
+      "type": "multiselect",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    fieldLabel=\"${label}\"\n    name=\"./${name}\"\n    multiple=\"true\"\n    emptyText=\"Select...\">\n    <items jcr:primaryType=\"nt:unstructured\">\n${options}    </items>\n</${nodeName}>"
+    },
+    {
+      "type": "image",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    autoStart=\"{Boolean}false\"\n    class=\"cq-droptarget\"\n    fieldLabel=\"${label}\"\n    fileNameParameter=\"./${name}FileName\"\n    fileReferenceParameter=\"./${name}\"\n    mimeTypes=\"[image/gif,image/jpeg,image/png,image/tiff,image/svg+xml]\"\n    multiple=\"{Boolean}false\"\n    name=\"./file\"\n    uploadUrl=\"/content/dam\"/>"
+    },
+    {
+      "type": "fileupload",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    autoStart=\"{Boolean}false\"\n    class=\"cq-droptarget\"\n    fieldLabel=\"${label}\"\n    fileNameParameter=\"./${name}FileName\"\n    fileReferenceParameter=\"./${name}\"\n    mimeTypes=\"[image/gif,image/jpeg,image/png,image/tiff,image/svg+xml]\"\n    multiple=\"{Boolean}false\"\n    name=\"./file\"\n    uploadUrl=\"/content/dam\"/>"
+    },
+    {
+      "type": "multifield",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\"\n    fieldLabel=\"${label}\"\n    composite=\"true\">\n    <field\n      jcr:primaryType=\"nt:unstructured\"\n      sling:resourceType=\"granite/ui/components/coral/foundation/form/fieldset\"\n      name=\"./${name}\">\n        <layout\n            jcr:primaryType=\"nt:unstructured\"\n            sling:resourceType=\"granite/ui/components/coral/foundation/layouts/fixedcolumns\"\n            margin=\"true\"/>\n        <items jcr:primaryType=\"nt:unstructured\">\n${nestedFields}        </items>\n    </field>\n</${nodeName}>"
+    },
+    {
+      "type": "tabs",
+      "xml": "<${nodeName}\n    jcr:primaryType=\"nt:unstructured\"\n    sling:resourceType=\"${resourceType}\">\n${nestedFields}</${nodeName}>"
+    }
+  ]
+}

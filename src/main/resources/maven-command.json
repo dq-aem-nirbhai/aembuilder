@@ -1,0 +1,3 @@
+{
+  "commandTemplate": "mvn -B {PLUGIN_GROUP}:{PLUGIN_ARTIFACT}:{PLUGIN_VERSION}:generate -DarchetypeGroupId={ARCHETYPE_GROUP} -DarchetypeArtifactId={ARCHETYPE_ARTIFACT} -DarchetypeVersion={ARCHETYPE_VERSION} -DappTitle=\"{APP_TITLE}\" -DappId=\"{APP_ID}\" -DgroupId=\"{GROUP_ID}\" -DaemVersion=\"{AEM_VERSION}\" -Darchetype.interactive=false -DincludeDispatcherConfig=y -DincludeDispatcherCloud=n -DincludeDispatcherAMS=n -DincludeFrontendModuleGeneral=n -DincludeFrontendModuleReact=n -DincludeFrontendModuleAngular=n -DincludeFrontendModuleReactFormsAF=n -DincludeCommerce=n -DincludeCommerceFrontend=n -Dlanguage=en -Dcountry=us -DsingleCountry=n"
+}
