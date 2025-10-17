@@ -17,26 +17,23 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
-
-import static com.aem.builder.constants.UrlMappings.*;
-import static com.aem.builder.constants.ViewNames.*;
-
 @Slf4j
 @Controller
-@RequiredArgsConstructor
 public class PolicyController {
     private final PolicyService policyService;
     private final TemplatePolicy policyXmlUpdater;
 
-    /**
-     * Handles requests to add or update a policy for a template.
-     * If the policy exists, it will be updated; otherwise, a new one will be created.
-     */
-    @PostMapping(ADD_OR_UPDATE_POLICY)
+    public PolicyController(PolicyService policyService, TemplatePolicy policyXmlUpdater) {
+        this.policyService = policyService;
+        this.policyXmlUpdater = policyXmlUpdater;
+    }
+
+    @PostMapping("/policies/add/{projectName}")
     public ResponseEntity<String> addOrUpdatePolicy(@PathVariable String projectName,
                                                     @RequestParam String templateName,
                                                     @RequestBody PolicyRequest request) {
         try {
+            System.out.println(request);
             // This should create OR update the policy:
             policyXmlUpdater.saveOrUpdatePolicy(projectName, templateName, request);
             return ResponseEntity.ok("Policy saved");
@@ -46,11 +43,7 @@ public class PolicyController {
         }
     }
 
-    /**
-     * Redirects to the policy form page.
-     * This page allows users to create or edit a policy for a given template.
-     */
-    @GetMapping(REDIRECT_POLICY_FORM)
+    @GetMapping("/{projectName}/addpolicy")
     public String redirectToPolicyForm(@PathVariable("projectName") String projectName,
                                        @RequestParam String templateName,
                                        Model model) {
@@ -59,13 +52,16 @@ public class PolicyController {
         model.addAttribute("templateName", templateName);
         model.addAttribute("policyRequest", new PolicyRequest());
         // Show the same policy form you already have
-        return POLICES; // Thymeleaf page for creating policy
+        return "policies"; // Thymeleaf page for creating policy
     }
 
-    /**
-     * Retrieves the list of existing policy names for a project.
-     */
-    @GetMapping(GET_EXISTING_POLICIES)
+    public String addPolicyToParticularTemplate() {
+        return "";
+    }
+
+
+
+    @GetMapping("/get-existing-policies")
     public ResponseEntity<List<String>> getExistingPolicies(@RequestParam String projectName) {
         try {
             List<String> policies = policyXmlUpdater.getExistingPolicies(projectName);
@@ -76,10 +72,7 @@ public class PolicyController {
         }
     }
 
-    /**
-     * Retrieves the details of a specific policy by its title.
-     */
-    @GetMapping(GET_POLICY_DETAILS)
+    @GetMapping("/get-policy-details")
     public ResponseEntity<PolicyRequest> getPolicyDetails(@RequestParam String projectName,
                                                           @RequestParam String policyTitle) {
         try {
@@ -94,23 +87,22 @@ public class PolicyController {
     }
 
 
-    /**
-     * Loads the policy details for a specific component.
-     * Used by frontend applications to dynamically fetch policy data.
-     */
-    @GetMapping(LOAD_COMPONENT_POLICY)
+    @GetMapping("/api/{project}/component/policy")
     @ResponseBody
     public PolicyModel loadPolicy(@PathVariable String project,
                                   @RequestParam String resource,
                                   @RequestParam String policyId) {
 
+        log.info("......{}", policyService.loadPolicy(project, resource, policyId));
         return policyService.loadPolicy(project, resource, policyId);
     }
+
+
 
     /**
      * Shows allowed components for a template.
      */
-    @GetMapping(SHOW_TEMPLATE_COMPONENTS )
+    @GetMapping("/{project}/templates/{template}/components")
     public String showComponents(@PathVariable String project,
                                  @PathVariable String template,
                                  Model model) {
@@ -120,13 +112,13 @@ public class PolicyController {
         model.addAttribute("templateName", template);
         model.addAttribute("components", components);
         model.addAttribute("components", componentInfos); // updated
-        return TEMPLATE_COMPONENTS;
+        return "template-components";
     }
 
     /**
      * Shows policy editor for component.
      */
-    @GetMapping(SHOW_POLICY_EDITOR)
+    @GetMapping("/{project}/templates/{template}/component")
     public String showPolicyEditor(@PathVariable String project,
                                    @PathVariable String template,
                                    @RequestParam("resource") String component,
@@ -136,19 +128,16 @@ public class PolicyController {
         model.addAttribute("templateName", template);
         model.addAttribute("component", component);
         model.addAttribute("policies", policies);
-        return POLICY_EDITOR;
+        return "policy-editor";
     }
 
-    /**
-     * Saves the policy settings for a component.
-     * This is typically called via API from the frontend.
-     */
-    @PostMapping(SAVE_COMPONENT_POLICY)
+    @PostMapping("/api/{project}/templates/{template}/component/policy")
     @ResponseBody
     public ResponseEntity<String> savePolicy(@PathVariable String project,
                                              @PathVariable String template,
                                              @RequestParam String resource,
                                              @RequestBody PolicyModel policy) {
+
         String id = policyService.savePolicy(project, template, resource, policy);
         return ResponseEntity.ok(id);
     }

@@ -10,11 +10,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import static com.aem.builder.constants.ModelAttributeKeys.*;
-import static com.aem.builder.constants.UrlMappings.*; // URL constants
-import static com.aem.builder.constants.AemProjectConstants.PROJECTS_DIR;
 
 @Controller
 @RequiredArgsConstructor
@@ -23,121 +21,95 @@ public class GitBranchController {
 
     private final GitBranchService gitBranchService;
 
-    // ------------------- SWITCH BRANCH -------------------
-    // Switch the project repository to the specified branch. Handles conflicts if any.
-    @PostMapping(SWITCH_BRANCH_URL)
-    public String switchBranch(@PathVariable String projectName,
-                               @RequestParam String branchName,
-                               RedirectAttributes redirectAttributes) {
+    private static final String PROJECTS_DIR = "generated-projects";
 
-        log.info("[switchBranch] Switching project '{}' to branch '{}'", projectName, branchName);
+
+    @PostMapping("/{projectName}/switchBranch")
+    public String switchBranch(
+            @PathVariable String projectName,
+            @RequestParam String branchName,
+            RedirectAttributes redirectAttributes) {
 
         try {
             gitBranchService.switchBranch(Paths.get(PROJECTS_DIR, projectName), branchName);
-            redirectAttributes.addFlashAttribute(MESSAGE, "Switched to branch: " + branchName);
-            log.info("[switchBranch] Successfully switched to '{}'", branchName);
+            redirectAttributes.addFlashAttribute("message", "Switched to branch: " + branchName);
         } catch (CheckoutConflictException e) {
-            redirectAttributes.addFlashAttribute(CONFLICTS, e.getConflictingPaths());
-            redirectAttributes.addFlashAttribute(TARGET_BRANCH, branchName);
-            log.warn("[switchBranch] Conflicts detected while switching to '{}'", branchName);
+            redirectAttributes.addFlashAttribute("conflicts", e.getConflictingPaths());
+            redirectAttributes.addFlashAttribute("targetBranch", branchName);
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute(ERROR, "Error switching branch: " + e.getMessage());
-            log.error("[switchBranch] Error switching branch '{}': {}", branchName, e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "Error switching branch: " + e.getMessage());
         }
 
-        return REDIRECT_VIEW_PROJECT_URL.replace("{projectName}", projectName);
+        return "redirect:/view/" + projectName;
     }
 
-    // ------------------- RESOLVE CONFLICTS -------------------
-    // Resolve conflicts using stash, discard, or merge strategies, then switch to target branch.
-    @PostMapping(RESOLVE_CONFLICTS_URL)
-    public String resolveConflicts(@PathVariable String projectName,
-                                   @RequestParam String action,
-                                   @RequestParam String targetBranch,
-                                   RedirectAttributes redirectAttributes) {
-
-        log.info("[resolveConflicts] Resolving conflicts for project '{}' with action '{}' to branch '{}'",
-                projectName, action, targetBranch);
+    @PostMapping("/{projectName}/resolveConflicts")
+    public String resolveConflicts(
+            @PathVariable String projectName,
+            @RequestParam String action,
+            @RequestParam String targetBranch,
+            RedirectAttributes redirectAttributes) {
 
         try {
             switch (action) {
-                case "stash" -> {
+                case "stash":
                     gitBranchService.stashAndSwitch(Paths.get(PROJECTS_DIR, projectName), targetBranch);
-                    redirectAttributes.addFlashAttribute(MESSAGE, "Stashed changes and switched to " + targetBranch);
-                    log.info("[resolveConflicts] Stashed and switched to '{}'", targetBranch);
-                }
-                case "discard" -> {
+                    redirectAttributes.addFlashAttribute("message", "Stashed changes and switched to " + targetBranch);
+                    break;
+
+                case "discard":
                     gitBranchService.discardAndSwitch(Paths.get(PROJECTS_DIR, projectName), targetBranch);
-                    redirectAttributes.addFlashAttribute(MESSAGE, "Discarded changes and switched to " + targetBranch);
-                    log.info("[resolveConflicts] Discarded and switched to '{}'", targetBranch);
-                }
-                case "merge" -> {
+                    redirectAttributes.addFlashAttribute("message", "Discarded changes and switched to " + targetBranch);
+                    break;
+
+                case "merge":
                     gitBranchService.mergeAndSwitch(Paths.get(PROJECTS_DIR, projectName), targetBranch);
-                    redirectAttributes.addFlashAttribute(MESSAGE, "Merged changes and switched to " + targetBranch);
-                    log.info("[resolveConflicts] Merged and switched to '{}'", targetBranch);
-                }
-                default -> {
-                    redirectAttributes.addFlashAttribute(ERROR, "Unknown action: " + action);
-                    log.warn("[resolveConflicts] Unknown action '{}'", action);
-                }
+                    redirectAttributes.addFlashAttribute("message", "Merged changes and switched to " + targetBranch);
+                    break;
+
+                default:
+                    redirectAttributes.addFlashAttribute("error", "Unknown action: " + action);
             }
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute(ERROR, "Conflict resolution failed: " + e.getMessage());
-            log.error("[resolveConflicts] Conflict resolution failed: {}", e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "Conflict resolution failed: " + e.getMessage());
         }
 
-        return REDIRECT_VIEW_PROJECT_URL.replace("{projectName}", projectName);
+        return "redirect:/view/" + projectName; // back to details page
     }
 
-    // ------------------- UNSTASH -------------------
-    // Apply previously stashed changes to the project repository.
-    @PostMapping(UNSTASH_URL)
+    @PostMapping("/{projectName}/unstash")
     public String unstash(@PathVariable String projectName, RedirectAttributes redirectAttributes) {
-
-        log.info("[unstash] Applying stashed changes for project '{}'", projectName);
-
         try {
             gitBranchService.unstash(Paths.get(PROJECTS_DIR, projectName));
-            redirectAttributes.addFlashAttribute(MESSAGE, "Applied stashed changes.");
-            log.info("[unstash] Successfully applied stashed changes");
+            redirectAttributes.addFlashAttribute("message", "Applied stashed changes.");
         } catch (IllegalStateException e) {
-            redirectAttributes.addFlashAttribute(ERROR, e.getMessage());
-            log.warn("[unstash] Illegal state: {}", e.getMessage());
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute(ERROR, "Failed to unstash: " + e.getMessage());
-            log.error("[unstash] Failed to unstash: {}", e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "Failed to unstash: " + e.getMessage());
         }
-
-        return REDIRECT_VIEW_PROJECT_URL.replace("{projectName}", projectName);
+        return "redirect:/view/" + projectName;
     }
 
-    // ------------------- CREATE BRANCH -------------------
-    // Create a new branch from a specified branch and switch to it.
-    @PostMapping(CREATE_BRANCH_URL)
+    // ----- CREATE BRANCH (choose from which branch to create) -----
+    @PostMapping("/{projectName}/createBranch")
     public String createBranch(@PathVariable String projectName,
                                @RequestParam String newBranch,
                                @RequestParam String fromBranch,
                                RedirectAttributes redirectAttributes) {
-
-        log.info("[createBranch] Creating new branch '{}' from '{}' for project '{}'",
-                newBranch, fromBranch, projectName);
-
+        Path repoPath = Paths.get(PROJECTS_DIR, projectName);
         try {
-            gitBranchService.createAndSwitchBranch(Paths.get(PROJECTS_DIR, projectName), newBranch, fromBranch);
-            redirectAttributes.addFlashAttribute(MESSAGE, "Created and switched to branch: " + newBranch);
-            log.info("[createBranch] Successfully created and switched to '{}'", newBranch);
+            gitBranchService.createAndSwitchBranch(repoPath, newBranch, fromBranch);
+            redirectAttributes.addFlashAttribute("message", "Created and switched to branch: " + newBranch);
         } catch (CheckoutConflictException e) {
             // send conflicts back to UI and indicate this was a create action
-            redirectAttributes.addFlashAttribute(CONFLICTS, e.getConflictingPaths());
-            redirectAttributes.addFlashAttribute(TARGET_BRANCH, newBranch);
-            redirectAttributes.addFlashAttribute(BRANCH_ACTION, "create");
-            redirectAttributes.addFlashAttribute(FROM_BRANCH, fromBranch);
-            log.warn("[createBranch] Conflicts detected while creating branch '{}'", newBranch);
+            redirectAttributes.addFlashAttribute("conflicts", e.getConflictingPaths());
+            redirectAttributes.addFlashAttribute("targetBranch", newBranch);
+            redirectAttributes.addFlashAttribute("branchAction", "create");
+            redirectAttributes.addFlashAttribute("fromBranch", fromBranch);
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute(ERROR, "Failed to create branch: " + e.getMessage());
-            log.error("[createBranch] Failed to create branch '{}': {}", newBranch, e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "Failed to create branch: " + e.getMessage());
         }
-
-        return REDIRECT_VIEW_PROJECT_URL.replace("{projectName}", projectName);
+        return "redirect:/view/" + projectName;
     }
+
 }

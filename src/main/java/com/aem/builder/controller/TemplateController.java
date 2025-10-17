@@ -1,4 +1,5 @@
-package com.aem.builder.controller;
+  package com.aem.builder.controller;
+
 
 import com.aem.builder.model.TemplateModel;
 import com.aem.builder.service.ComponentService;
@@ -14,10 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.aem.builder.constants.UrlMappings.*;
-import static com.aem.builder.constants.UrlMappings.CREATE_TEMPLATE;
-import static com.aem.builder.constants.ViewNames.*;
-
 @Slf4j
 @Controller
 @RequiredArgsConstructor
@@ -25,7 +22,7 @@ import static com.aem.builder.constants.ViewNames.*;
 public class TemplateController {
     private final TemplateService templateService;
     private final ComponentService componentService;
-    @GetMapping(FETCH_TEMPLATES)
+    @GetMapping("/fetch-templates/{projectname}")
     @ResponseBody
     public Map<String, List<String>> getTemplates(@PathVariable String projectname, Model model) throws IOException {
         List<String> resourcetemplates = templateService.getTemplateFileNames();
@@ -38,23 +35,24 @@ public class TemplateController {
         return response;
     }
 
-    @PostMapping(ADD_TEMPLATE)
+    @PostMapping("/add-template/{projectname}")
     public String addTemplateToExistingProject(@PathVariable String projectname, @RequestBody List<String> templatelist) {
 
         log.info(projectname);
         log.info(templatelist.toString());
         try {
             templateService.copySelectedTemplatesToGeneratedProject(projectname, templatelist);
-            return DASHBOARD;
+            return "dashboard";
 
         } catch (IOException e) {
-            return CREATE;
+            return "create";
 
         }
     }
 
+
     // creating template
-    @PostMapping(CREATE_TEMPLATE)
+    @PostMapping("/create-template/{projectname}")
     public ResponseEntity<String> createTemplate(@PathVariable String projectname, @RequestBody TemplateModel model) {
         List<String> projectTemplates = templateService.getTemplateNamesFromDestination(projectname);
 
@@ -74,21 +72,24 @@ public class TemplateController {
         }
     }
 
-    @GetMapping(CREATE_TEMPLATE_GET)
+    @GetMapping("/{projectName}/createtemplate")
     public String showCreateTemplateForm(@PathVariable String projectName, Model model) {
         model.addAttribute("projectName", projectName);
 
-        return CREATE_TEMPLATE_VIEW;
+        return "createtemplate";
     }
 
-    @GetMapping(LIST_TEMPLATES)
+
+
+    @GetMapping("/templates/list/{projectname}")
     public ResponseEntity<List<String>> listTemplates(@PathVariable String projectname) {
         List<String> templates = templateService.getTemplateNamesFromDestination(projectname);
         return ResponseEntity.ok(templates);
     }
-    @GetMapping(TEMPLATE_TYPES)
+    @GetMapping("/template-types/{projectName}")
     public ResponseEntity<List<String>> getTemplateTypes(@PathVariable String projectName) {
         List<String> templateTypes = templateService.getTemplateTypesFromDestination(projectName);
+        System.out.println(templateTypes);
         if (templateTypes.isEmpty()) {
             return ResponseEntity.noContent().build(); // or return empty list with 200
         }
@@ -96,36 +97,40 @@ public class TemplateController {
         return ResponseEntity.ok(templateTypes);
     }
     // updating template
-    @GetMapping(EDIT_TEMPLATE )
+    @GetMapping("/{projectName}/edittemplate")
     public String showEditTemplateForm(@RequestParam String templateName,
                                        @PathVariable String projectName,
                                        Model model) {
         TemplateModel templateModel = templateService.loadTemplateByName(projectName, templateName);
-        log.info("[showEditTemplateForm] "+templateModel.toString());
+
+        System.out.println(templateModel+"*********************");
         if (templateModel == null) {
             model.addAttribute("error", "Template not found or unreadable.");
-            return REDIRECT_VIEW_PREFIX+ projectName ;
+            return "redirect:/view/" + projectName ;
         }
 
         model.addAttribute("template", templateModel);
         model.addAttribute("tempname",templateName);
+        System.out.println(templateModel);
         model.addAttribute("editMode", true);
         model.addAttribute("projectName", projectName);
-        return TEMPLATE_UI;
+        return "template-ui";
     }
 
-    @PostMapping(UPDATE_TEMPLATE )
+
+
+    @PostMapping("/{projectname}/updatetemplate/{templateName}")
     public String updateTemplate(@ModelAttribute("template") TemplateModel template,
                                  @PathVariable String projectname,@PathVariable String templateName,
                                  Model model) {
+        System.out.println(template.toString()+"uuuuuuuuuuuu");
         try {
+           // TemplateModel updatedatetemplate = templateService.updatedTemplateModel(template, projectname);
             templateService.updateTemplate(template,projectname,templateName);
-            log.info(template.toString());
-            log.info("[updateTemplate]"+projectname);
-            return REDIRECT_VIEW_PREFIX+ projectname ;
+            return "redirect:/view/" + projectname ;
         } catch (Exception e) {
             model.addAttribute("error", "Template update failed: " + e.getMessage());
-            return CREATE_TEMPLATE_VIEW;
+            return "createtemplate";
         }
     }
 
