@@ -1,11 +1,14 @@
 package com.aem.builder.model.DTO;
 
+import com.aem.builder.model.Enum.FieldType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+
+import com.aem.builder.model.DTO.OptionItem;
 
 /**
  * Represents a single dialog field definition.

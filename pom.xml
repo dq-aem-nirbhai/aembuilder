@@ -93,11 +93,7 @@
 			<artifactId>org.eclipse.jgit</artifactId>
 			<version>6.9.0.202403050737-r</version>
 		</dependency>
-		<dependency>
-			<groupId>org.json</groupId>
-			<artifactId>json</artifactId>
-			<version>20230227</version>
-		</dependency>
+
 
 	</dependencies>
 
