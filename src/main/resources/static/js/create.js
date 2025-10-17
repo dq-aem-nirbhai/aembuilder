@@ -6,7 +6,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const hiddenInput = document.getElementById("selectedComponentsInput");
   const createBtn = document.querySelector("button[type='submit']");
   const nameStatus = document.getElementById("nameStatus");
-  const helpTourBtn = document.getElementById("helpTourBtn");
 
   let selectedComponents = [];
 
@@ -49,27 +48,47 @@ document.addEventListener("DOMContentLoaded", () => {
   function updateComponentList() {
     selectedList.innerHTML = "";
     if (selectedComponents.length === 0) {
-      const placeholder = document.createElement("li");
-      placeholder.id = "noComponentText";
-      placeholder.textContent = "No component selected";
-      selectedList.appendChild(placeholder);
+      selectedList.innerHTML = `<li id="noComponentText">No component selected</li>`;
     } else {
       selectedComponents.forEach(c => {
         const li = document.createElement("li");
         li.className = "component-item animate__animated animate__fadeIn";
-        li.innerHTML = `
-          ${c} 
-          <button type="button" class="btn btn-sm btn-danger ms-2 remove-btn">×</button>
-        `;
-        li.querySelector(".remove-btn").addEventListener("click", () => {
-          selectedComponents = selectedComponents.filter(item => item !== c);
-          updateComponentList();
-        });
+        li.textContent = c;
         selectedList.appendChild(li);
       });
     }
-    hiddenInput.value = selectedComponents.join(",");
+    hiddenInput.value = JSON.stringify(selectedComponents); // ✅ safer than CSV
   }
+
+  function getProjectName() {
+    return projectInput.value.trim();
+  }
+
+  function updateComponentList() {
+  selectedList.innerHTML = "";
+  if (selectedComponents.length === 0) {
+    const placeholder = document.createElement("li");
+    placeholder.id = "noComponentText";
+    placeholder.textContent = "No component selected";
+    selectedList.appendChild(placeholder);
+  } else {
+    selectedComponents.forEach(c => {
+      const li = document.createElement("li");
+      li.className = "component-item animate__animated animate__fadeIn";
+      li.innerHTML = `
+        ${c} 
+        <button type="button" class="btn btn-sm btn-danger ms-2 remove-btn">×</button>
+      `;
+      li.querySelector(".remove-btn").addEventListener("click", () => {
+        selectedComponents = selectedComponents.filter(item => item !== c);
+        updateComponentList();
+      });
+      selectedList.appendChild(li);
+    });
+  }
+  hiddenInput.value = selectedComponents.join(",");
+}
+
 
   // --- Render component list in modal ---
   function renderList(containerId, dataList, selectedListArray) {
@@ -110,7 +129,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Open component modal ---
   window.openComponentModal = function() {
-    const projectName = projectInput.value.trim();
+    const projectName = getProjectName();
     if (!projectName) {
       alert("⚠️ Please enter a Project Name first.");
       return;
@@ -147,35 +166,4 @@ document.addEventListener("DOMContentLoaded", () => {
     overlay.classList.add("active");
     createBtn.disabled = true;
   });
-
-  // --- ✅ Quick Tour Setup (Intro.js) ---
-  function startTour() {
-    introJs().setOptions({
-      steps: [
-        { intro: "👋 Welcome to the AEM Project Creator!" },
-        { element: document.querySelector("#projectName"), intro: "Start by entering your Project Name here." },
-        { element: document.querySelector("#packageName"), intro: "Your package name is auto-generated here." },
-        { element: document.querySelector("select"), intro: "Pick the AEM version you’re targeting." },
-        { element: document.querySelector(".component-wrapper"), intro: "Add components you want to include in your project." },
-        { element: document.querySelector("button[type='submit']"), intro: "Finally, click Create Project to generate it!" },
-      ],
-      showProgress: true,
-      exitOnOverlayClick: false,
-      showButtons: true,
-      nextLabel: "Next →",
-      prevLabel: "← Back",
-      doneLabel: "Got it!",
-    }).start();
-  }
-
-  // Auto-run once per user
-  if (!localStorage.getItem("aemCreateTourDone")) {
-    setTimeout(() => {
-      startTour();
-      localStorage.setItem("aemCreateTourDone", "true");
-    }, 800);
-  }
-
-  // Manual trigger via Help button
-  helpTourBtn.addEventListener("click", () => startTour());
 });

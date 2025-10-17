@@ -1,6 +1,4 @@
-/* ===========================
-   Background Gradient Animation
-   =========================== */
+/* Background Gradient Animation */
 body {
   background: linear-gradient(120deg, #f8fafc, #eef2ff, #f0fdfa);
   background-size: 400% 400%;
@@ -14,32 +12,12 @@ body {
   100% { background-position: 0% 50%; }
 }
 
-/* ===========================
-   Page Title
-   =========================== */
+/* Page Title */
 .dashboard-header {
   text-align: center;
   padding: 2rem 0 1rem;
 }
-
-.dashboard-header h1 {
-  font-size: 2.8rem;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  background: linear-gradient(90deg, #2563eb, #7c3aed, #ec4899);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 0.5rem;
-}
-
-.dashboard-header p {
-  color: #475569;
-  font-size: 1rem;
-}
-
-/* ===========================
-   Project card positioning
-   =========================== */
+/* Project card positioning */
 .project-card {
   position: relative;
 }
@@ -56,9 +34,23 @@ body {
   transform: scale(1.05);
 }
 
-/* ===========================
-   Stats Cards
-   =========================== */
+
+.dashboard-header h1 {
+  font-size: 2.8rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(90deg, #2563eb, #7c3aed, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+.dashboard-header p {
+  color: #475569;
+  font-size: 1rem;
+}
+
+/* Stats Cards */
 .stats-card {
   backdrop-filter: blur(12px);
   background: rgba(255, 255, 255, 0.8);
@@ -68,6 +60,7 @@ body {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   transition: transform 0.3s ease;
 }
+
 
 .stats-card:hover {
   transform: translateY(-4px);
@@ -84,9 +77,7 @@ body {
   color: #2563eb;
 }
 
-/* ===========================
-   Project Cards
-   =========================== */
+/* Project Cards */
 .card {
   backdrop-filter: blur(12px);
   background: rgba(255, 255, 255, 0.75);
@@ -106,9 +97,7 @@ body {
   padding-top: 0;
 }
 
-/* ===========================
-   Buttons
-   =========================== */
+/* Buttons */
 .btn-gradient {
   background: linear-gradient(90deg, #22c55e, #16a34a);
   color: white;
@@ -131,15 +120,7 @@ body {
   transform: scale(1.05);
 }
 
-/* Small Buttons */
-.btn-sm {
-  border-radius: 30px;
-  font-size: 0.85rem;
-}
-
-/* ===========================
-   Alerts
-   =========================== */
+/* Alerts */
 .alert {
   border-radius: 0.75rem;
   box-shadow: 0 4px 15px rgba(0,0,0,0.05);
@@ -151,18 +132,20 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ===========================
-   Modal Glass Effect
-   =========================== */
+/* Modal Glass Effect */
 .modal-content {
   border-radius: 1rem;
   backdrop-filter: blur(15px);
   background: rgba(255, 255, 255, 0.9);
 }
 
-/* ===========================
-   Empty State
-   =========================== */
+/* Small Buttons */
+.btn-sm {
+  border-radius: 30px;
+  font-size: 0.85rem;
+}
+
+/* Empty State */
 .empty-state {
   border-radius: 12px;
   background: rgba(255,255,255,0.7);
@@ -173,75 +156,40 @@ body {
   font-size: 3rem;
 }
 
-/* ===========================
-   Flash Message (Responsive)
-   =========================== */
-/* ===========================
-   Flash Message (Responsive & Aligned)
-   =========================== */
 .flash-message-purple {
-  position: fixed;
-  top: 80px;   /* fixed distance from top */
-  left: 50%;
-  transform: translateX(-50%);  /* only horizontal centering */
+    position: fixed;
+    top: 27%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: auto;
-  min-width: 200px;
-  max-width: 80%; /* fits on smaller screens */
-  padding: 12px 30px;
-  border-radius: 12px;
-  font-size: 0.95rem;
-  font-weight: 500;
-  text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-width: 200px;
+    max-width: 70%;
+    padding: 12px 40px;   /* padding left & right */
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-align: center;
 
-  color: #4b0082;
-  background: #e6e6fa;
-  border: 1px solid #d8b6ff;
-  box-shadow: 0 4px 12px rgba(128, 0, 128, 0.25);
+    color: #4b0082;            /* dark purple text */
+    background: #e6e6fa;       /*  light lavender purple */
+    border: 1px solid #d8b6ff;
+    box-shadow: 0 4px 12px rgba(128, 0, 128, 0.25);
 
-  opacity: 0;
-  animation: slideDownFade 0.3s ease forwards,
-             fadeOut 0.6s ease 3.5s forwards;
-  z-index: 9999;
-}
-
-/* Laptop screens */
-@media (min-width: 1024px) {
-  .flash-message-purple {
-    top: 100px;  /* little lower on laptops */
-    max-width: 50%;
-    font-size: 1rem;
-  }
-}
-
-/* Desktop & wide monitors */
-@media (min-width: 1440px) {
-  .flash-message-purple {
-    top: 230px;  /* lower for wide monitors */
-    max-width: 40%;
-    font-size: 1.05rem;
-  }
+    opacity: 0;
+    animation: slideDownFade 0.3s ease forwards,
+               fadeOut 0.6s ease 3.5s forwards;
 }
 
 @keyframes slideDownFade {
-  from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    from { opacity: 0; transform: translate(-50%, -55%); }
+    to   { opacity: 1; transform: translate(-50%, -50%); }
 }
 
 @keyframes fadeOut {
-  from { opacity: 1; transform: translateX(-50%) translateY(0); }
-  to   { opacity: 0; transform: translateX(-50%) translateY(-20px); pointer-events: none; }
-}
-
-@keyframes slideDownFade {
-  from { opacity: 0; transform: translate(-50%, -55%); }
-  to   { opacity: 1; transform: translate(-50%, -50%); }
-}
-
-@keyframes fadeOut {
-  from { opacity: 1; transform: translate(-50%, -50%); }
-  to   { opacity: 0; transform: translate(-50%, -55%); pointer-events: none; }
+    from { opacity: 1; transform: translate(-50%, -50%); }
+    to   { opacity: 0; transform: translate(-50%, -55%); pointer-events: none; }
 }

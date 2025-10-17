@@ -1,4 +1,3 @@
-
 let selectedComponents = [];
 let selectedTemplates = [];
 
@@ -22,7 +21,6 @@ function setDeployDisabled(disabled) {
         btn.removeAttribute('aria-disabled');
     }
 }
-
 
 function renderList(containerId, dataList, selectedList, type) {
     const container = document.getElementById(containerId);
