@@ -17,7 +17,8 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class UpdateHTLImpl implements UpdateHTL {
-    public Map<String, String> fieldsWithChangedTypes(ComponentRequest newRequest, Map<String, String> existingFieldsWithType) {
+    public Map<String, String> fieldsWithChangedTypes(ComponentRequest newRequest,
+                                                      Map<String, String> existingFieldsWithType) {
         Map<String, String> typeChangedFields = new LinkedHashMap<>();
 
         for (ComponentField field : newRequest.getFields()) {
@@ -36,7 +37,8 @@ public class UpdateHTLImpl implements UpdateHTL {
 
 
     @Override
-    public void updateHTLFromRequest(ComponentRequest request, String filePath,String projectName,ComponentRequest oldRequest) throws IOException {
+    public void updateHTLFromRequest(ComponentRequest request, String filePath,String projectName,
+                                     ComponentRequest oldRequest) throws IOException {
         Path path = Path.of(filePath);
         String content = Files.readString(path);
 
@@ -85,7 +87,8 @@ public class UpdateHTLImpl implements UpdateHTL {
             String existingType = existingFieldTypes.get(field.getFieldName());
             if (existingType != null && !existingType.equalsIgnoreCase(field.getFieldType())) {
                 fieldsWithTypeChanges.add(field.getFieldName());
-                log.info("[updateHTLFromRequest] field type changed : {}",field.getFieldName()+"    field type  "+field.getFieldType());
+                log.info("[updateHTLFromRequest] field type changed : {}",field.getFieldName()+"    field type  "+
+                        field.getFieldType());
             }
         }
 
@@ -194,7 +197,8 @@ public class UpdateHTLImpl implements UpdateHTL {
                         "}\" alt=\"Image\" style=\"max-width:100%; height:auto;\"/></p>\n";
 
             case "pathfield":
-                log.info("[buildFieldHTL] add in the htl {}","<sly data-sly-test=\"${" + context + "." + name + "}\">\n" +
+                log.info("[buildFieldHTL] add in the htl {}","<sly data-sly-test=\"${" + context + "." + name +
+                        "}\">\n" +
                         "  <p>" + label + ": <a href=\"${" + context + "." + name + "}\">" + label + "</a></p>\n" +
                         "</sly>\n");
                 return "<sly data-sly-test=\"${" + context + "." + name + "}\">\n" +
@@ -203,7 +207,8 @@ public class UpdateHTLImpl implements UpdateHTL {
 
             case "checkbox":
             case "switch":
-                log.info("[buildFieldHTL] add in the htl {}","<sly data-sly-test=\"${" + context + "." + name + "}\">\n" +
+                log.info("[buildFieldHTL] add in the htl {}","<sly data-sly-test=\"${" + context + "." + name +
+                        "}\">\n" +
                         "  <p>" + label + ": <input type=\"checkbox\" disabled checked=\"checked\"/></p>\n" +
                         "</sly>\n");
                 return "<sly data-sly-test=\"${" + context + "." + name + "}\">\n" +
@@ -212,7 +217,8 @@ public class UpdateHTLImpl implements UpdateHTL {
 
             case "radiogroup":
             case "select":
-                log.info("[buildFieldHTL] add in the htl {}","<sly data-sly-test=\"${" + context + "." + name + "}\">\n" +
+                log.info("[buildFieldHTL] add in the htl {}","<sly data-sly-test=\"${" + context +
+                        "." + name + "}\">\n" +
                         "  <p>" + label + ": ${" + context + "." + name + "}</p>\n" +
                         "</sly>\n");
                 return "<sly data-sly-test=\"${" + context + "." + name + "}\">\n" +

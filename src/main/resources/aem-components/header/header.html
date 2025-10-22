@@ -1,0 +1,17 @@
+<sly data-sly-use.model="com.aem.demo.core.models.HeaderModel"/>
+<sly data-sly-use.placeholderTemplate="core/wcm/components/commons/v1/templates.html"/>
+<sly data-sly-test.hasContent="${!model.empty}">
+  <sly data-sly-test="${model.brandimage}">
+    <a href="${model.brandlink}">
+  <img src="${model.brandimage}" alt="Brandimage" style="max-width:100%; height:auto;"/>
+    </a>
+  </sly>
+  <sly data-sly-test="${model.navitems && model.navitems.size > 0}">
+    <ul data-sly-list.item="${model.navitems}">
+      <sly data-sly-test="${item.itemlink}">
+       <a href="${item.itemlink}">${item.itemname}</a>
+      </sly>
+    </ul>
+  </sly>
+</sly>
+<sly data-sly-call="${placeholderTemplate.placeholder @ isEmpty = !hasContent}"/>

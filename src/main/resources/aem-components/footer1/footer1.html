@@ -1,0 +1,15 @@
+<sly data-sly-use.model="com.aem.demo.core.models.Footer1Model"/>
+<sly data-sly-use.placeholderTemplate="core/wcm/components/commons/v1/templates.html"/>
+<sly data-sly-test.hasContent="${!model.empty}">
+  <sly data-sly-test="${model.maintitle}">
+    <p>Maintitle: ${model.maintitle}</p>
+  </sly>
+  <sly data-sly-test="${model.footerlinks && model.footerlinks.size > 0}">
+    <ul data-sly-list.item="${model.footerlinks}">
+      <sly data-sly-test="${item.footerlink}">
+        <p>Footerlink: <a href="${item.footerlink}">${item.footername}</a></p>
+      </sly>
+    </ul>
+  </sly>
+</sly>
+<sly data-sly-call="${placeholderTemplate.placeholder @ isEmpty = !hasContent}"/>
