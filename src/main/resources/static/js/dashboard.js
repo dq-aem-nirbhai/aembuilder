@@ -39,7 +39,8 @@ document.addEventListener("DOMContentLoaded", () => {
       { element: document.querySelector("[data-step='4']"), intro: "Each project provides quick actions here — let's explore them!" },
       { element: document.querySelector("[data-step='5']"), intro: "Click to view this project's full structure and details." },
       { element: document.querySelector("[data-step='6']"), intro: "Open the folder where this project is stored on your system." },
-      { element: document.querySelector("[data-step='7']"), intro: "Download the project as a ZIP file for backup or sharing." }
+      { element: document.querySelector("[data-step='7']"), intro: "Download the project as a ZIP file for backup or sharing." },
+      { element: document.querySelector("[data-step='8']"), intro: "Open this project directly in Visual Studio Code." }
     );
   }
 
