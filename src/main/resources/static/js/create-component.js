@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const superTypeSelect = document.getElementById('superType');
     const fieldsContainer = document.getElementById('fieldsContainer');
     const fieldRowTemplate = document.getElementById('fieldRowTemplate');
-    const parentTabsContainer = document.getElementById('parentTabsContainer'); // optional UI area to show parent tabs
+    const parentTabsContainer = document.getElementById('parentTabsContainer');
 
     // ===== Debounce =====
     function debounce(func, delay) {
