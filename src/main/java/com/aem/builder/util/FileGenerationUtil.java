@@ -762,24 +762,18 @@ public class FileGenerationUtil {
                         .append("\n    private String ").append(name).append(";\n\n");
             }
 
-
             // Add getter method
             /* addGetter(sb, field);*/
-
 
             // Suppose you already loaded the config in generateSlingModel
             Map<String, Object> config = ConfigLoader.loadConfig("slingmodel.json");
 
-
 // Inside addFieldsToModel
             addGetter(sb, field, config);
-
 
             // Add to generated list for isEmpty() check
             generatedFields.add(field);
         }
-
-
         return generatedFields;
     }
 
@@ -1228,13 +1222,60 @@ public class FileGenerationUtil {
     }
 
 
-    public static void updateComponent(String projectName, ComponentRequest request, String packageName) throws Exception {
+   /* public static void updateComponent(String projectName, ComponentRequest request, String packageName) throws Exception {
         log.info("FILEGEN: updateComponent method called !!! " );
         updateDialog(projectName, request);        // update .content.xml of dialog
+        *//*String dialogPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
+                + projectName + "/components/" + request.getComponentName() + "/_cq_dialog/";
+        updateDialogContentXml(
+                request.getComponentName(),      // componentName
+                dialogPath, // dialogFolder path
+                request.getSuperType(),          // superType
+                request.getFields(),             // List<ComponentField>
+                projectName                      // projectName
+        );*//*
         updateSlingModel(request);
         updateHTL(projectName, request, packageName);// update Sling Model (and HTL inside)
         log.info("FILEGEN: Component '{}' updated successfully", request.getComponentName());
+    }*/
+
+    public static void updateComponent(String projectName, ComponentRequest request, String packageName) throws Exception {
+        log.info("FILEGEN: updateComponent method called !!!");
+
+        //Use Set to restrict duplicate field names globally
+        Set<String> uniqueFieldNames = new HashSet<>();
+        List<ComponentField> uniqueFields = new ArrayList<>();
+
+        // Loop through all incoming fields
+        for (ComponentField field : request.getFields()) {
+            String fieldName = field.getFieldName();
+
+            // Basic null/empty check
+            if (fieldName == null || fieldName.trim().isEmpty()) {
+                log.info("Skipping unnamed field (empty name)");
+                continue;
+            }
+
+            // Duplicate check
+            if (uniqueFieldNames.add(fieldName)) {
+                uniqueFields.add(field); // add only unique ones
+            } else {
+                log.info("️Duplicate field '{}' found — skipping this field.", fieldName);
+            }
+        }
+
+        // Update request with only unique fields
+        request.setFields(uniqueFields);
+
+        // Proceed with dialog, Sling Model, and HTL updates
+        updateDialog(projectName, request);
+        updateSlingModel(request);
+        updateHTL(projectName, request, packageName);
+
+        log.info("FILEGEN: Component '{}' updated successfully ({} unique fields)",
+                request.getComponentName(), uniqueFields.size());
     }
+
 
     // -------------------- update content.xml --------------------
 
@@ -1269,7 +1310,7 @@ public class FileGenerationUtil {
 
     // -------------------- update Dialog content.xml --------------------
 
-    public static void updateDialog(String projectName, ComponentRequest request) throws Exception {
+    /*public static void updateDialog(String projectName, ComponentRequest request) throws Exception {
         log.info("FILEGEN: updateDialog method called !!! " );
         String dialogPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
                 + projectName + "/components/" + request.getComponentName() + "/_cq_dialog/.content.xml";
@@ -1353,6 +1394,318 @@ public class FileGenerationUtil {
         }
         log.info("FILEGEN: Dialog .content.xml updated and formatted at {}", dialogFile.getAbsolutePath());
 
+    }*/
+
+  /*  public static void updateDialog(String projectName, ComponentRequest request) throws Exception {
+        log.info("FILEGEN: updateDialog method called !!!");
+
+        String dialogPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
+                + projectName + "/components/" + request.getComponentName() + "/_cq_dialog/.content.xml";
+
+        File dialogFile = new File(dialogPath);
+        if (!dialogFile.exists()) {
+            throw new FileNotFoundException("Dialog file not found at: " + dialogPath);
+        }
+
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document doc = builder.parse(dialogFile);
+        doc.getDocumentElement().normalize();
+
+        boolean hasTabs = request.getFields().stream()
+                .anyMatch(f -> "tabs".equalsIgnoreCase(f.getFieldType()));
+
+        // ✅ If tabs exist, set layout to tabs layout
+        if (hasTabs) {
+            NodeList layoutNodes = doc.getElementsByTagName("layout");
+            if (layoutNodes.getLength() > 0) {
+                Element layout = (Element) layoutNodes.item(0);
+                layout.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/layouts/tabs");
+            }
+        }
+
+        // 1️⃣ Find <content> and ensure <items>
+        Element content = findChildByName(doc.getDocumentElement(), "./content");
+        Element itemsElement = ensureChild(doc, content, "items", null);
+
+        // 🧹 2️⃣ Clean up old layout remnants like <column> or old <tb*> tabs
+        NodeList children = itemsElement.getChildNodes();
+        List<Element> toRemove = new ArrayList<>();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node node = children.item(i);
+            if (node.getNodeType() == Node.ELEMENT_NODE) {
+                String name = node.getNodeName();
+                if (name.equalsIgnoreCase("column") || name.startsWith("tb")) {
+                    toRemove.add((Element) node);
+                }
+            }
+        }
+        for (Element e : toRemove) {
+            itemsElement.removeChild(e);
+        }
+
+        // 3️⃣ Cleanup deleted fields (top-level + nested)
+        List<String> incomingNames = request.getFields().stream()
+                .map(ComponentField::getFieldName)
+                .collect(Collectors.toList());
+        cleanUpDeletedFields(itemsElement, incomingNames);
+
+        // 4️⃣ Separate tab fields and non-tab fields
+        List<ComponentField> tabFields = new ArrayList<>();
+        List<ComponentField> nonTabFields = new ArrayList<>();
+        for (ComponentField f : request.getFields()) {
+            if ("tabs".equalsIgnoreCase(f.getFieldType())) {
+                tabFields.add(f);
+            } else {
+                nonTabFields.add(f);
+            }
+        }
+
+        // 5️⃣ Ensure single <tabs> container
+        Element tabsNode = findChildByName(itemsElement, "./tabs");
+        if (tabsNode == null) {
+            tabsNode = doc.createElement("tabs");
+            tabsNode.setAttribute("jcr:primaryType", "nt:unstructured");
+            tabsNode.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/tabs");
+            itemsElement.appendChild(tabsNode);
+        }
+        Element tabsItems = ensureChild(doc, tabsNode, "items", null);
+
+        // 6️⃣ Process all tab fields (now handled recursively)
+        for (ComponentField tabField : tabFields) {
+            // Create each tab container (e.g. tb1, tb2, etc.)
+            Element tabNode = ensureChild(doc, tabsItems, tabField.getFieldName(), null);
+            tabNode.setAttribute("jcr:primaryType", "nt:unstructured");
+            tabNode.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/container");
+            tabNode.setAttribute("jcr:title", tabField.getFieldLabel());
+
+            Element tabItems = ensureChild(doc, tabNode, "items", null);
+            handleNestedFields(doc, tabItems, tabField.getNestedFields()); // recursion handles all nested fields
+        }
+
+        // 7️⃣ Add non-tab fields into 'Main' tab
+        if (!nonTabFields.isEmpty()) {
+            Element mainTab = findChildByName(tabsItems, "./main");
+            if (mainTab == null) {
+                mainTab = doc.createElement("main");
+                mainTab.setAttribute("jcr:primaryType", "nt:unstructured");
+                mainTab.setAttribute("jcr:title", "Main");
+                mainTab.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/container");
+                tabsItems.appendChild(mainTab);
+            }
+
+            Element mainItems = ensureChild(doc, mainTab, "items", null);
+            for (ComponentField f : nonTabFields) {
+                Element existing = findChildByName(itemsElement, "./" + f.getFieldName());
+                if (existing != null) {
+                    itemsElement.removeChild(existing);
+                    mainItems.appendChild(existing);
+                    updateFieldNode(doc, mainItems, f);
+                } else {
+                    Element newNode = updateFieldNode(doc, mainItems, f);
+                    insertAtCorrectPosition(mainItems, newNode, nonTabFields, f.getFieldName());
+                }
+            }
+        }
+
+        // 8️⃣ Write formatted XML back to file
+        Transformer transformer = TransformerFactory.newInstance().newTransformer();
+        transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
+        transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+
+        StringWriter writer = new StringWriter();
+        transformer.transform(new DOMSource(doc), new StreamResult(writer));
+        String formattedXml = XmlUtil.formatXml(writer.toString());
+
+        try (FileWriter fw = new FileWriter(dialogFile)) {
+            fw.write(formattedXml);
+        }
+
+        log.info("FILEGEN: Dialog .content.xml updated and formatted at {}", dialogFile.getAbsolutePath());
+    }*/
+
+    // -------------------- update Dialog content.xml --------------------
+
+    public static void updateDialog(String projectName, ComponentRequest request) throws Exception {
+        log.info("FILEGEN: updateDialog method called !!!");
+
+        String dialogPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
+                + projectName + "/components/" + request.getComponentName() + "/_cq_dialog/.content.xml";
+
+        File dialogFile = new File(dialogPath);
+        if (!dialogFile.exists()) {
+            throw new FileNotFoundException("Dialog file not found at: " + dialogPath);
+        }
+
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document doc = builder.parse(dialogFile);
+        doc.getDocumentElement().normalize();
+
+        // Determine presence of tabs
+        boolean hasTabs = request.getFields().stream()
+                .anyMatch(f -> "tabs".equalsIgnoreCase(f.getFieldType()));
+
+        // Ensure <content> exists
+        Element content = findChildByName(doc.getDocumentElement(), "./content");
+        if (content == null) {
+            content = doc.createElement("content");
+            content.setAttribute("jcr:primaryType", "nt:unstructured");
+            doc.getDocumentElement().appendChild(content);
+        }
+
+        // Ensure <layout> exists and set correct layout type
+        Element layout = findChildByName(content, "./layout");
+        if (layout == null) {
+            layout = doc.createElement("layout");
+            layout.setAttribute("jcr:primaryType", "nt:unstructured");
+            content.appendChild(layout);
+        }
+        if (hasTabs) {
+            layout.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/layouts/tabs");
+        } else {
+            layout.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/layouts/fixedcolumns");
+        }
+
+        // Ensure <items> under <content>
+        Element itemsElement = ensureChild(doc, content, "items", null);
+
+        // Remove old tab/column remnants that conflict with desired structure
+        NodeList children = itemsElement.getChildNodes();
+        List<Element> toRemove = new ArrayList<>();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node node = children.item(i);
+            if (node.getNodeType() == Node.ELEMENT_NODE) {
+                String name = node.getNodeName();
+                // remove tabs/tb* when switching to fixedcolumns and remove columns when switching to tabs
+                if (hasTabs) {
+                    if (name.equalsIgnoreCase("column") || name.startsWith("tb")) {
+                        toRemove.add((Element) node);
+                    }
+                } else {
+                    if (name.equalsIgnoreCase("tabs") || name.startsWith("tb") || name.equalsIgnoreCase("main")) {
+                        toRemove.add((Element) node);
+                    }
+                }
+            }
+        }
+        for (Element e : toRemove) {
+            itemsElement.removeChild(e);
+        }
+
+        // Cleanup deleted fields (top-level + nested)
+        List<String> incomingNames = request.getFields().stream()
+                .map(ComponentField::getFieldName)
+                .collect(Collectors.toList());
+        cleanUpDeletedFields(itemsElement, incomingNames);
+
+        // Separate tab fields and non-tab fields
+        List<ComponentField> tabFields = new ArrayList<>();
+        List<ComponentField> nonTabFields = new ArrayList<>();
+        for (ComponentField f : request.getFields()) {
+            if ("tabs".equalsIgnoreCase(f.getFieldType())) {
+                tabFields.add(f);
+            } else {
+                nonTabFields.add(f);
+            }
+        }
+// 🧹 Filter out empty/deleted multifields
+        nonTabFields = nonTabFields.stream()
+                .filter(f -> !("multifield".equalsIgnoreCase(f.getFieldType()) &&
+                        (f.getNestedFields() == null || f.getNestedFields().isEmpty())))
+                .collect(Collectors.toList());
+
+        // Branch: TAB mode vs FIXEDCOLUMNS mode
+        if (hasTabs) {
+            // Ensure <tabs> container
+            Element tabsNode = findChildByName(itemsElement, "./tabs");
+            if (tabsNode == null) {
+                tabsNode = doc.createElement("tabs");
+                tabsNode.setAttribute("jcr:primaryType", "nt:unstructured");
+                tabsNode.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/tabs");
+                itemsElement.appendChild(tabsNode);
+            }
+            Element tabsItems = ensureChild(doc, tabsNode, "items", null);
+
+            // Create each defined tab (tb1, tb2, etc.) and populate
+            for (ComponentField tabField : tabFields) {
+                Element tabNode = ensureChild(doc, tabsItems, tabField.getFieldName(), null);
+                tabNode.setAttribute("jcr:primaryType", "nt:unstructured");
+                tabNode.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/container");
+                tabNode.setAttribute("jcr:title", tabField.getFieldLabel());
+
+                Element tabItems = ensureChild(doc, tabNode, "items", null);
+                handleNestedFields(doc, tabItems, tabField.getNestedFields());
+            }
+
+            // Non-tab fields go under Main tab (only when tabs exist)
+            if (!nonTabFields.isEmpty()) {
+                Element mainTab = findChildByName(tabsItems, "./main");
+                if (mainTab == null) {
+                    mainTab = doc.createElement("main");
+                    mainTab.setAttribute("jcr:primaryType", "nt:unstructured");
+                    mainTab.setAttribute("jcr:title", "Main");
+                    mainTab.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/container");
+                    tabsItems.appendChild(mainTab);
+                }
+                Element mainItems = ensureChild(doc, mainTab, "items", null);
+
+                for (ComponentField f : nonTabFields) {
+                    Element existing = findChildByName(itemsElement, "./" + f.getFieldName());
+                    if (existing != null) {
+                        // move existing top-level node into mainItems
+                        itemsElement.removeChild(existing);
+                        mainItems.appendChild(existing);
+                        updateFieldNode(doc, mainItems, f);
+                    } else {
+                        Element newNode = updateFieldNode(doc, mainItems, f);
+                        insertAtCorrectPosition(mainItems, newNode, nonTabFields, f.getFieldName());
+                    }
+                }
+            }
+
+        } else {
+            // FIXEDCOLUMNS (no tabs) -> content -> layout(fixedcolumns) -> items -> column -> items -> fields
+
+            // Ensure column exists directly under itemsElement
+            Element column = findChildByName(itemsElement, "./column");
+            if (column == null) {
+                column = doc.createElement("column");
+                column.setAttribute("jcr:primaryType", "nt:unstructured");
+                column.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/container");
+                itemsElement.appendChild(column);
+            }
+            Element columnItems = ensureChild(doc, column, "items", null);
+
+            // Place all non-tab fields under columnItems (preserve order)
+            for (ComponentField f : nonTabFields) {
+                Element existing = findChildByName(itemsElement, "./" + f.getFieldName());
+                if (existing != null) {
+                    // move existing top-level node into columnItems
+                    itemsElement.removeChild(existing);
+                    columnItems.appendChild(existing);
+                    updateFieldNode(doc, columnItems, f);
+                } else {
+                    Element newNode = updateFieldNode(doc, columnItems, f);
+                    insertAtCorrectPosition(columnItems, newNode, nonTabFields, f.getFieldName());
+                }
+            }
+        }
+
+        // Write formatted XML back to file
+        Transformer transformer = TransformerFactory.newInstance().newTransformer();
+        transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
+        transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+
+        StringWriter writer = new StringWriter();
+        transformer.transform(new DOMSource(doc), new StreamResult(writer));
+        String formattedXml = XmlUtil.formatXml(writer.toString());
+
+        try (FileWriter fw = new FileWriter(dialogFile)) {
+            fw.write(formattedXml);
+        }
+
+        log.info("FILEGEN: Dialog .content.xml updated and formatted at {}", dialogFile.getAbsolutePath());
     }
 
     /**
@@ -1419,7 +1772,7 @@ public class FileGenerationUtil {
             if (!"multifield".equals(type)) {      // <-- skip name for multifields
                 node.setAttribute("name", "./" + fieldName);
             }
-           parent.appendChild(node);
+           //parent.appendChild(node);
         }
 
         node.setAttribute("fieldLabel", field.getFieldLabel());
@@ -1445,26 +1798,26 @@ public class FileGenerationUtil {
                 node.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/tabs");
                 node.setAttribute("jcr:primaryType", "nt:unstructured");
 
-                // ensure <items> inside tabs
                 Element tabItems = ensureChild(doc, node, "items", null);
-
-                // for each nested tab, create container
                 if (field.getNestedFields() != null) {
                     for (ComponentField tab : field.getNestedFields()) {
-                        Element tabNode = doc.createElement(tab.getFieldName());
-                        tabNode.setAttribute("jcr:primaryType", "nt:unstructured");
-                        tabNode.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/container");
+                        Element tabNode = findChildByName(tabItems, "./" + tab.getFieldName());
+                        if (tabNode == null) {
+                            tabNode = doc.createElement(tab.getFieldName());
+                            tabNode.setAttribute("jcr:primaryType", "nt:unstructured");
+                            tabNode.setAttribute("jcr:title", tab.getFieldLabel());
+                            tabNode.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/container");
+                            tabItems.appendChild(tabNode);
+                        }
 
-                        // ensure <items> inside each tab
                         Element tabInnerItems = ensureChild(doc, tabNode, "items", null);
 
-                        // now populate fields inside this tab
+                        // ✅ handle only normal & multifield fields
                         handleNestedFields(doc, tabInnerItems, tab.getNestedFields());
-
-                        tabItems.appendChild(tabNode);
                     }
                 }
                 break;
+
 
             case "richtext":
                 node.setAttribute("sling:resourceType", "cq/gui/components/authoring/dialog/richtext");
@@ -1512,17 +1865,17 @@ public class FileGenerationUtil {
                     optEl.setAttribute("value", opt.getValue());
                     items.appendChild(optEl);
                 }
-                /*if ("multiselect".equals(type)) {
+                if ("multiselect".equals(type)) {
                     node.setAttribute("multiple", "{Boolean}true");
                 }
                 if ("select".equals(type) || "multiselect".equals(type)) {
                     node.setAttribute("emptyText", "Select...");
-                }*/
-                if ("multiselect".equals(type)) {
+                }
+                /*if ("multiselect".equals(type)) {
                     node.setAttribute("multiple", "{Boolean}true");
                 } else {
                     node.removeAttribute("multiple"); // ✅ ensure normal select stays single
-                }
+                }*/
 
                 break;
 
@@ -1545,14 +1898,83 @@ public class FileGenerationUtil {
                 break;
 
         }
+
+        if (!"tabs".equals(type) && !"multifield".equals(type)) {
+            // Normal fields go directly under parent items
+            if (!parent.hasChildNodes() || findChildByName(parent, "./" + fieldName) == null) {
+                parent.appendChild(node);
+            }
+        }
+
         return node;
 
     }
 
     private static void handleNestedFields(Document doc, Element parentItems, List<ComponentField> nestedFields) {
         if (nestedFields == null || nestedFields.isEmpty()) return;
+
+        for (ComponentField nested : nestedFields) {
+            String fieldType = nested.getFieldType().toLowerCase();
+
+            // 🟢 Handle Tabs
+            if ("tabs".equals(fieldType)) {
+                Element tabsNode = updateFieldNode(doc, parentItems, nested);
+                Element tabsItems = ensureChild(doc, tabsNode, "items", null);
+
+                for (ComponentField tabField : nested.getNestedFields()) {
+                    Element tabNode = ensureChild(doc, tabsItems, tabField.getFieldName(), null);
+                    tabNode.setAttribute("jcr:primaryType", "nt:unstructured");
+                    tabNode.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/container");
+                    tabNode.setAttribute("jcr:title", tabField.getFieldLabel());
+
+                    Element tabItems = ensureChild(doc, tabNode, "items", null);
+                    handleNestedFields(doc, tabItems, tabField.getNestedFields());
+                }
+                continue;
+            }
+
+            // 🟢 Handle Multifields
+            if ("multifield".equals(fieldType)) {
+                Element mfNode = ensureChild(doc, parentItems, nested.getFieldName(), null);
+                mfNode.setAttribute("jcr:primaryType", "nt:unstructured");
+                mfNode.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/form/multifield");
+                mfNode.setAttribute("composite", "true");
+                mfNode.setAttribute("fieldLabel", nested.getFieldLabel());
+
+                Element fieldset = ensureChild(doc, mfNode, "field", null);
+                fieldset.setAttribute("jcr:primaryType", "nt:unstructured");
+                fieldset.setAttribute("name", "./" + nested.getFieldName());
+                fieldset.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/form/fieldset");
+
+                Element layout = ensureChild(doc, fieldset, "layout", null);
+                layout.setAttribute("jcr:primaryType", "nt:unstructured");
+                layout.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/layouts/fixedcolumns");
+                layout.setAttribute("margin", "true");
+
+                Element mfItems = ensureChild(doc, fieldset, "items", null);
+
+                // 🔁 Recursive call for fields inside multifield
+                handleNestedFields(doc, mfItems, nested.getNestedFields());
+                continue;
+            }
+
+            // 🟢 Normal Field
+            Element fieldNode = updateFieldNode(doc, parentItems, nested);
+
+            // Recursive for any inner nested structures
+            if (nested.getNestedFields() != null && !nested.getNestedFields().isEmpty()) {
+                Element innerItems = ensureChild(doc, fieldNode, "items", null);
+                handleNestedFields(doc, innerItems, nested.getNestedFields());
+            }
+        }
+    }
+
+  /*  private static void handleNestedFields(Document doc, Element parentItems, List<ComponentField> nestedFields) {
+        if (nestedFields == null || nestedFields.isEmpty()) return;
+
         for (ComponentField nested : nestedFields) {
             String nestedType = nested.getFieldType().toLowerCase();
+
             Element nestedNode = findChildByName(parentItems, "./" + nested.getFieldName());
             if (nestedNode == null) {
                 nestedNode = doc.createElement(nested.getFieldName());
@@ -1572,7 +1994,7 @@ public class FileGenerationUtil {
                 nestedNode.setAttribute("composite", "true");
                 nestedNode.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/form/multifield");
 
-                Element fieldset = ensureChild(doc, nestedNode, "field", "./" + nested.getFieldName());
+                Element fieldset = ensureChild(doc, nestedNode, "field", "./" + nested.getFieldName() );
                 fieldset.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/form/fieldset");
 
                 Element layout = ensureChild(doc, fieldset, "layout", null);
@@ -1583,14 +2005,29 @@ public class FileGenerationUtil {
                 Element mfItems = ensureChild(doc, fieldset, "items", null);
 
                 // Recursive call for nested multifield items
-                handleNestedFields(doc, mfItems, nested.getNestedFields());
+                //handleNestedFields(doc, mfItems, nested.getNestedFields());
 
-            } else {
+                updateFieldNode(doc, parentItems, nested);
+            }
+            if ("tabs".equalsIgnoreCase(nestedType)) {
+                Element tabsNode = updateFieldNode(doc, parentItems, nested);
+                Element tabsItems = ensureChild(doc, tabsNode, "items", null);
+
+                for (ComponentField tab : nested.getNestedFields()) {
+                    Element tabNode = ensureChild(doc, tabsItems, tab.getFieldName(), null);
+                    tabNode.setAttribute("jcr:title", tab.getFieldLabel());
+                    Element tabInnerItems = ensureChild(doc, tabNode, "items", null);
+                    handleNestedFields(doc, tabInnerItems, tab.getNestedFields());
+                }
+                //continue;
+            }
+
+            else {
                 // Normal fields inside multifield (textfield, richtext, fileupload, select...)
                 updateFieldNode(doc, parentItems, nested);
             }
         }
-    }
+    }*/
 
 
     private static Element findChildByName(Element parent, String name) {
@@ -1615,13 +2052,18 @@ public class FileGenerationUtil {
         }
         return null;
     }
-    /**
-     * Utility: ensure a child exists, else create it
-     */
+
+
     private static Element ensureChild(Document doc, Element parent, String nodeName, String nameAttr) {
-        NodeList children = parent.getElementsByTagName(nodeName);
-        if (children.getLength() > 0) {
-            return (Element) children.item(0);
+        NodeList children = parent.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node n = children.item(i);
+            if (n.getNodeType() == Node.ELEMENT_NODE) {
+                Element el = (Element) n;
+                if (el.getNodeName().equals(nodeName)) {
+                    return el; // return direct child
+                }
+            }
         }
         Element child = doc.createElement(nodeName);
         child.setAttribute("jcr:primaryType", "nt:unstructured");
@@ -1638,39 +2080,47 @@ public class FileGenerationUtil {
         NodeList childNodes = itemsElement.getChildNodes();
         for (int i = 0; i < childNodes.getLength(); i++) {
             Node node = childNodes.item(i);
-            if (node.getNodeType() == Node.ELEMENT_NODE) {
-                Element el = (Element) node;
-                String nameAttr = el.getAttribute("name");
-                String fileRefAttr = el.getAttribute("fileReferenceParameter");
+            if (node.getNodeType() != Node.ELEMENT_NODE) continue;
 
-                boolean shouldRemove = false;
+            Element el = (Element) node;
+            String nameAttr = el.getAttribute("name");
+            String fileRefAttr = el.getAttribute("fileReferenceParameter");
+            String nodeName = el.getNodeName();
 
-                if (nameAttr != null && !nameAttr.isEmpty()) {
-                    if (!incomingNames.contains(nameAttr.replace("./", ""))) {
-                        shouldRemove = true;
-                    }
-                } else if (fileRefAttr != null && !fileRefAttr.isEmpty()) {
-                    if (!incomingNames.contains(fileRefAttr.replace("./", ""))) {
-                        shouldRemove = true;
-                    }
+            boolean shouldRemove = false;
+
+            // Case 1: match by "name" attribute
+            if (nameAttr != null && !nameAttr.isEmpty()) {
+                if (!incomingNames.contains(nameAttr.replace("./", ""))) {
+                    shouldRemove = true;
                 }
-
-                if (shouldRemove) {
-                    itemsElement.removeChild(el);  // ✅ remove missing field
-                    i--; // adjust loop since node list is live
-                } else {
-                    // ✅ check if this element has nested <items> (multifield case)
-                    NodeList nestedItems = el.getElementsByTagName("items");
-                    if (nestedItems != null && nestedItems.getLength() > 0) {
-                        for (int j = 0; j < nestedItems.getLength(); j++) {
-                            Element nested = (Element) nestedItems.item(j);
-                            cleanUpDeletedFields(nested, incomingNames); // recursion
-                        }
-                    }
+            }
+            // Case 2: match by "fileReferenceParameter"
+            else if (fileRefAttr != null && !fileRefAttr.isEmpty()) {
+                if (!incomingNames.contains(fileRefAttr.replace("./", ""))) {
+                    shouldRemove = true;
                 }
+            }
+            // 🆕 Case 3: match by element nodeName itself (for multifields like multitabs)
+            else if (!incomingNames.contains(nodeName)) {
+                shouldRemove = true;
+            }
+
+            if (shouldRemove) {
+                itemsElement.removeChild(el);  // ✅ remove missing field
+                i--; // adjust loop since NodeList is live
+                continue;
+            }
+
+            // Recursive cleanup for nested <items>
+            NodeList nestedItems = el.getElementsByTagName("items");
+            for (int j = 0; j < nestedItems.getLength(); j++) {
+                Element nested = (Element) nestedItems.item(j);
+                cleanUpDeletedFields(nested, incomingNames);
             }
         }
     }
+
 
     // -------------------- update Sling model --------------------
 
@@ -1745,6 +2195,26 @@ public class FileGenerationUtil {
 
         // 3️⃣ Add or update fields
         for (ComponentField field : fields) {
+
+            // If tab → add nested fields directly to main class
+            if ("tabs".equalsIgnoreCase(field.getFieldType()) && field.getNestedFields() != null) {
+                for (ComponentField inner : field.getNestedFields()) {
+                    if (!fieldExists(content, inner.getFieldName())) {
+                        content = insertField(content, inner, basePackage, projectName);
+                    } else {
+                        content = updateField(content, inner);
+                    }
+
+                    // Handle nested multifields in tabs
+                    if ("multifield".equalsIgnoreCase(inner.getFieldType()) || "child".equalsIgnoreCase(inner.getFieldType())) {
+                        generateOrUpdateMultifieldClass(projectName, basePackage,
+                                capitalize(inner.getFieldName()), inner.getNestedFields());
+                    }
+                }
+                continue; // skip creating a field for the tab itself
+            }
+
+            // Regular field
             if (fieldExists(content, field.getFieldName())) {
                 content = updateField(content, field); // update type if changed
             } else {
@@ -1929,34 +2399,6 @@ public class FileGenerationUtil {
         Files.writeString(javaFile, content);
     }
 
-   /* private static String updateIsEmpty(String content, List<ComponentField> fields) {
-        // Remove old isEmpty
-        content = content.replaceAll("(?s)public\\s+boolean\\s+isEmpty\\s*\\(\\)\\s*\\{.*?\\}", "");
-
-        StringBuilder checks = new StringBuilder();
-        for (ComponentField f : fields) {
-            if ("numberfield".equalsIgnoreCase(f.getFieldType())) {
-                checks.append("        if (").append(f.getFieldName()).append(" != 0) empty = false;\n");
-            } else if ("checkbox".equalsIgnoreCase(f.getFieldType())) {
-                checks.append("        if (").append(f.getFieldName()).append(") empty = false;\n");
-            } else {
-                checks.append("        if (").append(f.getFieldName())
-                        .append(" != null && !").append(f.getFieldName()).append(".toString().isEmpty()) " +
-                                "empty = false;\n");
-            }
-        }
-
-        String isEmptyMethod =
-                "    public boolean isEmpty() {\n" +
-                        "        boolean empty = true;\n" +
-                        checks +
-                        "        return empty;\n" +
-                        "    }\n";
-
-        int insertPos = content.lastIndexOf("}");
-        return content.substring(0, insertPos) + isEmptyMethod + "}\n";
-    }*/
-
     private static String updateIsEmpty(String content, List<ComponentField> fields) {
         // Remove existing isEmpty method
         content = content.replaceAll("(?s)public\\s+boolean\\s+isEmpty\\s*\\(\\)\\s*\\{.*?\\}", "");
@@ -1976,14 +2418,40 @@ public class FileGenerationUtil {
                     checks.append("        if (").append(fieldName).append(") empty = false;\n");
                     break;
 
+                case "tabs":
+                    // Add checks for each nested field inside the tab
+                    if (f.getNestedFields() != null) {
+                        for (ComponentField inner : f.getNestedFields()) {
+                            String innerName = inner.getFieldName();
+                            String innerType = inner.getFieldType().toLowerCase();
+
+                            switch (innerType) {
+                                case "numberfield":
+                                    checks.append("        if (").append(innerName).append(" != 0) empty = false;\n");
+                                    break;
+                                case "checkbox":
+                                    checks.append("        if (").append(innerName).append(") empty = false;\n");
+                                    break;
+                                case "multifield":
+                                case "child":
+                                    checks.append("        if (").append(innerName)
+                                            .append(" != null && !").append(innerName).append(".isEmpty()) empty = false;\n");
+                                    break;
+                                default:
+                                    checks.append("        if (").append(innerName)
+                                            .append(" != null && !").append(innerName).append(".toString().isEmpty()) empty = false;\n");
+                            }
+                        }
+                    }
+                    break;
+
                 case "multifield":
                 case "child":
-                    // Check if list is non-null and not empty
                     checks.append("        if (").append(fieldName)
                             .append(" != null && !").append(fieldName).append(".isEmpty()) empty = false;\n");
                     break;
 
-                default: // Strings, richtext, etc.
+                default: // String, richtext, etc.
                     checks.append("        if (").append(fieldName)
                             .append(" != null && !").append(fieldName).append(".toString().isEmpty()) empty = false;\n");
             }
@@ -2000,6 +2468,7 @@ public class FileGenerationUtil {
         return content.substring(0, insertPos) + isEmptyMethod + "}\n";
     }
 
+
     // Utility: map AEM field types to Java types
     private static String mapFieldTypeToJavaType(String fieldType) {
         return switch (fieldType.toLowerCase()) {
@@ -2011,6 +2480,9 @@ public class FileGenerationUtil {
             default -> "String"; // fallback
         };
     }
+
+    // -------------------- update HTL --------------------
+
     public static void updateHTL(String projectName, ComponentRequest request, String packageName) throws Exception {
         String htlPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
                 + projectName + "/components/" + request.getComponentName() + "/" + request.getComponentName() + ".html";
@@ -2070,5 +2542,124 @@ public class FileGenerationUtil {
         FileUtils.writeStringToFile(htlFile, finalHTL, StandardCharsets.UTF_8);
         log.info("✅ HTL updated successfully for component '{}'", request.getComponentName());
     }
+
+    public static void updateDialogContentXml(String componentName, String dialogFolder,
+                                              String superType, List<ComponentField> fields,
+                                              String projectName) {
+        if (fields == null || fields.isEmpty()) {
+            log.info("UPDATE: Skipping dialog update for component '{}' as no fields defined", componentName);
+            return;
+        }
+        log.info("UPDATE: Starting dialog update for component '{}'", componentName);
+
+        try (InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream("dialog-content-xml.json")) {
+            if (is == null) throw new FileNotFoundException("dialog-content-xml.json not found in resources");
+            JSONObject config = new JSONObject(new String(is.readAllBytes(), StandardCharsets.UTF_8));
+            String dialogTitle = componentName + " Dialog";
+
+            // Split fields by tabs
+            List<ComponentField> tabFields = new ArrayList<>();
+            List<ComponentField> nonTabFields = new ArrayList<>();
+            for (ComponentField f : fields) {
+                if ("tabs".equalsIgnoreCase(f.getFieldType())) tabFields.add(f);
+                else nonTabFields.add(f);
+            }
+
+            // Detect explicit Main tab
+            ComponentField explicitMainTab = tabFields.stream()
+                    .filter(tf -> "main".equalsIgnoreCase(safeNodeName(tf.getFieldName(), "tab")) ||
+                            (tf.getFieldLabel() != null && tf.getFieldLabel().trim().equalsIgnoreCase("Main")))
+                    .findFirst().orElse(null);
+            boolean willAutoCreateMain = explicitMainTab == null && !nonTabFields.isEmpty();
+
+            StringBuilder sb = new StringBuilder();
+
+            // Dialog header
+            sb.append(config.getJSONObject("declarations").getString("header")
+                            .replace("${dialogTitle}", dialogTitle)
+                            .replace("${superTypeAttr}", (superType != null && !superType.isBlank()) ?
+                                    "sling:resourceSuperType=\"" + superType + "\"" : ""))
+                    .append("\n");
+
+            // Start content container
+            sb.append("<content jcr:primaryType=\"nt:unstructured\" " +
+                    "sling:resourceType=\"granite/ui/components/coral/foundation/container\">\n");
+            sb.append("  <layout jcr:primaryType=\"nt:unstructured\" " +
+                    "sling:resourceType=\"granite/ui/components/coral/foundation/layouts/fixedcolumns\"/>\n");
+            sb.append("  <items jcr:primaryType=\"nt:unstructured\">\n");
+
+            // Insert non-tab fields if no tabs exist
+            if (tabFields.isEmpty()) {
+                for (ComponentField f : nonTabFields) {
+                    sb.append(generateFieldXml(safeNodeName(f.getFieldName(), "field"), f));
+                }
+            } else {
+                // Tabs exist
+                StringBuilder tabsBuilder = new StringBuilder();
+                tabsBuilder.append("<tabs jcr:primaryType=\"nt:unstructured\" ")
+                        .append("sling:resourceType=\"granite/ui/components/coral/foundation/tabs\">\n")
+                        .append("  <items jcr:primaryType=\"nt:unstructured\">\n");
+
+                Set<String> processedTabs = new HashSet<>();
+                for (ComponentField tabField : tabFields) {
+                    String tabNodeName = safeNodeName(tabField.getFieldName(), "tab");
+                    if (!processedTabs.add(tabNodeName.toLowerCase())) continue;
+
+                    StringBuilder fieldsBuilder = new StringBuilder();
+                    if (tabField.getNestedFields() != null) {
+                        for (ComponentField nf : tabField.getNestedFields()) {
+                            fieldsBuilder.append(generateFieldXml(safeNodeName(nf.getFieldName(), "field"), nf));
+                        }
+                    }
+
+                    // Add non-tab fields to explicit Main tab
+                    if (explicitMainTab == tabField && !nonTabFields.isEmpty()) {
+                        for (ComponentField f : nonTabFields) {
+                            fieldsBuilder.append(generateFieldXml(safeNodeName(f.getFieldName(), "field"), f));
+                        }
+                    }
+
+                    String tabXml = config.getString("tabTemplate")
+                            .replace("${tabNodeName}", tabNodeName)
+                            .replace("${tabTitle}", tabField.getFieldLabel() != null ? tabField.getFieldLabel() : tabNodeName)
+                            .replace("${resourceType}", getResourceType("tabs"))
+                            .replace("${fields}", fieldsBuilder.toString());
+
+                    tabsBuilder.append(tabXml).append("\n");
+                }
+
+                // Auto-create Main tab if needed
+                if (willAutoCreateMain) {
+                    String mainFieldsXml = nonTabFields.stream()
+                            .map(f -> generateFieldXml(safeNodeName(f.getFieldName(), "field"), f))
+                            .collect(Collectors.joining());
+
+                    String autoXml = config.getString("autoMainTabTemplate")
+                            .replace("${tabNodeName}", "main")
+                            .replace("${resourceType}", getResourceType("tabs"))
+                            .replace("${fields}", mainFieldsXml);
+
+                    tabsBuilder.append(autoXml).append("\n");
+                }
+
+                tabsBuilder.append("  </items>\n</tabs>\n");
+                sb.append(tabsBuilder.toString());
+            }
+
+            // Close content container
+            sb.append("  </items>\n</content>\n");
+            sb.append(config.getJSONObject("declarations").getString("footer")).append("\n");
+
+            // Write updated dialog
+            File out = new File(dialogFolder, ".content.xml");
+            FileUtils.writeStringToFile(out, formatXml(sb.toString()), StandardCharsets.UTF_8);
+            log.info("UPDATE: Dialog .content.xml updated successfully at {}", out.getAbsolutePath());
+
+        } catch (Exception e) {
+            log.error("UPDATE: Error updating dialog for '{}': {}", componentName, e.getMessage(), e);
+        }
+    }
+
+
 
 }
