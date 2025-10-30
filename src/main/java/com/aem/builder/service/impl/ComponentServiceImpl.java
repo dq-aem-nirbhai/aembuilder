@@ -92,7 +92,7 @@ public class ComponentServiceImpl implements ComponentService {
         log.info("[fetchComponentsWithGroups] Resolved App ID: {}", appId);
 
         Map<String, String> result = new LinkedHashMap<>();
-        File componentsDir = new File(PROJECTS_DIR, projectName + CONTENT_ROOT_PATH + appId + "/" + COMPONENTS_FOLDER);
+        File componentsDir = new File(PROJECTS_DIR, projectName + "/" + CONTENT_ROOT_PATH + "/" + appId + "/" + COMPONENTS_FOLDER);
 
         log.info("[fetchComponentsWithGroups] Resolved components directory path: {}", componentsDir.getAbsolutePath());
 
@@ -322,20 +322,33 @@ public class ComponentServiceImpl implements ComponentService {
     public void updateComponent(String projectName, ComponentRequest request) {
         String appId = AemUtil.getAppId(PROJECTS_DIR, projectName);
 
-        String compPath = PROJECTS_DIR + "/" + projectName + "/" + CONTENT_ROOT_PATH + appId + COMPONENTS_FOLDER + request.getComponentName();
+//  generated-projects/demo/ui.apps/src/main/content/jcr_root/apps/appid
+        String compPath = PROJECTS_DIR + "/" + projectName + "/" + CONTENT_ROOT_PATH + "/" + appId + "/"+ COMPONENTS_FOLDER + "/"+ request.getComponentName();
 
         log.info("[updateComponent] Updating component '{}' in project '{}'", request.getComponentName(), projectName);
         log.info("[updateComponent] Resolved component path for update: {}", compPath);
 
-        try {
+        /*try {
             FileUtils.deleteDirectory(new File(compPath));
             log.info("[updateComponent] Deleted existing component directory: {}", compPath);
         } catch (IOException e) {
             log.info("[updateComponent] Could not clean component folder before update for '{}'", request.getComponentName(), e);
-        }
+        }*/
+
+        File componentFolder = new File(compPath);
+        log.info("Checking component path: {}", componentFolder);
 
         FileGenerationUtil.generateAllFiles(projectName, request);
         log.info("[updateComponent] Regenerated component '{}' in project '{}'", request.getComponentName(), projectName);
+        if (!componentFolder.exists()) {
+            // Component does not exist → generate new
+            log.info("generate the component :");
+            FileGenerationUtil.generateAllFiles(projectName, request);
+        } else {
+            // Component exists → update all files
+            log.info("update the component :");
+            FileGenerationUtil.updateAllFiles(projectName, request);
+        }
     }
 
     /**
@@ -748,9 +761,11 @@ public class ComponentServiceImpl implements ComponentService {
 
         String fieldType = "";
         for (FieldType ft : FieldType.values()) {
+            // Skip MULTISELECT; we only want SELECT by default
+            if (ft == FieldType.MULTISELECT) continue;
             if (ft.getResourceType().equals(resourceType)) {
-                fieldType = ft.getType();
-                log.info("[getFieldTypeFromResource] Matched resourceType '{}' to fieldType '{}'", resourceType, fieldType);
+                log.info("[getFieldTypeFromResource] Matched resourceType '{}' to fieldType '{}'", resourceType, ft.getType());
+                return ft.getType(); // Return immediately on first match
             }
         }
 
@@ -759,7 +774,7 @@ public class ComponentServiceImpl implements ComponentService {
         } else {
             log.info("[getFieldTypeFromResource] Successfully resolved fieldType '{}' for resourceType '{}'", fieldType, resourceType);
         }
-
+        log.info("fieldType......{}",fieldType);
         return fieldType;
     }
 
@@ -795,7 +810,7 @@ public class ComponentServiceImpl implements ComponentService {
             type = TYPE_MULTIFIELD;
             log.info("[determineFieldType] Detected multifield for element '{}'", elem.getNodeName());
         } else if (GRANITE_SELECT.equals(resourceType)
-                && "true".equalsIgnoreCase(elem.getAttribute("multiple"))) {
+                &&"true".equalsIgnoreCase(elem.getAttribute("multiple"))|| "{Boolean}true".equalsIgnoreCase(elem.getAttribute("multiple"))) {
             type = TYPE_MULTISELECT;
             log.info("[determineFieldType] Detected multiselect for element '{}'", elem.getNodeName());
         } else if (CQ_FILEUPLOAD.equals(resourceType)) {
@@ -884,7 +899,7 @@ public class ComponentServiceImpl implements ComponentService {
         else if (SELECT.equals(fieldType) || TYPE_MULTISELECT.equals(fieldType) || RADIOGROUP.equals(fieldType)) {
             if (SELECT.equals(fieldType)) {
                 String multipleAttr = elem.getAttribute(ATTR_MULTIPLE);
-                if (VALUE_TRUE.equalsIgnoreCase(multipleAttr)) {
+                if (VALUE_TRUE.equalsIgnoreCase(multipleAttr)||VALUE_BOOLEAN_TRUE.equalsIgnoreCase(multipleAttr)) {
                     fieldType = TYPE_MULTISELECT;
                 }
             }
@@ -1065,7 +1080,7 @@ public class ComponentServiceImpl implements ComponentService {
             String baseDir = System.getProperty(USER_DIR_SYS_PROP) + "/" + PROJECTS_DIR + "/";
             String appId = AemUtil.getAppId(PROJECTS_DIR, projectName);
 
-            String contentFolderPath = baseDir + projectName + CONTENT_ROOT_PATH +
+            String contentFolderPath = baseDir + projectName + "/" + CONTENT_ROOT_PATH + "/" +
                     appId + "/" + COMPONENTS_FOLDER;
 
             log.info("[addComponentsToExistingProject] Copying components {} to '{}'",
@@ -1454,7 +1469,7 @@ public class ComponentServiceImpl implements ComponentService {
         String appId = AemUtil.getAppId(PROJECTS_DIR, projectName);
 
         // Resolve the absolute components folder path
-        String componentsPath = PROJECTS_DIR + "/" + projectName + CONTENT_ROOT_PATH + appId + "/" + COMPONENTS_FOLDER;
+        String componentsPath = PROJECTS_DIR + "/" + projectName +"/" + CONTENT_ROOT_PATH + "/" + appId + "/" + COMPONENTS_FOLDER;
         log.info("[getComponentGroups] Components folder path resolved to '{}'", componentsPath);
 
         File folder = new File(componentsPath);
@@ -1640,7 +1655,7 @@ public class ComponentServiceImpl implements ComponentService {
 
         String appId = AemUtil.getAppId(PROJECTS_DIR, projectName);
 
-        String componentsPath = PROJECTS_DIR + "/" + projectName + CONTENT_ROOT_PATH + appId + "/" + COMPONENTS_FOLDER;
+        String componentsPath = PROJECTS_DIR + "/" + projectName + "/" + CONTENT_ROOT_PATH + "/" + appId + "/" + COMPONENTS_FOLDER;
 
         log.info("[getComponentsByGroup] Fetching components for project '{}' from '{}'", projectName, componentsPath);
 
@@ -1809,7 +1824,7 @@ public class ComponentServiceImpl implements ComponentService {
         String appId = AemUtil.getAppId(PROJECTS_DIR, projectName);
 
         File componentsRoot = new File(PROJECTS_DIR + "/" + projectName
-                + CONTENT_ROOT_PATH + appId + "/" + COMPONENTS_FOLDER);
+                + "/" + CONTENT_ROOT_PATH + "/" + appId + "/" + COMPONENTS_FOLDER);
 
         log.info("[findComponentPathExact] Components root path: '{}'", componentsRoot.getAbsolutePath());
 
