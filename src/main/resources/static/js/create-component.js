@@ -256,7 +256,8 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         // server call: checkChildJavaClassName
-        fetch(`/checkChildJavaClassName?projectName=${encodeURIComponent(projectName)}&fieldName=${encodeURIComponent(fieldName)}`)
+        //fetch(`/checkChildJavaClassName?projectName=${encodeURIComponent(projectName)}&fieldName=${encodeURIComponent(fieldName)}`)
+        fetch(`/checkChildJavaClassName?projectName=${encodeURIComponent(projectName)}&fieldName=${encodeURIComponent(fieldName)}&currentComponent=${encodeURIComponent(currentComponentName)}`)
             .then(res => res.json())
             .then((exists) => {
                 const errorDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
