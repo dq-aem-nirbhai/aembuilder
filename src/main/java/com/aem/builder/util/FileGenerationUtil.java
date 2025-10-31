@@ -12,6 +12,11 @@ import org.apache.commons.io.FileUtils;
 import org.json.JSONObject;
 import org.w3c.dom.*;
 
+import org.w3c.dom.Document;
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
@@ -1175,7 +1180,6 @@ public class FileGenerationUtil {
         return deepestPos != -1 ? deepestPos : xml.length();
     }
 
-
     //-------------------- update files --------------------
 
     public static void updateAllFiles(String projectName, ComponentRequest request) {
@@ -1222,6 +1226,8 @@ public class FileGenerationUtil {
     }
 
    /* public static void updateComponent(String projectName, ComponentRequest request, String packageName) throws Exception {
+
+     /* public static void updateComponent(String projectName, ComponentRequest request, String packageName) throws Exception {
         log.info("FILEGEN: updateComponent method called !!! " );
         updateDialog(projectName, request);        // update .content.xml of dialog
         *//*String dialogPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
@@ -1274,7 +1280,6 @@ public class FileGenerationUtil {
         log.info("FILEGEN: Component '{}' updated successfully ({} unique fields)",
                 request.getComponentName(), uniqueFields.size());
     }
-
 
     // -------------------- update content.xml --------------------
 
@@ -1392,7 +1397,7 @@ public class FileGenerationUtil {
                 nonTabFields.add(f);
             }
         }
-        // Filter out empty/deleted multifields
+
         nonTabFields = nonTabFields.stream()
                 .filter(f -> !("multifield".equalsIgnoreCase(f.getFieldType()) &&
                         (f.getNestedFields() == null || f.getNestedFields().isEmpty())))
@@ -1555,7 +1560,6 @@ public class FileGenerationUtil {
             if (!"multifield".equals(type)) {      // <-- skip name for multifields
                 node.setAttribute("name", "./" + fieldName);
             }
-           //parent.appendChild(node);
         }
 
         node.setAttribute("fieldLabel", field.getFieldLabel());
@@ -1581,7 +1585,10 @@ public class FileGenerationUtil {
                 node.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/tabs");
                 node.setAttribute("jcr:primaryType", "nt:unstructured");
 
+                // ensure <items> inside tabs
                 Element tabItems = ensureChild(doc, node, "items", null);
+
+                // for each nested tab, create container
                 if (field.getNestedFields() != null) {
                     for (ComponentField tab : field.getNestedFields()) {
                         Element tabNode = findChildByName(tabItems, "./" + tab.getFieldName());
@@ -1592,7 +1599,7 @@ public class FileGenerationUtil {
                             tabNode.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/container");
                             tabItems.appendChild(tabNode);
                         }
-
+                        // ensure <items> inside each tab
                         Element tabInnerItems = ensureChild(doc, tabNode, "items", null);
 
                         //handle only normal & multifield fields
@@ -1600,7 +1607,6 @@ public class FileGenerationUtil {
                     }
                 }
                 break;
-
 
             case "richtext":
                 node.setAttribute("sling:resourceType", "cq/gui/components/authoring/dialog/richtext");
@@ -1730,6 +1736,9 @@ public class FileGenerationUtil {
         return null;
     }
 
+    /**
+     * Utility: ensure a child exists, else create it
+     */
 
     private static Element ensureChild(Document doc, Element parent, String nodeName, String nameAttr) {
         NodeList children = parent.getChildNodes();
@@ -1742,6 +1751,7 @@ public class FileGenerationUtil {
                 }
             }
         }
+
         Element child = doc.createElement(nodeName);
         child.setAttribute("jcr:primaryType", "nt:unstructured");
         if (nameAttr != null) {
@@ -1873,8 +1883,12 @@ public class FileGenerationUtil {
                         (existingFields.get(fieldName).contains("List<") || existingFields.get(fieldName).contains("ChildResource"))) {
 
                     String classFileName = capitalize(fieldName) + ".java";
+
                     Path classFilePath = Paths.get("generated-projects", projectName,
                             "core/src/main/java", basePackage.replace(".", "/"), classFileName);
+
+                    log.info("🧭 Checking path for deletion: {}", classFilePath);
+
                     try {
                         if (Files.exists(classFilePath)) {
                             Files.delete(classFilePath);
@@ -2141,6 +2155,8 @@ public class FileGenerationUtil {
 
                 case "multifield":
                 case "child":
+
+                    // Check if list is non-null and not empty
                     checks.append("        if (").append(fieldName)
                             .append(" != null && !").append(fieldName).append(".isEmpty()) empty = false;\n");
                     break;

@@ -14,7 +14,7 @@
 <div th:replace="fragments/navbar :: navbar"></div>
 
 <script>
-    // Function to prevent actions on main branch
+    // Restrict actions on main/dev branches
     function checkRestrictedBranch(actionName) {
         const branchName = document.getElementById('branchName').innerText.trim();
         if (branchName === 'main' || branchName === 'dev') {
@@ -36,13 +36,12 @@
             <!-- Switch Branch -->
             <form th:action="@{'/' + ${projectName} + '/switchBranch'}" method="post" class="d-flex me-3">
                 <select name="branchName" class="form-select form-select-sm me-2">
-                    <option th:each="b : ${branches}" th:value="${b}" th:text="${b}"
-                            th:selected="${b == branch}"></option>
+                    <option th:each="b : ${branches}" th:value="${b}" th:text="${b}" th:selected="${b == branch}"></option>
                 </select>
                 <button type="submit" class="btn btn-sm btn-outline-primary">Switch</button>
             </form>
 
-            <!-- Create Branch (choose from which branch) -->
+            <!-- Create Branch -->
             <form th:action="@{'/' + ${projectName} + '/createBranch'}" method="post" class="d-flex">
                 <input type="text" name="newBranch" placeholder="new-branch-name" class="form-control form-control-sm me-2" required />
                 <select name="fromBranch" class="form-select form-select-sm me-2" required>
@@ -51,13 +50,6 @@
                 </select>
                 <button type="submit" class="btn btn-sm btn-outline-success">Create & Switch</button>
             </form>
-
-<!--            &lt;!&ndash; Optional Unstash &ndash;&gt;-->
-<!--            <div class="ms-3" th:if="${hasStash}">-->
-<!--                <form th:action="@{'/' + ${projectName} + '/unstash'}" method="post">-->
-<!--                    <button type="submit" class="btn btn-sm btn-info">Unstash Changes</button>-->
-<!--                </form>-->
-<!--            </div>-->
         </div>
 
         <!-- Title + Navigation -->
@@ -68,32 +60,6 @@
         <div th:if="${message}" id="flashMessage" class="flash-message">
             <i class="bi bi-check-circle-fill me-2"></i>
             <span th:text="${message}"></span>
-        </div>
-        <div id="successMessage" class="alert alert-success text-center" role="alert">
-            Saved successfully.
-        </div>
-
-
-        <!-- Conflict Resolution Section -->
-        <div th:if="${conflicts}" class="alert alert-warning mt-3">
-            <h5>Checkout Conflicts Detected</h5>
-            <p>You have uncommitted changes in these files:</p>
-            <ul>
-                <li th:each="file : ${conflicts}" th:text="${file}"></li>
-            </ul>
-
-            <form th:action="@{'/' + ${projectName} + '/resolveConflicts'}" method="post" class="mt-2">
-                <input type="hidden" name="targetBranch" th:value="${targetBranch}" />
-                <input type="hidden" name="branchAction" th:value="${branchAction}" />
-                <input type="hidden" name="fromBranch" th:value="${fromBranch}" />
-
-                <p>How do you want to proceed?</p>
-                <div class="d-flex gap-2">
-                    <button type="submit" name="action" value="stash" class="btn btn-warning">Stash & Continue</button>
-                    <button type="submit" name="action" value="discard" class="btn btn-danger">Discard Changes</button>
-                    <button type="submit" name="action" value="merge" class="btn btn-success">Commit & Continue (merge)</button>
-                </div>
-            </form>
         </div>
 
         <!-- Action Buttons -->
@@ -123,8 +89,12 @@
                            onclick="return checkRestrictedBranch('create a component')">+ Create Component</a>
                         <a href="#" class="btn btn-sm btn-outline-primary"
                            onclick="return checkRestrictedBranch('open component library') && openComponentModal()">+ Component Library</a>
+                        <a th:href="@{'/' + ${projectName} + '/artifacts/artifact-generator'}"
+                           class="btn btn-sm btn-outline-primary"
+                           onclick="return checkRestrictedBranch('generate artifacts')">Generate New Features</a>
                     </div>
                 </div>
+
                 <div id="componentsList" class="row row-cols-1 row-cols-sm-2 g-2">
                     <div class="col" th:each="component : ${components}">
                         <div class="border rounded p-2 bg-light d-flex justify-content-between align-items-center shadow-sm">
@@ -140,24 +110,16 @@
 
             <!-- Templates -->
             <div class="col-md-6">
-                <div id="newTemplatesContainer" style="display:none;">
-                    <h6 class="text-success">Newly Added Templates</h6>
-                    <div id="newTemplatesList" class="row row-cols-1 row-cols-sm-2 g-2"></div>
-                </div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h4>Templates</h4>
-                    <div class="d-flex gap-2">
-                        <a th:href="@{/{projectName}/createtemplate(projectName=${projectName})}" class="btn btn-sm btn-outline-primary"
-                           onclick="return checkRestrictedBranch('create a template')">Create Template</a>
-                    </div>
+                    <a th:href="@{/{projectName}/createtemplate(projectName=${projectName})}" class="btn btn-sm btn-outline-primary"
+                       onclick="return checkRestrictedBranch('create a template')">Create Template</a>
                 </div>
+
                 <div id="templatesList" class="row row-cols-1 row-cols-sm-2 g-2">
                     <div class="col" th:each="template : ${templates}">
                         <div class="border rounded p-2 bg-light d-flex justify-content-between align-items-center shadow-sm">
-                            <a th:href="@{/{projectName}/templates/{template}/components(projectName=${projectName},template=${template})}"
-                               class="text-decoration-none"
-                               th:text="${template}"
-                               onclick="return checkRestrictedBranch('view components for template')"></a>
+                            <a th:href="@{/{projectName}/templates/{template}/components(projectName=${projectName},template=${template})}" class="text-decoration-none" th:text="${template}"></a>
                             <div class="d-flex">
                                 <a th:if="${template != 'page-content' and template != 'xf-web-variation'}"
                                    th:href="@{/{projectName}/edittemplate(templateName=${template}, projectName=${projectName})}"
@@ -180,42 +142,30 @@
 <!-- Footer -->
 <div th:replace="fragments/navbar :: footer"></div>
 
-<!-- Component Modal -->
-<div class="modal fade" id="componentModal" tabindex="-1" th:attr="data-project=${projectName}">
+<!-- Artifact Modal -->
+<div class="modal fade" id="artifactModal" th:attr="data-project=${projectName}" tabindex="-1" aria-labelledby="artifactModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5>Select Components</h5>
-                <button class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="artifactModalLabel">Select Artifacts (Servlets, Services, Sling Models, etc.)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div id="componentList" class="row row-cols-2 g-2"></div>
+                <div id="artifactList" class="container-fluid">
+                    <p class="text-muted">Loading...</p>
+                </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-primary" onclick="addSelectedComponents()">Add Selected</button>
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-success" onclick="generateSelectedArtifacts()">Generate</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Template Modal -->
-<div class="modal fade" id="templateModal" tabindex="-1" th:attr="data-project=${projectName}">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5>Select Templates</h5>
-                <button class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div id="templateList" class="row row-cols-2 g-2"></div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-primary" onclick="addSelectedTemplates()">Add Selected</button>
-            </div>
-        </div>
-    </div>
-</div>
-
+<!-- Scripts -->
 <script src="/js/deploy.js"></script>
+<script src="/js/artifactController.js"></script>
+
 </body>
 </html>

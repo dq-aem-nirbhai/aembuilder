@@ -141,6 +141,7 @@ document.addEventListener("DOMContentLoaded", function () {
      } else {
        // Case 2: Some individual items checked → store their values
        checkboxes.forEach((cb) => {
+        
          if (cb.checked) {
            selectedItems.push(cb.value);
          }
@@ -173,7 +174,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Add Style Row
-  function addStyleRow(btn, style = { label: "", cls: "", element: "div" }) {
+  function addStyleRow(btn, style = { label: "", cls: "", element: "" }) {
     const stylesDiv = btn.parentElement.querySelector(".styles");
     const row = document.createElement("div");
     row.className = "style-row";
@@ -181,7 +182,7 @@ document.addEventListener("DOMContentLoaded", function () {
       <input type="text" placeholder="Style Label" class="style-label" value="${style.label}" required>
       <input type="text" placeholder="CSS Class" class="style-class" value="${style.cls}" required>
       <select class="style-element" required>
-        <option value="">Element --</option>
+        <option value="">--Element --</option>
         <option value="div" ${style.element === "div" ? "selected" : ""}>div</option>
         <option value="section" ${style.element === "section" ? "selected" : ""}>section</option>
         <option value="article" ${style.element === "article" ? "selected" : ""}>article</option>

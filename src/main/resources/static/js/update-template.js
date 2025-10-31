@@ -6,6 +6,39 @@ document.addEventListener("DOMContentLoaded", () => {
     const templatetypeSelect = document.getElementById("templatetype");
     const selectedTemplateType = templatetypeSelect.getAttribute("data-selected");
 
+    const nameInput = document.getElementById("name");
+    const nameError = document.getElementById("name-error");
+
+    // ✅ Restrict spaces in template name field
+    if (nameInput) {
+        nameInput.addEventListener("input", function () {
+            let currentValue = this.value;
+
+            // If user types or pastes spaces → remove them
+            if (/\s/.test(currentValue)) {
+                this.value = currentValue.replace(/\s+/g, "");
+                nameError.innerText = "⚠️ Spaces are not allowed in the template name, you can use - or _ instead of spaces.";
+                return;
+            } else {
+                nameError.innerText = "";
+            }
+        });
+    }
+
+    // ✅ Prevent spaces at submission as a final check
+    const templateForm = document.getElementById("templateForm");
+    if (templateForm) {
+        templateForm.addEventListener("submit", (e) => {
+            const nameValue = nameInput.value.trim();
+            if (/\s/.test(nameValue)) {
+                e.preventDefault();
+                nameError.innerText = "Spaces are not allowed in the template name.";
+                return false;
+            }
+        });
+    }
+
+    // Fetch available template types
     fetch(`/template-types/${projectName}`)
         .then(response => {
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);

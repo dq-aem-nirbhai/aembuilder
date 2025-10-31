@@ -321,7 +321,11 @@ public class ComponentServiceImpl implements ComponentService {
     @Override
     public void updateComponent(String projectName, ComponentRequest request) {
         String appId = AemUtil.getAppId(PROJECTS_DIR, projectName);
+
       //  generated-projects/demo/ui.apps/src/main/content/jcr_root/apps/appid
+
+//  generated-projects/demo/ui.apps/src/main/content/jcr_root/apps/appid
+
         String compPath = PROJECTS_DIR + "/" + projectName + "/" + CONTENT_ROOT_PATH + "/" + appId + "/"+ COMPONENTS_FOLDER + "/"+ request.getComponentName();
 
         log.info("[updateComponent] Updating component '{}' in project '{}'", request.getComponentName(), projectName);
@@ -329,6 +333,16 @@ public class ComponentServiceImpl implements ComponentService {
 
         File componentFolder = new File(compPath);
         log.info("Checking component path: {}", componentFolder);
+
+        /*try {
+            FileUtils.deleteDirectory(new File(compPath));
+            log.info("[updateComponent] Deleted existing component directory: {}", compPath);
+        } catch (IOException e) {
+            log.info("[updateComponent] Could not clean component folder before update for '{}'", request.getComponentName(), e);
+        }*/
+
+        FileGenerationUtil.generateAllFiles(projectName, request);
+        log.info("[updateComponent] Regenerated component '{}' in project '{}'", request.getComponentName(), projectName);
 
         if (!componentFolder.exists()) {
             // Component does not exist → generate new
@@ -765,7 +779,6 @@ public class ComponentServiceImpl implements ComponentService {
         } else {
             log.info("[getFieldTypeFromResource] Successfully resolved fieldType '{}' for resourceType '{}'", fieldType, resourceType);
         }
-
         log.info("fieldType......{}",fieldType);
         return fieldType;
     }
