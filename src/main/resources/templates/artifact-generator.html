@@ -1,50 +1,181 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Create New Artifact</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Artifact Library</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
 </head>
 <body>
 <div th:replace="fragments/navbar :: navbar"></div>
 
-<main class="container mt-4">
-    <h3>Create New Artifact</h3>
+<main class="container mt-4 animate__animated animate__fadeIn">
+    <a th:href="@{'/view/' + ${projectName}}" class="btn btn-outline-secondary mb-3">← Back to DeployPage</a>
+    <h2>Artifact Library</h2>
+    <p>Browse available artifact types and samples.</p>
 
-    <!-- ✅ Correct form action for dynamic project -->
-    <form id="artifactForm" th:action="@{'/' + ${projectName} + '/artifacts/create'}" method="post">
+    <!-- ✅ Create New Artifact Button -->
+    <div class="mb-3">
+        <button id="showFormBtn" class="btn btn-primary">➕ Create New Artifact</button>
+    </div>
 
-        <div class="mb-3">
-            <label class="form-label">Artifact Type</label>
-            <select id="artifactType" name="type" class="form-select" required>
-                <option value="">-- Select Type --</option>
-                <option value="servlet">Servlet</option>
-                <option value="scheduler">Scheduler</option>
-                <option value="listener">Listener</option>
-                <option value="service">Service</option>
-            </select>
+    <!-- ✅ Artifact List Section -->
+    <div id="artifactListSection">
+        <div th:if="${message}">
+            <h3>New Artifact</h3>
+            <div class="alert alert-info" th:text="${message}"></div>
         </div>
 
-        <div class="mb-3">
-            <label class="form-label">Class Name</label>
-            <input type="text" name="name" class="form-control" placeholder="MyExample" required>
+        <div th:if="${message == null}">
+            <div th:each="entry : ${artifactMap}">
+                <h4 th:text="${entry.key} + ' (' + ${#lists.size(entry.value)} + ')'"></h4>
+                <div class="list-group mb-3">
+                    <div th:each="file : ${entry.value}" class="list-group-item">
+                        <div>
+                            <strong th:text="${file.name}"></strong>
+                            <small class="text-muted ms-2" th:text="${file.packageInfo}"></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+    </div>
 
-        <!-- Dynamic Fields -->
-        <div id="dynamicFields"></div>
+    <!-- ✅ Hidden Artifact Generator Form -->
+    <div id="artifactFormSection" class="mt-5" style="display: none;">
+        <h3>Create New Artifact</h3>
+        <form id="artifactForm" th:action="@{'/' + ${projectName} + '/artifacts/create'}" method="post">
+            <div class="mb-3">
+                <label class="form-label">Artifact Type</label>
+                <select id="artifactType" name="type" class="form-select" required>
+                    <option value="">-- Select Type --</option>
+                    <option value="servlet">Servlet</option>
+                    <option value="scheduler">Scheduler</option>
+                    <option value="listener">Listener</option>
+                    <option value="service">Service</option>
+                </select>
+            </div>
 
-        <!-- ✅ Correct buttons -->
-        <div class="mt-3">
-            <button type="submit" class="btn btn-success">Generate Artifact</button>
-            <a th:href="@{'/' + ${projectName} + '/artifacts'}" class="btn btn-secondary">Cancel</a>
+            <div class="mb-3">
+                <label class="form-label">Class Name</label>
+                <input type="text" name="name" class="form-control" placeholder="MyExample" required>
+            </div>
+
+            <!-- Dynamic Fields -->
+            <div id="dynamicFields"></div>
+
+            <!-- Buttons -->
+            <div class="mt-3">
+                <button type="submit" class="btn btn-success">Generate Artifact</button>
+                <button type="button" id="cancelBtn" class="btn btn-secondary">Cancel</button>
+            </div>
+        </form>
+
+        <!-- Message display -->
+        <div id="message" class="mt-3">
+            <div th:if="${message}" class="alert alert-info" th:text="${message}"></div>
         </div>
-    </form>
-
-    <div id="message" class="mt-3">
-        <div th:if="${message}" class="alert alert-info" th:text="${message}"></div>
     </div>
 </main>
+</div>
+<!-- ✅ Inline JS -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    console.log("Combined Artifact Library + Generator loaded");
 
-<script src="/js/artifactController.js"></script>
+    const showFormBtn = document.getElementById("showFormBtn");
+    const cancelBtn = document.getElementById("cancelBtn");
+    const artifactFormSection = document.getElementById("artifactFormSection");
+    const artifactListSection = document.getElementById("artifactListSection");
+    const form = document.getElementById("artifactForm");
+    const messageDiv = document.getElementById("message");
+    const artifactTypeEl = document.getElementById("artifactType");
+    const dynamicFields = document.getElementById("dynamicFields");
+
+    // ✅ Create new message area for list section
+    const listMessageDiv = document.createElement("div");
+    listMessageDiv.id = "listMessage";
+    artifactListSection.prepend(listMessageDiv);
+
+    // ✅ Toggle visibility
+    showFormBtn.addEventListener("click", () => {
+        artifactListSection.style.display = "none";
+        artifactFormSection.style.display = "block";
+        listMessageDiv.innerHTML = ""; // clear old messages
+    });
+
+    cancelBtn.addEventListener("click", () => {
+        artifactFormSection.style.display = "none";
+        artifactListSection.style.display = "block";
+    });
+
+    // ✅ Handle dynamic fields
+    artifactTypeEl.addEventListener("change", (e) => {
+        const type = e.target.value;
+        dynamicFields.innerHTML = "";
+
+        if (type === "servlet") {
+            dynamicFields.innerHTML = `
+                <div class="mb-3">
+                    <label class="form-label">HTTP Method</label>
+                    <select name="method" class="form-select">
+                        <option value="GET">GET</option>
+                        <option value="POST">POST</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Path</label>
+                    <input type="text" name="path" class="form-control" placeholder="/bin/example">
+                </div>`;
+        } else if (type === "scheduler") {
+            dynamicFields.innerHTML = `
+                <div class="mb-3">
+                    <label class="form-label">Cron Expression</label>
+                    <input type="text" name="cron" class="form-control" value="0 0 * * * ?" placeholder="Cron expression">
+                </div>`;
+        } else if (type === "listener") {
+            dynamicFields.innerHTML = `
+                <div class="mb-3">
+                    <label class="form-label">Event Type</label>
+                    <input type="text" name="eventType" class="form-control" value="resource" placeholder="Event type">
+                </div>`;
+        } else if (type === "service") {
+            dynamicFields.innerHTML = `
+                <div class="mb-3">
+                    <label class="form-label">Interface Type</label>
+                    <input type="text" name="interfaceType" class="form-control" value="Component">
+                </div>`;
+        }
+    });
+
+    // ✅ Submit form (AJAX)
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        const url = form.getAttribute("action");
+
+        try {
+            const response = await fetch(url, { method: "POST", body: formData });
+            const result = await response.text();
+
+            // ✅ show message in list section instead of form
+            listMessageDiv.innerHTML = `<div class="alert alert-success">✅ Artifact generated successfully!</div>`;
+
+            artifactFormSection.style.display = "none";
+            artifactListSection.style.display = "block";
+
+            form.reset(); // clear form for next time
+            dynamicFields.innerHTML = "";
+        } catch (error) {
+            console.error("Error:", error);
+            listMessageDiv.innerHTML = `<div class="alert alert-danger">❌ Error while generating artifact!</div>`;
+            artifactFormSection.style.display = "none";
+            artifactListSection.style.display = "block";
+        }
+    });
+});
+</script>
+
 </body>
 </html>
