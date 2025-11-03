@@ -21,10 +21,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -54,7 +51,7 @@ public class AemProjectServiceImpl implements AemProjectService {
      * @throws IOException if project already exists or generation fails
      */
     @Override
-    public void generateProject(AemProjectModel projectModel) throws IOException {
+    public void generateProject(AemProjectModel projectModel, boolean lombok) throws IOException {
         log.info("[generateProject] Starting AEM project generation for '{}'", projectModel.getProjectName());
 
         Path baseDir = createBaseDirectory();
@@ -67,6 +64,16 @@ public class AemProjectServiceImpl implements AemProjectService {
 
         String mavenCommand = buildMavenCommand(projectModel, appId);
         executeMavenCommand(mavenCommand, baseDir.toFile());
+
+        // If lombok requested, attempt to inject into core/pom.xml
+        if (lombok) {
+            try {
+                addLombokToCorePom(projectPath);
+                log.info("[generateProject] Lombok dependency injected for project '{}'", projectModel.getProjectName());
+            } catch (Exception e) {
+                log.warn("[generateProject] Failed to inject Lombok dependency: {}", e.getMessage(), e);
+            }
+        }
         handlePostGenerationTasks(projectPath, baseDir, projectModel, appId);
 
         log.info("[generateProject] AEM project '{}' generated successfully at {}", projectModel.getProjectName(), projectPath);
@@ -562,6 +569,64 @@ public class AemProjectServiceImpl implements AemProjectService {
     /**
      * Updates the filter.xml mode for /conf/{appId} from "merge" → "replace".
      */
+    /**
+     * Insert Lombok dependency into generated core/pom.xml (if found).
+     */
+    private void addLombokToCorePom(Path projectPath) throws IOException {
+        List<Path> candidates = new ArrayList<>();
+        candidates.add(projectPath.resolve("core").resolve("pom.xml"));
+
+        // Search for any pom.xml under a folder named 'core'
+        try (Stream<Path> stream = Files.walk(projectPath)) {
+            stream.filter(p -> p.getFileName().toString().equals("pom.xml"))
+                    .forEach(p -> {
+                        if (p.toString().contains(File.separator + "core" + File.separator) ||
+                                p.getParent().getFileName().toString().equalsIgnoreCase("core")) {
+                            candidates.add(p);
+                        }
+                    });
+        } catch (IOException ignored) {}
+
+        Path corePom = null;
+        for (Path p : candidates) {
+            if (Files.exists(p)) { corePom = p; break; }
+        }
+        if (corePom == null) {
+            log.warn("[addLombokToCorePom] Core pom not found under {}", projectPath);
+            return;
+        }
+
+        String content = Files.readString(corePom);
+        if (content.contains("<artifactId>lombok</artifactId>")) {
+            log.info("[addLombokToCorePom] Lombok already present in {}", corePom);
+            return;
+        }
+
+        String lombokDependency =
+                "        <!-- Adding Lombok Dependencies -->\n" +
+                        "        <dependency>\n" +
+                        "            <groupId>org.projectlombok</groupId>\n" +
+                        "            <artifactId>lombok</artifactId>\n" +
+                        "            <version>1.18.30</version>\n" +
+                        "            <scope>provided</scope>\n" +
+                        "        </dependency>\n";
+
+        if (content.contains("</dependencies>")) {
+            // ✅ Insert Lombok before </dependencies> without leaving stray \n characters in output
+            content = content.replace("</dependencies>", lombokDependency + "</dependencies>");
+            Files.writeString(corePom, content, StandardOpenOption.TRUNCATE_EXISTING);
+            log.info("[addLombokToCorePom] Inserted Lombok dependency into {}", corePom);
+        } else if (content.contains("</project>")) {
+            // ✅ Create new dependencies block cleanly
+            String toInsert = "\n<dependencies>\n" + lombokDependency + "</dependencies>\n";
+            content = content.replace("</project>", toInsert + "</project>");
+            Files.writeString(corePom, content, StandardOpenOption.TRUNCATE_EXISTING);
+            log.info("[addLombokToCorePom] Created <dependencies> block and inserted Lombok into {}", corePom);
+        } else {
+            log.warn("[addLombokToCorePom] Couldn't find insertion point for {}", corePom);
+        }
+    }
+
     private void updateConfFilterMode(String baseDir, String projectName) throws IOException {
         Path filterPath = Paths.get(baseDir, projectName, "ui.content/src/main/content/META-INF/vault/filter.xml");
 
