@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jcr:root
+        xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
+        xmlns:cq="http://www.day.com/jcr/cq/1.0"
+        xmlns:jcr="http://www.jcp.org/jcr/1.0"
+        jcr:primaryType="nt:unstructured"
+        jcr:title="CSV Importer"
+        sling:resourceType="cq/gui/components/authoring/dialog"
+        helpPath="en/csv-importer.html"
+        width="600">
+
+    <content
+            jcr:primaryType="nt:unstructured"
+            sling:resourceType="granite/ui/components/coral/foundation/container">
+
+        <items jcr:primaryType="nt:unstructured">
+            <tabs
+                    jcr:primaryType="nt:unstructured"
+                    sling:resourceType="granite/ui/components/coral/foundation/tabs">
+
+                <items jcr:primaryType="nt:unstructured">
+
+                    <tab1
+                            jcr:primaryType="nt:unstructured"
+                            jcr:title="Import CSV"
+                            sling:resourceType="granite/ui/components/coral/foundation/container">
+
+                        <items jcr:primaryType="nt:unstructured">
+
+                            <file
+                                    jcr:primaryType="nt:unstructured"
+                                    fieldLabel="Upload CSV File"
+                                    name="./csvFile"
+                                    sling:resourceType="granite/ui/components/coral/foundation/form/fileupload"
+                                    allowUpload="true"
+                                    multiple="false"
+                                    required="true"
+                                    autoStart="false"
+                                    uploadUrl="/content/dam/import"
+                                    text="Select CSV File"/>
+
+                            <description
+                                    jcr:primaryType="nt:unstructured"
+                                    sling:resourceType="granite/ui/components/coral/foundation/form/textfield"
+                                    fieldLabel="Description"
+                                    name="./description"/>
+                        </items>
+                    </tab1>
+                </items>
+            </tabs>
+        </items>
+    </content>
+</jcr:root>

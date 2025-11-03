@@ -203,6 +203,98 @@ function saveAll() {
 
         });
 }
+//  New — Open Tool Modal
+// 🧰 Open Tool Modal and Load Tools
+function openToolModal() {
+    const projectName = getProjectName();
+    if (!projectName) {
+        alert("Project name not found.");
+        return;
+    }
+
+    fetch(`/tools/fetchtools/${projectName}`)
+        .then(res => {
+            if (!res.ok) throw new Error('Failed to fetch tools');
+            return res.json();
+        })
+        .then(data => {
+            console.log("✅ Tools fetched:", data);
+
+            // Render tools inside modal
+            renderToolList(data);
+
+            // Show the modal
+            new bootstrap.Modal(document.getElementById('toolModal')).show();
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Unable to load tools. Please try again.');
+        });
+}
+
+// 🎨 Render Tool List in Modal
+function renderToolList(tools) {
+    const container = document.getElementById("toolList");
+    container.innerHTML = "";
+
+    if (!tools || tools.length === 0) {
+        container.innerHTML = `<p class="text-muted">No tools found in the library.</p>`;
+        return;
+    }
+
+    tools.forEach(tool => {
+        const div = document.createElement("div");
+        div.classList.add("col");
+        div.innerHTML = `
+            <div class="card p-3 shadow-sm border-0 h-100">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input me-2" id="tool-${tool}" value="${tool}">
+                    <label for="tool-${tool}" class="form-check-label fw-semibold">${tool}</label>
+                </div>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+// 🚀 Add Selected Tools
+function addSelectedTools() {
+    const projectName = getProjectName();
+    if (!projectName) {
+        alert("Project name not found.");
+        return;
+    }
+
+    const selectedTools = Array.from(document.querySelectorAll('#toolList input[type="checkbox"]:checked'))
+        .map(cb => cb.value);
+
+    if (selectedTools.length === 0) {
+        alert("Please select at least one tool.");
+        return;
+    }
+
+    console.log("🧩 Selected Tools:", selectedTools);
+
+    fetch(`/tools/add/${projectName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(selectedTools)
+    })
+        .then(res => {
+            if (!res.ok) throw new Error("Failed to add tools");
+            return res.text();
+        })
+        .then(() => {
+            alert(`✅ Successfully added ${selectedTools.length} tool(s) to project '${projectName}'`);
+            window.location.reload();
+        })
+        .catch(err => {
+            console.error(err);
+            alert("❌ Failed to add tools. Please check server logs.");
+        });
+}
+
+
  window.addEventListener("DOMContentLoaded", () => {
         const flash = document.getElementById("flashMessage");
         if (flash) {
