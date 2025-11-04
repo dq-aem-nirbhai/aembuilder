@@ -20,5 +20,6 @@ public class ComponentRequest {
      */
     private String superType;
     private List<ComponentField> fields;
+    private String sectionTitle;
 
 }
