@@ -69,7 +69,20 @@ public class ToolServiceImpl implements ToolService {
                 copyDirectory(Paths.get(baseDir, OVERLAY_CQ_BASE), cqOverlayTarget);
                 log.info("✅ Full CQ overlay copied to: {}", cqOverlayTarget);
             } else {
+
                 log.info("ℹ️ CQ overlay already exists. Copying only tool-specific nav entries...");
+                for (String toolName : selectedTools) {
+                    Path cqToolNavSource = Paths.get(baseDir, OVERLAY_CQ_BASE,
+                            "core/content/nav/tools", toolName);
+                    Path cqToolNavDest = cqOverlayTarget.resolve("core/content/nav/tools").resolve(toolName);
+
+                    if (Files.exists(cqToolNavSource)) {
+                        copyDirectory(cqToolNavSource, cqToolNavDest);
+                        log.info("✅ Overlay nav for tool '{}' copied to: {}", toolName, cqToolNavDest);
+                    } else {
+                        log.warn("⚠️ Overlay nav for tool '{}' not found at {}", toolName, cqToolNavSource);
+                    }
+                }
             }
 
             // Step 2️⃣: Process each tool

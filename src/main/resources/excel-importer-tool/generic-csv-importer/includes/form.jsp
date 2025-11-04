@@ -18,7 +18,7 @@
       name="parentPath"
       class="coral-Textfield"
       required
-      value="/content/dam/charger"
+      value="/content/dam/"
     />
   </div>
 
