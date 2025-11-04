@@ -1,18 +1,16 @@
 package com.aem.builder.util;
+
 import java.io.File;
 
 import static com.aem.builder.constants.ComponentConstants.COMPONENTS_PATH;
 import static com.aem.builder.constants.ComponentConstants.MSM_FOLDER;
 
-public class AemUtil{
-
+public class AemUtil {
 
     /**
      * Returns the correct appId folder for a given AEM project.
-     *
-     * @param  projectsDirPath directory where all projects are stored
-     * @param projectName Root project folder (artifactId)
-     * @return appId folder name under apps/
+     * Prefers a folder that matches the project name, else falls back
+     * to the first valid non-system folder.
      */
     public static String getAppId(String projectsDirPath, String projectName) {
 
@@ -23,19 +21,26 @@ public class AemUtil{
             throw new IllegalStateException("Apps directory does not exist: " + appsDir.getAbsolutePath());
         }
 
-        // Default fallback: use projectName
-        String appName = projectName;
+        // ✅ Step 1: Prefer folder matching the project name (e.g. /apps/mobile)
+        File projectDir = new File(appsDir, projectName);
+        if (projectDir.exists() && projectDir.isDirectory()) {
+            return projectName;
+        }
 
+        // ✅ Step 2: Fallback — pick the first valid folder that’s not system-related
         File[] dirs = appsDir.listFiles(File::isDirectory);
         if (dirs != null) {
             for (File dir : dirs) {
-                if (!MSM_FOLDER.equalsIgnoreCase(dir.getName())) { // skip MSM folder
-                    appName = dir.getName(); // take the first valid folder
-                    break;
+                String name = dir.getName();
+                if (!"cq".equalsIgnoreCase(name)
+                        && !MSM_FOLDER.equalsIgnoreCase(name)
+                        && !"msm".equalsIgnoreCase(name) &&!"geeksdemo".equalsIgnoreCase(name)) {
+                    return name;
                 }
             }
         }
 
-        return appName;
+        // ✅ Step 3: Final fallback — default to project name
+        return projectName;
     }
 }
