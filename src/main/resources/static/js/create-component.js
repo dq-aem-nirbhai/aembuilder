@@ -234,10 +234,8 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-
         // server call: checkChildJavaClassName
-        //fetch(`/checkChildJavaClassName?projectName=${encodeURIComponent(projectName)}&fieldName=${encodeURIComponent(fieldName)}`)
-        fetch(`/checkChildJavaClassName?projectName=${encodeURIComponent(projectName)}&fieldName=${encodeURIComponent(fieldName)}&currentComponent=${encodeURIComponent(currentComponentName)}`)
+        fetch(`/checkChildJavaClassName?projectName=${encodeURIComponent(projectName)}&fieldName=${encodeURIComponent(fieldName)}`)
             .then(res => res.json())
             .then((exists) => {
                 const errorDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
@@ -686,7 +684,7 @@ document.addEventListener("DOMContentLoaded", function () {
         nameEl.value = field.fieldName || '';
         // run duplicate & server checks only when appropriate
         checkDuplicateFieldNameWithinComponent(nameEl);
-        if (isFieldTypeMultifield(nameEl)) {
+        if (isFieldTypeMultifield(nameEl) && !window.editMode) {
             checkFieldNameAvailability(nameEl);
         }
     }
