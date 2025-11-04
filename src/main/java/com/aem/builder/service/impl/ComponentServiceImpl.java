@@ -338,8 +338,8 @@ public class ComponentServiceImpl implements ComponentService {
         File componentFolder = new File(compPath);
         log.info("Checking component path: {}", componentFolder);
 
-        FileGenerationUtil.generateAllFiles(projectName, request);
-        log.info("[updateComponent] Regenerated component '{}' in project '{}'", request.getComponentName(), projectName);
+       // FileGenerationUtil.generateAllFiles(projectName, request);
+        // log.info("[updateComponent] Regenerated component '{}' in project '{}'", request.getComponentName(), projectName);
         if (!componentFolder.exists()) {
             // Component does not exist → generate new
             log.info("generate the component :");

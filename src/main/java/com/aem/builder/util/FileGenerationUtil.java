@@ -1186,8 +1186,6 @@ public class FileGenerationUtil {
     }
 
 
-
-
     //-------------------- update files --------------------
 
     public static void updateAllFiles(String projectName, ComponentRequest request) {
@@ -1232,7 +1230,6 @@ public class FileGenerationUtil {
             e.printStackTrace();
         }
     }
-
 
      /* public static void updateComponent(String projectName, ComponentRequest request, String packageName) throws Exception {
         log.info("FILEGEN: updateComponent method called !!! " );
@@ -1301,7 +1298,7 @@ public class FileGenerationUtil {
 
         String xmlContent = FileUtils.readFileToString(contentXml, StandardCharsets.UTF_8);
 
-        // Update jcr:title if provided
+        // Update jcr:title if providedpatchSlingModel
         if (request.getSectionTitle() != null) {
             xmlContent = xmlContent.replaceAll("jcr:title=\"[^\"]*\"", "jcr:title=\"" + request.getSectionTitle() + "\"");
         }
@@ -1395,6 +1392,7 @@ public class FileGenerationUtil {
                 .map(ComponentField::getFieldName)
                 .collect(Collectors.toList());
         cleanUpDeletedFields(itemsElement, incomingNames);
+        log.info("[updateDialog method] - incomingNames : " + incomingNames );
 
         // Separate tab fields and non-tab fields
         List<ComponentField> tabFields = new ArrayList<>();
@@ -1774,6 +1772,8 @@ public class FileGenerationUtil {
 
     // Recursive method to clean up fields (top-level + nested)
     private static void cleanUpDeletedFields(Element itemsElement, List<String> incomingNames) {
+        log.info("cleanUpDeletedFields method called for deleting the fields....!!");
+        log.info("cleanUpDeletedFields fields : " + incomingNames);
         NodeList childNodes = itemsElement.getChildNodes();
         for (int i = 0; i < childNodes.getLength(); i++) {
             Node node = childNodes.item(i);
@@ -1840,9 +1840,11 @@ public class FileGenerationUtil {
         if (javaFilePath == null) {
             throw new RuntimeException("Could not find Java file for model: " + slingModelClass);
         }
+        log.info("updateSlingModel javaFilePath ...!!" + javaFilePath);
 
         // 4. Determine base package for generating nested multifield classes
         String basePackage = slingModelClass.substring(0, slingModelClass.lastIndexOf("."));
+        log.info("updateSlingModel basePackage ...!!" + basePackage);
 
         // 5. Patch Sling Model with fields from ComponentRequest
         patchSlingModel(javaFilePath, request.getFields(), basePackage, request.getProjectName());
@@ -1877,35 +1879,21 @@ public class FileGenerationUtil {
     private static void patchSlingModel(Path javaFile, List<ComponentField> fields,
                                         String basePackage, String projectName) throws IOException {
 
+        log.info("patchSlingModel Method called....!!");
+
         String content = Files.readString(javaFile);
+        log.info("patchSlingModel content ...!!" + content);
 
         // 1️⃣ Extract existing fields
         Map<String, String> existingFields = extractFieldMap(content);
+        log.info("patchSlingModel existingFields ...!!" + existingFields);
 
         // 2️⃣ Remove fields that no longer exist
         for (String fieldName : new HashSet<>(existingFields.keySet())) {
             if (fields.stream().noneMatch(f -> f.getFieldName().equals(fieldName))) {
                 content = removeField(content, fieldName);
-
-                // Only delete the Sling Model if it was a multifield or child (nested resource)
-                if (existingFields.get(fieldName) != null &&
-                        (existingFields.get(fieldName).contains("List<") || existingFields.get(fieldName).contains("ChildResource"))) {
-
-                    String classFileName = capitalize(fieldName) + ".java";
-                    Path classFilePath = Paths.get(System.getProperty("user.dir"), "generated-projects",
-                            projectName, "core/src/main/java", basePackage.replace(".", "/"), classFileName);
-
-                    log.info("🧭 Checking path for deletion: {}", classFilePath);
-
-                    try {
-                        if (Files.exists(classFilePath)) {
-                            Files.delete(classFilePath);
-                            log.info("🗑 Deleted obsolete multifield Sling Model: {}", classFilePath);
-                        }
-                    } catch (IOException e) {
-                        log.warn("⚠ Could not delete obsolete Sling Model: {}", classFilePath, e);
-                    }
-                }
+                // 2️⃣ Try deleting nested multifield class (if exists)
+                deleteMultifieldClassIfExists(projectName, basePackage, fieldName);
             }
         }
 
@@ -1951,6 +1939,28 @@ public class FileGenerationUtil {
 
         Files.writeString(javaFile, content);
     }
+    
+    /**
+     * Deletes the corresponding multifield nested Sling Model class if it exists.
+     */
+    private static void deleteMultifieldClassIfExists(String projectName, String basePackage, String fieldName) {
+        try {
+            String nestedClassName = capitalize(fieldName);
+            Path modelDir = Paths.get("generated-projects", projectName,
+                    "core/src/main/java", basePackage.replace(".", "/"));
+            Path nestedClassPath = modelDir.resolve(nestedClassName + ".java");
+
+            if (Files.exists(nestedClassPath)) {
+                Files.delete(nestedClassPath);
+                log.info("Deleted nested multifield Sling Model class: {}", nestedClassPath);
+            } else {
+                log.info("No nested Sling Model found for multifield '{}'", fieldName);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to delete nested Sling Model for field '{}': {}", fieldName, e.getMessage());
+        }
+    }
+
 
     private static String insertField(String content, ComponentField field,
                                       String packageName, String projectName) {
@@ -2003,10 +2013,10 @@ public class FileGenerationUtil {
         return map;
     }
 
-
-    // Remove a field + its getter
     // Remove a field and its getter
     private static String removeField(String content, String fieldName) {
+
+        log.info("removeField method called....!!" + fieldName );
         // Remove annotated field
         content = content.replaceAll(
                 "(?s)@(ValueMapValue|ChildResource)\\s+private[^{;]+\\s+" + fieldName + "\\s*;\\s*",
