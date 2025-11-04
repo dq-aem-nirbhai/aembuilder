@@ -30,8 +30,9 @@
 
     <!-- Flash Message -->
     <div th:if="${message}" id="flashMessage" class="alert alert-success text-center shadow-sm">
-      <span th:text="${message}"></span>
-    </div>
+  <span th:text="${message}"></span>
+</div>
+
 
     <!-- Error Alert -->
     <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert" id="errorAlert">

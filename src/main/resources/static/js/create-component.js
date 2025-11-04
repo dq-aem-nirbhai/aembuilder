@@ -188,7 +188,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const errorDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
 
         if (duplicates.length > 1) {
-            errorDiv.innerText = '⚠️ Duplicate multifield name detected!';
+            errorDiv.innerText = '⚠️ Duplicate name detected!';
             errorDiv.classList.add('text-danger');
             fieldInput.classList.add('is-invalid');
             createButton.disabled = true;
@@ -207,65 +207,68 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // ===== Check Field Name Availability Server-Side (ONLY for multifield) =====
     const checkFieldNameAvailability = debounce((fieldInput) => {
-        const fieldName = fieldInput.value.trim();
-        if (!fieldName) {
-            validateFormFields();
-            return;
+    // Skip backend validation in edit mode
+    if (window.editMode) {
+        console.log("Edit mode — skipping backend field name check");
+        return;
+    }
+
+    const fieldName = fieldInput.value.trim();
+    if (!fieldName) {
+        validateFormFields();
+        return;
+    }
+
+    const row = fieldInput.closest('.field-row, .nested-row');
+    const rowType = row?.querySelector('.fieldType')?.value;
+    if (rowType !== 'multifield') {
+        const errDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
+        errDiv.dataset.serverError = 'false';
+        if (!errDiv.innerText) {
+            fieldInput.classList.remove('is-invalid');
+            fieldInput.classList.remove('is-valid');
         }
+        validateFormFields();
+        return;
+    }
 
-        // Only perform server-side existence check for multifield types
-        const row = fieldInput.closest('.field-row, .nested-row');
-        const rowType = row?.querySelector('.fieldType')?.value;
-        if (rowType !== 'multifield') {
-            // clear any server error flag/message
-            const errDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
-            errDiv.dataset.serverError = 'false';
-            if (!errDiv.innerText) {
-                fieldInput.classList.remove('is-invalid');
-                fieldInput.classList.remove('is-valid');
-            }
-            validateFormFields();
-            return;
-        }
+    if (checkDuplicateFieldNameWithinComponent(fieldInput)) {
+        validateFormFields();
+        return;
+    }
 
-        // If duplicate (local) check already detects problem, skip server call
-        if (checkDuplicateFieldNameWithinComponent(fieldInput)) {
-            validateFormFields();
-            return;
-        }
-
-
-        // server call: checkChildJavaClassName
-        fetch(`/checkChildJavaClassName?projectName=${encodeURIComponent(projectName)}&fieldName=${encodeURIComponent(fieldName)}`)
-            .then(res => res.json())
-            .then((exists) => {
-                const errorDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
-                errorDiv.dataset.serverError = exists ? 'true' : 'false';
-                if (exists) {
-                    errorDiv.innerText = '⚠️ Field name already exists in another component!';
-                    errorDiv.classList.add('text-danger');
-                    fieldInput.classList.add('is-invalid');
-                    fieldInput.classList.remove('is-valid');
-                    createButton.disabled = true;
-                } else {
-                    // Only clear server error text if no duplicate message is present
-                    if (errorDiv.innerText.includes('already exists')) {
-                        errorDiv.innerText = '';
-                    }
-                    fieldInput.classList.remove('is-invalid');
-                    fieldInput.classList.add('is-valid');
-                    validateFormFields();
-                }
-            })
-            .catch(() => {
-                const errorDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
-                errorDiv.dataset.serverError = 'true';
-                errorDiv.innerText = '⚠️ Server error while checking field name!';
+    // ✅ backend call only in create mode
+    fetch(`/checkChildJavaClassName?projectName=${encodeURIComponent(projectName)}&fieldName=${encodeURIComponent(fieldName)}`)
+        .then(res => res.json())
+        .then((exists) => {
+            const errorDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
+            errorDiv.dataset.serverError = exists ? 'true' : 'false';
+            if (exists) {
+                errorDiv.innerText = '⚠️ Field name already exists in another component!';
                 errorDiv.classList.add('text-danger');
                 fieldInput.classList.add('is-invalid');
+                fieldInput.classList.remove('is-valid');
                 createButton.disabled = true;
-            });
-    }, 400);
+            } else {
+                if (errorDiv.innerText.includes('already exists')) {
+                    errorDiv.innerText = '';
+                }
+                fieldInput.classList.remove('is-invalid');
+                fieldInput.classList.add('is-valid');
+                validateFormFields();
+            }
+        })
+        .catch(() => {
+            const errorDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
+            errorDiv.dataset.serverError = 'true';
+            errorDiv.innerText = '⚠️ Server error while checking field name!';
+            errorDiv.classList.add('text-danger');
+            fieldInput.classList.add('is-invalid');
+            createButton.disabled = true;
+        });
+
+}, 400);
+
 
     function createFieldErrorDiv(input) {
         const existing = input.nextElementSibling;

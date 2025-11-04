@@ -19,9 +19,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /** Flash message auto-fade */
   setTimeout(() => {
-    const flash = document.getElementById("flashMessage");
-    if (flash) flash.classList.add("fade");
-  }, 3000);
+  const flash = document.getElementById('flashMessage');
+  if (flash) {
+    flash.classList.remove('show'); // Bootstrap fade-out
+    setTimeout(() => { if (flash) flash.remove(); }, 600);
+  }
+}, 4000);
 
   /** -------------------------------
    * Intro.js Quick Tour
@@ -134,7 +137,7 @@ document.addEventListener("DOMContentLoaded", () => {
           uploadSpinner.style.display = "none";
           if (data.success) {
             feedback.innerHTML = `<div class="text-success">✅ ${data.message}</div>`;
-            setTimeout(() => (window.location.href = "/dashboard"), 1500);
+            setTimeout(() => (window.location.href = "/dashboard"), 2000);
           } else {
             feedback.innerHTML = `<div class="text-danger">❌ ${data.error}</div>`;
             uploadBtn.disabled = false;
