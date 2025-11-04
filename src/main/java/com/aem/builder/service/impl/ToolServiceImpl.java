@@ -14,48 +14,40 @@ import java.util.List;
 import java.util.stream.Stream;
 import com.aem.builder.util.ToolUtil;
 
-import static com.aem.builder.constants.ToolConstants.TOOL_PATH;
+import static com.aem.builder.constants.ToolConstants.*;
 
 @Slf4j
 @Service
 public class ToolServiceImpl implements ToolService {
 
-    private static final String USER_DIR_SYS_PROP = "user.dir";
-    private static final String PROJECTS_DIR = "generated-projects";
-    private static final String TOOLS_BASE = "src/main/resources/excel-importer-tool";
-    private static final String OVERLAY_CQ_BASE = "src/main/resources/overlay-tools/cq";
-    private static final String TOOL_PAGE_BASE = "src/main/resources/tool-page/content";
+
 
     @Override
     public void addToolsToExistingProject(String projectName, List<String> selectedTools) {
         log.info("[ToolServiceImpl] Adding {} tool(s) to existing project '{}'", selectedTools.size(), projectName);
-        Path targetBase = Paths.get("generated-projects", projectName, "ui.apps",
-                "src/main/content/jcr_root/apps");
-        //projects/demo/ui.apps/src/main/content/jcr_root/apps/cq/core/content/nav/tools/geeksdemo/generic-csv-importer/.content.xml
+        Path targetBase = Paths.get(PROJECTS_DIR, projectName, APPS_PATH
+                );
 
         String baseDir = System.getProperty(USER_DIR_SYS_PROP);
 
         try {
             String appId = AemUtil.getAppId(PROJECTS_DIR, projectName);
 
-            Path projectCorePomPath = Paths.get(baseDir, "generated-projects", projectName, "core", "pom.xml");
+            Path projectCorePomPath = Paths.get(baseDir, PROJECTS_DIR, projectName, "core", "pom.xml");
             ToolUtil.addMavenDependency(projectCorePomPath, "org.apache.poi", "poi-ooxml", "5.2.3");
 
             // 🔹 Base app paths
             Path projectRoot = Paths.get(baseDir, PROJECTS_DIR, projectName);
-            Path appRoot = projectRoot.resolve("ui.apps/src/main/content/jcr_root/apps");
-            Path contentRoot = projectRoot.resolve("ui.content/src/main/content/jcr_root/content");
+            Path appRoot = projectRoot.resolve(APPS_PATH);
+
 
             Path cqOverlayTarget = appRoot.resolve("cq");
             Path componentsTarget = appRoot.resolve(appId).resolve("components");
-         //   Path toolsContentTarget = contentRoot.resolve(appId).resolve("tools");
-
 
             Files.createDirectories(componentsTarget);
-          //  Files.createDirectories(toolsContentTarget);
 
             // Step 🔹 Copy tool-component base files
-            Path toolComponentSource = Paths.get(baseDir, "src/main/resources/tool-component");
+            Path toolComponentSource = Paths.get(baseDir, TOOL_COMPONENT);
             Path toolComponentTarget = appRoot.resolve(appId).resolve("components");
 
             if (Files.exists(toolComponentSource)) {
@@ -73,8 +65,8 @@ public class ToolServiceImpl implements ToolService {
                 log.info("ℹ️ CQ overlay already exists. Copying only tool-specific nav entries...");
                 for (String toolName : selectedTools) {
                     Path cqToolNavSource = Paths.get(baseDir, OVERLAY_CQ_BASE,
-                            "core/content/nav/tools", toolName);
-                    Path cqToolNavDest = cqOverlayTarget.resolve("core/content/nav/tools").resolve(toolName);
+                            TOOL_NAV, toolName);
+                    Path cqToolNavDest = cqOverlayTarget.resolve(TOOL_NAV).resolve(toolName);
 
                     if (Files.exists(cqToolNavSource)) {
                         copyDirectory(cqToolNavSource, cqToolNavDest);
@@ -98,15 +90,15 @@ public class ToolServiceImpl implements ToolService {
 
 
                 // (b) Copy CQ nav entry
-                Path cqToolNavSource = Paths.get(baseDir, OVERLAY_CQ_BASE, "core/content/nav/tools/", toolName,toolName);
-                Path cqToolNavDest = cqOverlayTarget.resolve("core/content/nav/tools/").resolve(toolName).resolve(toolName);
+                Path cqToolNavSource = Paths.get(baseDir, OVERLAY_CQ_BASE, TOOL_NAV, toolName,toolName);
+                Path cqToolNavDest = cqOverlayTarget.resolve(TOOL_NAV).resolve(toolName).resolve(toolName);
                 copyIfExists(cqToolNavSource, cqToolNavDest, "Nav Entry");
 
                 // Update nav href
                 ToolUtil.updateToolNavHref(cqToolNavDest, projectName, toolName);
 
                 // Step 1️⃣.b️⃣: Copy geeksdemo base (if exists)
-                Path geeksdemoSource = Paths.get(baseDir, "src/main/resources/geeksdemo");
+                Path geeksdemoSource = Paths.get(baseDir, GEEKSDEMO_RESOURCE_PATH);
                 Path geeksdemoTarget = appRoot.resolve("geeksdemo"); // apps/<projectName> destination
 
                 if (Files.exists(geeksdemoSource)) {
@@ -125,10 +117,6 @@ public class ToolServiceImpl implements ToolService {
 
                 // (c) Copy Tool Page content
                 Path toolPageSource = Paths.get(baseDir, TOOL_PAGE_BASE, toolName);
-               // Path toolPageDest = toolsContentTarget.resolve(toolName);
-               // copyIfExists(toolPageSource, toolPageDest, "Tool Page Content");
-                // (4) Optionally ensure .content.xml exists for the page
-
                 Path toolPageTarget = targetBase.resolve(projectName).resolve("content").resolve(toolName);
 
                 ToolUtil.ensureContentXml(toolPageTarget, projectName, toolName);
@@ -136,13 +124,13 @@ public class ToolServiceImpl implements ToolService {
 
                 // Step 3️⃣: Copy tool Java classes (service, servlets, util)
                 try {
-                    Path toolServiceSource = Paths.get(baseDir, "src/main/java/com/aem/builder/tool/service");
-                    Path toolServletSource = Paths.get(baseDir, "src/main/java/com/aem/builder/tool/servlets");
-                    Path toolUtilSource = Paths.get(baseDir, "src/main/java/com/aem/builder/tool/util");
+                    Path toolServiceSource = Paths.get(baseDir, JAVA_SERVICE_PATH);
+                    Path toolServletSource = Paths.get(baseDir, JAVA_SERVLET_PATH);
+                    Path toolUtilSource = Paths.get(baseDir, JAVA_UTIL_PATH);
 
                     // ✅ Corrected Java base package path
                     Path targetJavaBase = Paths.get(baseDir, PROJECTS_DIR, projectName,
-                            "core/src/main/java/com/aem", projectName, "core");
+                            JAVA_FILES_PATH, projectName, "core");
 
                     Path serviceTarget = targetJavaBase.resolve("service");
                     Path servletTarget = targetJavaBase.resolve("servlets");
@@ -178,8 +166,8 @@ public class ToolServiceImpl implements ToolService {
         } catch (Exception e) {
             log.error("[ToolServiceImpl] Error while adding tools: {}", e.getMessage(), e);
         }
-        Path filterXmlPath = Paths.get(baseDir, "generated-projects", projectName,
-                "ui.apps/src/main/content/META-INF/vault/filter.xml");
+        Path filterXmlPath = Paths.get(baseDir, PROJECTS_DIR, projectName,
+                FILTER_FILE_PATH);
 
         List<String> rootsToAdd = Arrays.asList(
                 "/apps/cq",
@@ -271,5 +259,23 @@ public class ToolServiceImpl implements ToolService {
         }
         return folderNames;
     }
+    public List<String>fetchTools( String projectName){
+        String toolsBasePath = System.getProperty("user.dir")
+                + TOOL_RESOURCE_PATH;
 
+        File baseDir = new File(toolsBasePath);
+        if (!baseDir.exists() || !baseDir.isDirectory()) {
+            log.warn("[ToolServiceImpl] Tools directory not found at {}", toolsBasePath);
+            return List.of();
+        }
+
+        // List only folder names
+        File[] dirs = baseDir.listFiles(File::isDirectory);
+        List<String> toolNames = dirs != null
+                ? Arrays.stream(dirs).map(File::getName).toList()
+                : List.of();
+        log.info("[ToolServiceImpl] tools found -> {}",toolNames);
+        log.info("[ToolServiceImpl] Found {} tool(s)", toolNames.size());
+        return toolNames;
+    }
 }

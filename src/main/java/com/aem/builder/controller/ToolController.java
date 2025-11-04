@@ -10,59 +10,41 @@ import org.springframework.stereotype.Controller;
 
 import org.springframework.web.bind.annotation.*;
 
-import java.io.File;
-import java.util.Arrays;
 import java.util.List;
- 
+
+import static com.aem.builder.constants.UrlMappings.*;
+
 @Slf4j
 
 @Controller
 
-@RequestMapping("/tools")
+@RequestMapping(TOOL)
 
 public class ToolController {
  
     @Autowired
 
     private ToolService toolService;
- 
-    private static final String DASHBOARD_PAGE = "redirect:/dashboard";
 
-    private static final String PROJECT_PAGE = "redirect:/projectdetails";
 
-    @GetMapping("/fetchtools/{projectname}")
+    @GetMapping(FETCH_TOOLS)
     @ResponseBody
-    public List<String> fetchTools(@PathVariable("projectname") String projectName) {
-        log.info("[ToolController] Fetching available tools for '{}'", projectName);
+    public List<String> fetchTools(@PathVariable String projectname) {
+        log.info("[ToolController] Fetching available tools for '{}'", projectname);
 
-        String toolsBasePath = System.getProperty("user.dir")
-                + "/src/main/resources/excel-importer-tool";
-
-        File baseDir = new File(toolsBasePath);
-        if (!baseDir.exists() || !baseDir.isDirectory()) {
-            log.warn("[ToolController] Tools directory not found at {}", toolsBasePath);
-            return List.of();
-        }
-
-        // List only folder names
-        File[] dirs = baseDir.listFiles(File::isDirectory);
-        List<String> toolNames = dirs != null
-                ? Arrays.stream(dirs).map(File::getName).toList()
-                : List.of();
-              log.info("[ToolController] tools found -> {}",toolNames);
-        log.info("[ToolController] Found {} tool(s)", toolNames.size());
+        List<String> toolNames = toolService.fetchTools(projectname);
         return toolNames;
     }
 
-    @PostMapping("/add/{projectname}")
+    @PostMapping(ADD_TOOL)
     @ResponseBody
     public String addToolsToExistingProject(
-            @PathVariable("projectname") String projectName,
+            @PathVariable String projectname,
             @RequestBody List<String> selectedTools) {
 
-        log.info("[ToolController] Adding {} tool(s) to project '{}'", selectedTools.size(), projectName);
+        log.info("[ToolController] Adding {} tool(s) to project '{}'", selectedTools.size(), projectname);
         try {
-            toolService.addToolsToExistingProject(projectName, selectedTools);
+            toolService.addToolsToExistingProject(projectname, selectedTools);
             return "OK";
         } catch (Exception e) {
             log.error("[ToolController] Error adding tools: {}", e.getMessage(), e);
@@ -70,11 +52,11 @@ public class ToolController {
         }
     }
 
-@GetMapping("/existingtools/{projectname}")
+@GetMapping(EXISTING_TOOLS)
 @ResponseBody
-public List<String>getExistingToolOfProject(@PathVariable("projectname") String projectName){
+public List<String>getExistingToolOfProject(@PathVariable String projectname){
 
-            List<String> existingTools = toolService.getExistingTools(projectName);
+            List<String> existingTools = toolService.getExistingTools(projectname);
         return existingTools;
 
 }

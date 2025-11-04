@@ -60,4 +60,13 @@ public final class UrlMappings {
     public static final String DASHBOARD_REDIRECT = "redirect:/dashboard";
 
 
+    //---------------  TOOL URLS   -------------
+
+
+    public static final String FETCH_TOOLS="/fetchtools/{projectname}";
+    public static final String ADD_TOOL="/add/{projectname}";
+    public static final String EXISTING_TOOLS="/existingtools/{projectname}";
+    public static final String TOOL="/tools";
+
+
 }
