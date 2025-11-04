@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class ToolUtil {
@@ -49,29 +50,33 @@ public class ToolUtil {
             log.info("✅ sling:resourceType already correct for '{}'", toolName);
         }
     }
-    public static void updateToolNavHref(Path navEntryPath, String projectName, String toolName) {
+    public static void updateToolNavHref(Path cqToolNavDest, String projectName, String toolName) {
         try {
-            Path contentXml = navEntryPath.resolve(".content.xml");
+            // Locate .content.xml file in the copied tool folder
+            Path contentXml = cqToolNavDest.resolve(".content.xml");
             if (!Files.exists(contentXml)) {
-                log.warn("⚠️ Nav .content.xml not found at {}", contentXml);
+                log.warn("⚠️ No .content.xml found at {}", contentXml);
                 return;
             }
 
-            String xmlContent = new String(Files.readAllBytes(contentXml));
-            String newHref = "/apps/" + projectName + "/content/" + toolName + ".html";
+            String xml = Files.readAllLines(contentXml).stream().collect(Collectors.joining("\n"));
 
-            // If href already exists, replace it. Otherwise add it before closing </jcr:root>
-            if (xmlContent.contains("href=\"")) {
-                xmlContent = xmlContent.replaceAll("href=\"[^\"]*\"", "href=\"" + newHref + "\"");
+            // Replace href value
+            String updatedXml = xml.replaceAll(
+                    "href=\"/apps/[^/]+/content/[^\"]+\"",
+                    "href=\"/apps/" + projectName + "/content/" + toolName + ".html\""
+            );
+
+            // Only update if something actually changed
+            if (!xml.equals(updatedXml)) {
+                Files.write(contentXml, updatedXml.getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
+                log.info("✅ Updated href in {}", contentXml);
             } else {
-                xmlContent = xmlContent.replace("</jcr:root>", "    <href>" + newHref + "</href>\n</jcr:root>");
+                log.info("ℹ️ No href replacement needed in {}", contentXml);
             }
 
-            Files.write(contentXml, xmlContent.getBytes());
-            log.info("🔄 Updated href in nav .content.xml for '{}' → {}", toolName, newHref);
-
         } catch (IOException e) {
-            log.error("❌ Error updating href in nav .content.xml for {}: {}", toolName, e.getMessage(), e);
+            log.error("❌ Error updating href for {}: {}", cqToolNavDest, e.getMessage(), e);
         }
     }
     public static void addMavenDependency(Path pomPath, String groupId, String artifactId, String version) {

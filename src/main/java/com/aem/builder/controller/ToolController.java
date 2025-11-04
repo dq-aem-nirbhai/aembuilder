@@ -70,6 +70,15 @@ public class ToolController {
         }
     }
 
+@GetMapping("/existingtools/{projectname}")
+@ResponseBody
+public List<String>getExistingToolOfProject(@PathVariable("projectname") String projectName){
+
+            List<String> existingTools = toolService.getExistingTools(projectName);
+        return existingTools;
+
+}
+
 }
 
  

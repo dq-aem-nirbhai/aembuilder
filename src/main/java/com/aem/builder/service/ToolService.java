@@ -4,5 +4,6 @@ import java.util.List;
  
 public interface ToolService {
     void addToolsToExistingProject(String projectName, List<String> selectedTools);
+    public List<String> getExistingTools(String projectName);
 
 }

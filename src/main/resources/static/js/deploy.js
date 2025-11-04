@@ -204,6 +204,7 @@ function saveAll() {
         });
 }
 //  New — Open Tool Modal
+
 // 🧰 Open Tool Modal and Load Tools
 function openToolModal() {
     const projectName = getProjectName();
@@ -212,44 +213,52 @@ function openToolModal() {
         return;
     }
 
-    fetch(`/tools/fetchtools/${projectName}`)
-        .then(res => {
-            if (!res.ok) throw new Error('Failed to fetch tools');
-            return res.json();
-        })
-        .then(data => {
-            console.log("✅ Tools fetched:", data);
+    Promise.all([
+        fetch(`/tools/fetchtools/${projectName}`).then(res => res.json()),
+        fetch(`/tools/existingtools/${projectName}`).then(res => res.json())
 
-            // Render tools inside modal
-            renderToolList(data);
+    ])
+    .then(([allTools, existingTools]) => {
+        console.log("✅ All Tools:", allTools);
+        console.log("📦 Existing Tools:", existingTools);
 
-            // Show the modal
-            new bootstrap.Modal(document.getElementById('toolModal')).show();
-        })
-        .catch(err => {
-            console.error(err);
-            alert('Unable to load tools. Please try again.');
-        });
+        renderToolList(allTools, existingTools);
+        new bootstrap.Modal(document.getElementById('toolModal')).show();
+    })
+    .catch(err => {
+        console.error("❌ Error loading tools:", err);
+        alert('Unable to load tools. Please try again.');
+    });
 }
 
 // 🎨 Render Tool List in Modal
-function renderToolList(tools) {
+function renderToolList(allTools, existingTools = []) {
     const container = document.getElementById("toolList");
     container.innerHTML = "";
 
-    if (!tools || tools.length === 0) {
+    if (!allTools || allTools.length === 0) {
         container.innerHTML = `<p class="text-muted">No tools found in the library.</p>`;
         return;
     }
 
-    tools.forEach(tool => {
+    allTools.forEach(tool => {
+        const isExisting = existingTools.includes(tool);
         const div = document.createElement("div");
         div.classList.add("col");
+
         div.innerHTML = `
-            <div class="card p-3 shadow-sm border-0 h-100">
+            <div class="card p-3 shadow-sm border-0 h-100 ${isExisting ? 'bg-light' : ''}">
                 <div class="form-check">
-                    <input type="checkbox" class="form-check-input me-2" id="tool-${tool}" value="${tool}">
-                    <label for="tool-${tool}" class="form-check-label fw-semibold">${tool}</label>
+                    <input
+                        type="checkbox"
+                        class="form-check-input me-2"
+                        id="tool-${tool}"
+                        value="${tool}"
+                        ${isExisting ? "disabled checked" : ""}
+                    >
+                    <label for="tool-${tool}" class="form-check-label fw-semibold">
+                        ${tool} ${isExisting ? '<span class="text-muted small">(already added)</span>' : ''}
+                    </label>
                 </div>
             </div>
         `;
@@ -265,8 +274,9 @@ function addSelectedTools() {
         return;
     }
 
-    const selectedTools = Array.from(document.querySelectorAll('#toolList input[type="checkbox"]:checked'))
-        .map(cb => cb.value);
+    const selectedTools = Array.from(
+        document.querySelectorAll('#toolList input[type="checkbox"]:checked:not(:disabled)')
+    ).map(cb => cb.value);
 
     if (selectedTools.length === 0) {
         alert("Please select at least one tool.");
@@ -280,20 +290,19 @@ function addSelectedTools() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(selectedTools)
     })
-        .then(res => {
-            if (!res.ok) throw new Error("Failed to add tools");
-            return res.text();
-        })
-        .then(() => {
-            alert(`✅ Successfully added ${selectedTools.length} tool(s) to project '${projectName}'`);
-            window.location.reload();
-        })
-        .catch(err => {
-            console.error(err);
-            alert("❌ Failed to add tools. Please check server logs.");
-        });
+    .then(res => {
+        if (!res.ok) throw new Error("Failed to add tools");
+        return res.text();
+    })
+    .then(() => {
+        alert(`✅ Successfully added ${selectedTools.length} tool(s) to project '${projectName}'`);
+        window.location.reload();
+    })
+    .catch(err => {
+        console.error(err);
+        alert("❌ Failed to add tools. Please check server logs.");
+    });
 }
-
 
  window.addEventListener("DOMContentLoaded", () => {
         const flash = document.getElementById("flashMessage");

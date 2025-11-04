@@ -5,12 +5,16 @@ import com.aem.builder.util.AemUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 import com.aem.builder.util.ToolUtil;
+
+import static com.aem.builder.constants.ToolConstants.TOOL_PATH;
 
 @Slf4j
 @Service
@@ -44,11 +48,11 @@ public class ToolServiceImpl implements ToolService {
 
             Path cqOverlayTarget = appRoot.resolve("cq");
             Path componentsTarget = appRoot.resolve(appId).resolve("components");
-            Path toolsContentTarget = contentRoot.resolve(appId).resolve("tools");
+         //   Path toolsContentTarget = contentRoot.resolve(appId).resolve("tools");
 
 
             Files.createDirectories(componentsTarget);
-            Files.createDirectories(toolsContentTarget);
+          //  Files.createDirectories(toolsContentTarget);
 
             // Step 🔹 Copy tool-component base files
             Path toolComponentSource = Paths.get(baseDir, "src/main/resources/tool-component");
@@ -81,8 +85,8 @@ public class ToolServiceImpl implements ToolService {
 
 
                 // (b) Copy CQ nav entry
-                Path cqToolNavSource = Paths.get(baseDir, OVERLAY_CQ_BASE, "core/content/nav/tools/geeksdemo", toolName);
-                Path cqToolNavDest = cqOverlayTarget.resolve("core/content/nav/tools/geeksdemo").resolve(toolName);
+                Path cqToolNavSource = Paths.get(baseDir, OVERLAY_CQ_BASE, "core/content/nav/tools/", toolName,toolName);
+                Path cqToolNavDest = cqOverlayTarget.resolve("core/content/nav/tools/").resolve(toolName).resolve(toolName);
                 copyIfExists(cqToolNavSource, cqToolNavDest, "Nav Entry");
 
                 // Update nav href
@@ -108,8 +112,8 @@ public class ToolServiceImpl implements ToolService {
 
                 // (c) Copy Tool Page content
                 Path toolPageSource = Paths.get(baseDir, TOOL_PAGE_BASE, toolName);
-                Path toolPageDest = toolsContentTarget.resolve(toolName);
-                copyIfExists(toolPageSource, toolPageDest, "Tool Page Content");
+               // Path toolPageDest = toolsContentTarget.resolve(toolName);
+               // copyIfExists(toolPageSource, toolPageDest, "Tool Page Content");
                 // (4) Optionally ensure .content.xml exists for the page
 
                 Path toolPageTarget = targetBase.resolve(projectName).resolve("content").resolve(toolName);
@@ -238,6 +242,21 @@ public class ToolServiceImpl implements ToolService {
                 log.error("❌ Error copying/repackaging file {} → {}", src, targetDir, e);
             }
         });
+    }
+    @Override
+    public List<String> getExistingTools(String projectName){
+        String toolsPath=PROJECTS_DIR+"/"+projectName+"/"+TOOL_PATH;
+        File toolsDir = new File(toolsPath);
+        List<String> folderNames = new ArrayList<>();
+
+        if (toolsDir.exists() && toolsDir.isDirectory()) {
+            File[] subDirs = toolsDir.listFiles(File::isDirectory);
+            if (subDirs != null) {
+                Arrays.stream(subDirs)
+                        .forEach(folder -> folderNames.add(folder.getName()));
+            }
+        }
+        return folderNames;
     }
 
 }
