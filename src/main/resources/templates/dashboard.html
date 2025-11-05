@@ -23,7 +23,6 @@
   <div class="dashboard-header animate__animated animate__fadeInDown text-center mb-3">
     <h1>AEM Builder Dashboard</h1>
     <p>Manage, track, and organize your AEM projects with ease</p>
-    
   </div>
 
   <main class="container py-4 animate__animated animate__fadeIn flex-grow-1">
@@ -41,17 +40,28 @@
     </div>
 
     <!-- Actions -->
-    <div class="d-flex justify-content-end mb-4">
-      <a href="/create" class="btn btn-gradient me-2 shadow-sm" data-step="1" data-intro="Click here to create a new AEM project.">
-        <i class="bi bi-plus-circle me-1"></i> Create Project
-      </a>
-      <button class="btn btn-outline-secondary shadow-sm" data-step="2" data-intro="You can also import existing projects from ZIP or Git." data-bs-toggle="modal" data-bs-target="#importModal">
-        <i class="bi bi-upload me-1"></i> Import Project
-      </button>
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+      <div>
+        <a href="/create" class="btn btn-gradient me-2 shadow-sm" data-step="1" data-intro="Click here to create a new AEM project.">
+          <i class="bi bi-plus-circle me-1"></i> Create Project
+        </a>
+        <button class="btn btn-outline-secondary shadow-sm" data-step="2" data-intro="You can also import existing projects from ZIP or Git." data-bs-toggle="modal" data-bs-target="#importModal">
+          <i class="bi bi-upload me-1"></i> Import Project
+        </button>
+      </div>
+
+      <!-- 🔽 New Filter Dropdown -->
+      <div>
+        <select id="filterSelect" class="form-select shadow-sm" style="width: 200px;">
+          <option value="filter">Filter By</option>
+          <option value="latest">Sort by Latest</option>
+          <option value="oldest">Sort by Oldest</option>
+        </select>
+      </div>
     </div>
 
     <!-- Projects Grid -->
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 justify-content-center">
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 justify-content-center" id="projectContainer">
 
       <!-- No Projects -->
       <div th:if="${#lists.isEmpty(projects)}" class="col-12 text-center py-5 empty-state">
@@ -61,7 +71,7 @@
       </div>
 
       <!-- Project Cards -->
-      <div class="col" th:each="project : ${projects}">
+      <div class="col" th:each="project : ${projects}" data-date="${project.createdDate}">
         <div class="card project-card shadow-sm h-100 border-0 animate__animated animate__fadeInUp" data-step="4" data-intro="Each project provides quick actions to manage it.">
 
           <!-- Delete -->
@@ -76,25 +86,21 @@
             <p><strong>Artifact-Id:</strong> <span class="badge bg-info text-dark" th:text="${project.name}"></span></p>
             <p><strong>Version:</strong> <span class="badge bg-info text-dark" th:text="${project.version}"></span></p>
             <p><strong>Package:</strong> <span th:text="${project.groupId}"></span></p>
-            <p><strong>Created:</strong> <span th:text="${project.createdDate}"></span></p>
+            <p><strong>Created:</strong> <span class="project-date" th:text="${project.createdDate}"></span></p>
             <p><strong>Path:</strong> <span th:text="${project.path}"></span></p>
           </div>
 
           <div class="card-footer d-flex gap-2">
-            <!-- View -->
-            <a th:href="@{'/view/' + ${project.name}}" class="btn btn-outline-primary btn-sm" data-step="5" data-intro="View project details and configuration.">
+            <a th:href="@{'/view/' + ${project.name}}" class="btn btn-outline-primary btn-sm">
               <i class="bi bi-eye"></i>
             </a>
-            <!-- Folder -->
-            <a th:href="@{'/show-folder?path=' + ${project.path}}" class="btn btn-outline-warning btn-sm" data-step="6" data-intro="Open the project folder on your system.">
+            <a th:href="@{'/show-folder?path=' + ${project.path}}" class="btn btn-outline-warning btn-sm">
               <i class="bi bi-folder2-open"></i>
             </a>
-            <!-- Download -->
-            <a th:href="@{'/download/' + ${project.name}}" class="btn btn-outline-success btn-sm" data-step="7" data-intro="Download your project as a ZIP file.">
+            <a th:href="@{'/download/' + ${project.name}}" class="btn btn-outline-success btn-sm">
               ⬇️
             </a>
-            <!-- VS Code -->
-            <form th:action="@{'/open-vscode'}" method="post" class="d-inline" data-step="8" data-intro="Open this project directly in Visual Studio Code.">
+            <form th:action="@{'/open-vscode'}" method="post" class="d-inline">
               <input type="hidden" name="path" th:value="${project.path}">
               <button type="submit" class="btn btn-outline-dark btn-sm" title="Open in VS Code">
                 <i class="bi bi-code-slash"></i>
@@ -132,7 +138,6 @@
 
   <footer class="mt-auto" th:replace="fragments/navbar :: footer"></footer>
 
-  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/js/dashboard.js"></script>
   <script>

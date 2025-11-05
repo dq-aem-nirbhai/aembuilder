@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jcr:root xmlns:jcr="http://www.jcp.org/jcr/1.0" xmlns:nt="http://www.jcp.org/jcr/nt/1.0"
+    jcr:description="Tool to upload Generic CSV file for TCB Assets"
+    jcr:primaryType="nt:unstructured"
+    jcr:title="Excel exporter"
+    href="/apps/charger/content/generic-csv-importer.html"
+    icon="userArrow"
+    id="excel exporter"
+    target="_blank"/>

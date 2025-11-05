@@ -237,14 +237,38 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
     }
 
-    // ✅ backend call only in create mode
-    fetch(`/checkChildJavaClassName?projectName=${encodeURIComponent(projectName)}&fieldName=${encodeURIComponent(fieldName)}`)
-        .then(res => res.json())
-        .then((exists) => {
-            const errorDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
-            errorDiv.dataset.serverError = exists ? 'true' : 'false';
-            if (exists) {
-                errorDiv.innerText = '⚠️ Field name already exists in another component!';
+        // If duplicate (local) check already detects problem, skip server call
+        if (checkDuplicateFieldNameWithinComponent(fieldInput)) {
+            validateFormFields();
+            return;
+        }
+
+        // server call: checkChildJavaClassName
+        fetch(`/checkChildJavaClassName?projectName=${encodeURIComponent(projectName)}&fieldName=${encodeURIComponent(fieldName)}`)
+            .then(res => res.json())
+            .then((exists) => {
+                const errorDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
+                errorDiv.dataset.serverError = exists ? 'true' : 'false';
+                if (exists) {
+                    errorDiv.innerText = '⚠️ Field name already exists in another component!';
+                    errorDiv.classList.add('text-danger');
+                    fieldInput.classList.add('is-invalid');
+                    fieldInput.classList.remove('is-valid');
+                    createButton.disabled = true;
+                } else {
+                    // Only clear server error text if no duplicate message is present
+                    if (errorDiv.innerText.includes('already exists')) {
+                        errorDiv.innerText = '';
+                    }
+                    fieldInput.classList.remove('is-invalid');
+                    fieldInput.classList.add('is-valid');
+                    validateFormFields();
+                }
+            })
+            .catch(() => {
+                const errorDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
+                errorDiv.dataset.serverError = 'true';
+                errorDiv.innerText = '⚠️ Server error while checking field name!';
                 errorDiv.classList.add('text-danger');
                 fieldInput.classList.add('is-invalid');
                 fieldInput.classList.remove('is-valid');
@@ -688,7 +712,7 @@ document.addEventListener("DOMContentLoaded", function () {
         nameEl.value = field.fieldName || '';
         // run duplicate & server checks only when appropriate
         checkDuplicateFieldNameWithinComponent(nameEl);
-        if (isFieldTypeMultifield(nameEl)) {
+        if (isFieldTypeMultifield(nameEl) && !window.editMode) {
             checkFieldNameAvailability(nameEl);
         }
     }

@@ -6,7 +6,7 @@ public final class ComponentConstants {
     public static final String CONTENT_XML = ".content.xml";
     public static final String JAVA_SRC_PATH = "core/src/main/java";
     public static final String HTL_FILE_EXTENSION = ".html";
-    public static final String CONTENT_ROOT_PATH = "/ui.apps/src/main/content/jcr_root/apps/";
+    public static final String CONTENT_ROOT_PATH = "ui.apps/src/main/content/jcr_root/apps";
     public static final Set<String> EXCLUDED_FOLDERS = Set.of(
             "_cq_",
             ".",
@@ -71,6 +71,7 @@ public final class ComponentConstants {
     public static final String ATTR_VALUE = "value";
     public static final String ATTR_MULTIPLE = "multiple";
     public static final String VALUE_TRUE = "true";
+    public static final String VALUE_BOOLEAN_TRUE = "{Boolean}true";
     public static final String MODELS_FOLDER = "models";
     public static final String APPS_PATH_PREFIX = "/apps/";
     public static final String WELL = "granite/ui/components/coral/foundation/well";

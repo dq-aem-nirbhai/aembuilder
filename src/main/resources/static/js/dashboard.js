@@ -7,6 +7,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const feedback = document.getElementById("importFeedback");
   const helpTourBtn = document.getElementById("helpTourBtn");
 
+  const filterSelect = document.getElementById("filterSelect");
+  const projectContainer = document.querySelector(".row.row-cols-1");
+
   /** Reset form to default state */
   function resetState() {
     uploadBtn.disabled = true;
@@ -26,9 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 }, 4000);
 
-  /** -------------------------------
-   * Intro.js Quick Tour
-   * ------------------------------- */
+  /** Intro.js Quick Tour (existing code) */
   const tourShown = localStorage.getItem("aemDashboardTourShown");
   const hasProjects = document.querySelectorAll(".project-card").length > 0;
 
@@ -66,13 +67,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 1000);
   }
 
-  if (helpTourBtn) {
-    helpTourBtn.addEventListener("click", startTour);
-  }
+  if (helpTourBtn) helpTourBtn.addEventListener("click", startTour);
 
-  /** -------------------------------
-   * ZIP File Validation
-   * ------------------------------- */
+  /** ZIP File Validation (existing code) */
   zipFile.addEventListener("change", () => {
     const file = zipFile.files[0];
     feedback.innerHTML = "";
@@ -99,9 +96,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   });
 
-  /** -------------------------------
-   * Repo URL Input
-   * ------------------------------- */
+  /** Repo URL Input (existing code) */
   repoUrl.addEventListener("input", () => {
     const url = repoUrl.value.trim();
     feedback.innerHTML = "";
@@ -114,9 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  /** -------------------------------
-   * Import Form Submit
-   * ------------------------------- */
+  /** Import Form Submit (existing code) */
   importForm.addEventListener("submit", e => {
     e.preventDefault();
     const file = zipFile.files[0];
@@ -127,49 +120,52 @@ document.addEventListener("DOMContentLoaded", () => {
     uploadBtn.disabled = true;
     feedback.innerHTML = `<div class="text-info">Processing...</div>`;
 
-    if (file) {
-      const formData = new FormData();
-      formData.append("file", file);
+    const fetchUrl = file ? "/import" : "/clone";
+    const body = file ? new FormData(importForm) : JSON.stringify({ repoUrl: url });
+    const headers = file ? {} : { "Content-Type": "application/json" };
 
-      fetch("/import", { method: "POST", body: formData })
-        .then(res => res.ok ? res.json() : Promise.reject("Invalid response"))
-        .then(data => {
-          uploadSpinner.style.display = "none";
-          if (data.success) {
-            feedback.innerHTML = `<div class="text-success">✅ ${data.message}</div>`;
-            setTimeout(() => (window.location.href = "/dashboard"), 2000);
-          } else {
-            feedback.innerHTML = `<div class="text-danger">❌ ${data.error}</div>`;
-            uploadBtn.disabled = false;
-          }
-        })
-        .catch(err => {
-          uploadSpinner.style.display = "none";
-          feedback.innerHTML = `<div class="text-danger">❌ Upload failed. ${err}</div>`;
+    fetch(fetchUrl, { method: "POST", body, headers })
+      .then(res => res.ok ? res.json() : Promise.reject("Invalid response"))
+      .then(data => {
+        uploadSpinner.style.display = "none";
+        if (data.success) {
+          feedback.innerHTML = `<div class="text-success">✅ ${data.message}</div>`;
+          setTimeout(() => (window.location.href = "/dashboard"), 1500);
+        } else {
+          feedback.innerHTML = `<div class="text-danger">❌ ${data.error}</div>`;
           uploadBtn.disabled = false;
-        });
-    } else {
-      fetch("/clone", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repoUrl: url })
+        }
       })
-        .then(res => res.ok ? res.json() : Promise.reject("Invalid response"))
-        .then(data => {
-          uploadSpinner.style.display = "none";
-          if (data.success) {
-            feedback.innerHTML = `<div class="text-success">✅ ${data.message}</div>`;
-            setTimeout(() => (window.location.href = "/dashboard"), 1500);
-          } else {
-            feedback.innerHTML = `<div class="text-danger">❌ ${data.error}</div>`;
-            uploadBtn.disabled = false;
-          }
-        })
-        .catch(err => {
-          uploadSpinner.style.display = "none";
-          feedback.innerHTML = `<div class="text-danger">❌ Clone failed. ${err}</div>`;
-          uploadBtn.disabled = false;
-        });
-    }
+      .catch(err => {
+        uploadSpinner.style.display = "none";
+        feedback.innerHTML = `<div class="text-danger">❌ Operation failed. ${err}</div>`;
+        uploadBtn.disabled = false;
+      });
   });
+
+  /** -------------------------------
+   * Filter / Sort Projects
+   * ------------------------------- */
+  if (filterSelect && projectContainer) {
+    const parseDate = dateStr => {
+      // Try to convert date string to Date object
+      return new Date(dateStr.replace(" ", "T"));
+    };
+
+    const sortProjects = () => {
+      const projects = Array.from(projectContainer.querySelectorAll(".col")).filter(col => col.querySelector(".project-card"));
+      const value = filterSelect.value;
+
+      projects.sort((a, b) => {
+        const dateA = parseDate(a.querySelector(".project-date")?.innerText || "");
+        const dateB = parseDate(b.querySelector(".project-date")?.innerText || "");
+        return value === "latest" ? dateB - dateA : dateA - dateB;
+      });
+
+      projects.forEach(p => projectContainer.appendChild(p));
+    };
+
+    filterSelect.addEventListener("change", sortProjects);
+    sortProjects(); // initial sort
+  }
 });
