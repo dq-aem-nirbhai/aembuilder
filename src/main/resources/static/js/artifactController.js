@@ -1,14 +1,37 @@
 document.addEventListener("DOMContentLoaded", () => {
-    console.log("artifactController.js loaded");
-});
+    console.log("Combined Artifact Library + Generator loaded");
 
-// This JS is used by artifact-generator.html to show dynamic fields and submit the form.
-const dynamicFields = document.getElementById("dynamicFields");
-const artifactTypeEl = document.getElementById("artifactType");
-if (artifactTypeEl) {
+    const showFormBtn = document.getElementById("showFormBtn");
+    const cancelBtn = document.getElementById("cancelBtn");
+    const artifactFormSection = document.getElementById("artifactFormSection");
+    const artifactListSection = document.getElementById("artifactListSection");
+    const form = document.getElementById("artifactForm");
+    const messageDiv = document.getElementById("message");
+    const artifactTypeEl = document.getElementById("artifactType");
+    const dynamicFields = document.getElementById("dynamicFields");
+
+    // ✅ Create new message area for list section
+    const listMessageDiv = document.createElement("div");
+    listMessageDiv.id = "listMessage";
+    artifactListSection.prepend(listMessageDiv);
+
+    // ✅ Toggle visibility
+    showFormBtn.addEventListener("click", () => {
+        artifactListSection.style.display = "none";
+        artifactFormSection.style.display = "block";
+        listMessageDiv.innerHTML = ""; // clear old messages
+    });
+
+    cancelBtn.addEventListener("click", () => {
+        artifactFormSection.style.display = "none";
+        artifactListSection.style.display = "block";
+    });
+
+    // ✅ Handle dynamic fields
     artifactTypeEl.addEventListener("change", (e) => {
         const type = e.target.value;
         dynamicFields.innerHTML = "";
+
         if (type === "servlet") {
             dynamicFields.innerHTML = `
                 <div class="mb-3">
@@ -40,10 +63,33 @@ if (artifactTypeEl) {
                     <label class="form-label">Interface Type</label>
                     <input type="text" name="interfaceType" class="form-control" value="Component">
                 </div>`;
-        } else {
-            dynamicFields.innerHTML = "";
         }
     });
-}
 
-// submit handler: the form is normal HTML POST so no AJAX required in this build
+    // ✅ Submit form (AJAX)
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        const url = form.getAttribute("action");
+
+        try {
+            const response = await fetch(url, { method: "POST", body: formData });
+            const result = await response.text();
+
+            // ✅ show message in list section instead of form
+            listMessageDiv.innerHTML = `<div class="alert alert-success">✅ Artifact generated successfully!</div>`;
+
+            artifactFormSection.style.display = "none";
+            artifactListSection.style.display = "block";
+
+            form.reset(); // clear form for next time
+            dynamicFields.innerHTML = "";
+        } catch (error) {
+            console.error("Error:", error);
+            listMessageDiv.innerHTML = `<div class="alert alert-danger">❌ Error while generating artifact!</div>`;
+            artifactFormSection.style.display = "none";
+            artifactListSection.style.display = "block";
+        }
+    });
+});

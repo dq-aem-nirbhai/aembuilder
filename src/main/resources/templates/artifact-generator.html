@@ -1,50 +1,84 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <title>Create New Artifact</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Artifact Library</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
 </head>
 <body>
 <div th:replace="fragments/navbar :: navbar"></div>
 
-<main class="container mt-4">
-    <h3>Create New Artifact</h3>
+<main class="container mt-4 animate__animated animate__fadeIn">
+    <a th:href="@{'/view/' + ${projectName}}" class="btn btn-outline-secondary mb-3">← Back to DeployPage</a>
+    <h2>Artifact Library</h2>
+    <p>Browse available artifact types and samples.</p>
 
-    <!-- ✅ Correct form action for dynamic project -->
-    <form id="artifactForm" th:action="@{'/' + ${projectName} + '/artifacts/create'}" method="post">
+    <!-- ✅ Create New Artifact Button -->
+    <div class="mb-3">
+        <button id="showFormBtn" class="btn btn-primary">➕ Create New Artifact</button>
+    </div>
 
-        <div class="mb-3">
-            <label class="form-label">Artifact Type</label>
-            <select id="artifactType" name="type" class="form-select" required>
-                <option value="">-- Select Type --</option>
-                <option value="servlet">Servlet</option>
-                <option value="scheduler">Scheduler</option>
-                <option value="listener">Listener</option>
-                <option value="service">Service</option>
-            </select>
+    <!-- ✅ Artifact List Section -->
+    <div id="artifactListSection">
+        <div th:if="${message}">
+            <h3>New Artifact</h3>
+            <div class="alert alert-info" th:text="${message}"></div>
         </div>
 
-        <div class="mb-3">
-            <label class="form-label">Class Name</label>
-            <input type="text" name="name" class="form-control" placeholder="MyExample" required>
+        <div th:if="${message == null}">
+            <div th:each="entry : ${artifactMap}">
+                <h4 th:text="${entry.key} + ' (' + ${#lists.size(entry.value)} + ')'"></h4>
+                <div class="list-group mb-3">
+                    <div th:each="file : ${entry.value}" class="list-group-item">
+                        <div>
+                            <strong th:text="${file.name}"></strong>
+                            <small class="text-muted ms-2" th:text="${file.packageInfo}"></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+    </div>
 
-        <!-- Dynamic Fields -->
-        <div id="dynamicFields"></div>
+    <!-- ✅ Hidden Artifact Generator Form -->
+    <div id="artifactFormSection" class="mt-5" style="display: none;">
+        <h3>Create New Artifact</h3>
+        <form id="artifactForm" th:action="@{'/' + ${projectName} + '/artifacts/create'}" method="post">
+            <div class="mb-3">
+                <label class="form-label">Artifact Type</label>
+                <select id="artifactType" name="type" class="form-select" required>
+                    <option value="">-- Select Type --</option>
+                    <option value="servlet">Servlet</option>
+                    <option value="scheduler">Scheduler</option>
+                    <option value="listener">Listener</option>
+                    <option value="service">Service</option>
+                </select>
+            </div>
 
-        <!-- ✅ Correct buttons -->
-        <div class="mt-3">
-            <button type="submit" class="btn btn-success">Generate Artifact</button>
-            <a th:href="@{'/' + ${projectName} + '/artifacts'}" class="btn btn-secondary">Cancel</a>
+            <div class="mb-3">
+                <label class="form-label">Class Name</label>
+                <input type="text" name="name" class="form-control" placeholder="MyExample" required>
+            </div>
+
+            <!-- Dynamic Fields -->
+            <div id="dynamicFields"></div>
+
+            <!-- Buttons -->
+            <div class="mt-3">
+                <button type="submit" class="btn btn-success">Generate Artifact</button>
+                <button type="button" id="cancelBtn" class="btn btn-secondary">Cancel</button>
+            </div>
+        </form>
+
+        <!-- Message display -->
+        <div id="message" class="mt-3">
+            <div th:if="${message}" class="alert alert-info" th:text="${message}"></div>
         </div>
-    </form>
-
-    <div id="message" class="mt-3">
-        <div th:if="${message}" class="alert alert-info" th:text="${message}"></div>
     </div>
 </main>
-
-<script src="/js/artifactController.js"></script>
+</div>
+<!-- ✅ Inline JS -->
+ <script src="/js/artifactController.js"></script>
 </body>
 </html>
