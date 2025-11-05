@@ -70,7 +70,7 @@ function openComponentModal() {
         })
         .then(data => {
             renderList('componentList', data, selectedComponents, 'component');
-            new bootstrap.Modal(document.getElementById('componentModal')).show();
+            new bootstrap.Modal(document.getElementById('componentLibraryModal')).show();
         })
         .catch(err => {
             console.error(err);
