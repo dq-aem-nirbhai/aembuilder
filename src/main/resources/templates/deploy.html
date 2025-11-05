@@ -89,6 +89,24 @@
                            onclick="return checkRestrictedBranch('create a component')">+ Create Component</a>
                         <a href="#" class="btn btn-sm btn-outline-primary"
                            onclick="return checkRestrictedBranch('open component library') && openComponentModal()">+ Component Library</a>
+
+                        <!-- Component Library Modal -->
+                        <div class="modal fade" id="componentLibraryModal" tabindex="-1">
+                            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5>Select Components</h5>
+                                        <button class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div id="componentList" class="row row-cols-2 g-2"></div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-primary" onclick="addSelectedComponents()">Add Selected</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <a th:href="@{'/' + ${projectName} + '/artifacts/artifact-generator'}"
                            class="btn btn-sm btn-outline-primary"
                            onclick="return checkRestrictedBranch('generate artifacts')">Generate New Features</a>
@@ -139,8 +157,7 @@
     </div>
 </main>
 
-<!-- Footer -->
-<div th:replace="fragments/navbar :: footer"></div>
+
 
 <!-- Artifact Modal -->
 <div class="modal fade" id="artifactModal" th:attr="data-project=${projectName}" tabindex="-1" aria-labelledby="artifactModalLabel" aria-hidden="true">
@@ -163,9 +180,46 @@
     </div>
 </div>
 
+
+<!-- ========================= -->
+<!-- Tools Library Section -->
+<!-- ========================= -->
+<div class="mt-5 p-4 border rounded bg-light shadow-sm">
+    <h4 class="text-primary mb-3">🧰 Tools Library</h4>
+    <div class="d-flex justify-content-end mb-2">
+        <button class="btn btn-sm btn-outline-primary" onclick="openToolModal()">+ Tool Library</button>
+    </div>
+</div>
+
+<!-- Tool Modal -->
+
+<div class="modal fade" id="toolModal" tabindex="-1" th:attr="data-project=${projectName}">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Select Tools</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="toolList" class="row row-cols-2 g-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-primary" onclick="addSelectedTools()">Add Selected</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<div th:replace="fragments/navbar :: footer"></div>
+
+
 <!-- Scripts -->
+
 <script src="/js/deploy.js"></script>
 <script src="/js/artifactController.js"></script>
+<div id="componentModal" th:attr="data-project=${projectName}" style="display:none;"></div>
 
 </body>
 </html>
