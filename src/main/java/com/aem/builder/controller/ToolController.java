@@ -30,6 +30,7 @@ public class ToolController {
     @GetMapping(FETCH_TOOLS)
     @ResponseBody
     public List<String> fetchTools(@PathVariable String projectname) {
+        log.info("[ToolController]  projectName: {}",projectname);
         log.info("[ToolController] Fetching available tools for '{}'", projectname);
 
         List<String> toolNames = toolService.fetchTools(projectname);
@@ -41,7 +42,7 @@ public class ToolController {
     public String addToolsToExistingProject(
             @PathVariable String projectname,
             @RequestBody List<String> selectedTools) {
-
+log.info("[ToolController]  projectName: {}",projectname);
         log.info("[ToolController] Adding {} tool(s) to project '{}'", selectedTools.size(), projectname);
         try {
             toolService.addToolsToExistingProject(projectname, selectedTools);
@@ -55,7 +56,7 @@ public class ToolController {
 @GetMapping(EXISTING_TOOLS)
 @ResponseBody
 public List<String>getExistingToolOfProject(@PathVariable String projectname){
-
+    log.info("[ToolController]  projectName: {}",projectname);
             List<String> existingTools = toolService.getExistingTools(projectname);
         return existingTools;
 

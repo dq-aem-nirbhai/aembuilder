@@ -207,12 +207,9 @@ function saveAll() {
 
 // 🧰 Open Tool Modal and Load Tools
 function openToolModal() {
-    const projectName = getProjectName();
-    if (!projectName) {
-        alert("Project name not found.");
-        return;
-    }
-
+const el = document.getElementById('toolModal');
+const projectName = el ? el.getAttribute('data-project') : '';
+      if (!projectName) return;
     Promise.all([
         fetch(`/tools/fetchtools/${projectName}`).then(res => res.json()),
         fetch(`/tools/existingtools/${projectName}`).then(res => res.json())
@@ -268,11 +265,9 @@ function renderToolList(allTools, existingTools = []) {
 
 // 🚀 Add Selected Tools
 function addSelectedTools() {
-    const projectName = getProjectName();
-    if (!projectName) {
-        alert("Project name not found.");
-        return;
-    }
+  const el = document.getElementById('toolModal');
+  const projectName = el ? el.getAttribute('data-project') : '';
+        if (!projectName) return;
 
     const selectedTools = Array.from(
         document.querySelectorAll('#toolList input[type="checkbox"]:checked:not(:disabled)')
