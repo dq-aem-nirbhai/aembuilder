@@ -173,69 +173,70 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     // ===== Check duplicate field names in same component (multifield only) =====
+     // ===== Check duplicate field names in same component (multifield only) =====
     function checkDuplicateFieldNameWithinComponent(fieldInput) {
-        const fieldName = fieldInput.value.trim();
-        if (!fieldName) return false;
+    const fieldName = fieldInput.value.trim();
+    if (!fieldName) return false;
 
-        // Only check duplicates among fields whose type === 'multifield'
-        const allRows = Array.from(document.querySelectorAll('#fieldsContainer .field-row, #fieldsContainer .nested-row'));
-        const duplicates = allRows.filter(row => {
-            const fname = row.querySelector('.fieldName')?.value.trim();
-            const ftype = row.querySelector('.fieldType')?.value;
-            return fname === fieldName ;
-        });
+    const allRows = Array.from(document.querySelectorAll('#fieldsContainer .field-row, #fieldsContainer .nested-row'));
+    const duplicates = allRows.filter(row => {
+        const fname = row.querySelector('.fieldName')?.value.trim();
+        return fname === fieldName;
+    });
 
-        const errorDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
+    const errorDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
+    const fieldRow = fieldInput.closest('.field-row, .nested-row');
+    const fieldTypeSelect = fieldRow ? fieldRow.querySelector('.fieldType') : null;
 
-        if (duplicates.length > 1) {
-            errorDiv.innerText = '⚠️ Duplicate name detected!';
-            errorDiv.classList.add('text-danger');
-            fieldInput.classList.add('is-invalid');
-            createButton.disabled = true;
-            return true;
-        } else {
-            // Clear message only if the row isn't showing some other server error
-            const srvErr = errorDiv.dataset.serverError === 'true';
-            if (!srvErr) {
-                errorDiv.innerText = '';
-            }
-            fieldInput.classList.remove('is-invalid');
-            fieldInput.classList.add('is-valid');
-            return false;
+    if (duplicates.length > 1) {
+        // ⚠️ Duplicate found — show message and disable type select
+        errorDiv.innerText = '⚠️ Duplicate field name detected!';
+        errorDiv.classList.add('text-danger');
+        fieldInput.classList.add('is-invalid');
+        createButton.disabled = true;
+
+        if (fieldTypeSelect) {
+            fieldTypeSelect.disabled = true;
         }
-    }
+        return true;
+    } else {
+        // ✅ No duplicates — clear error and re-enable field type
+        const srvErr = errorDiv.dataset.serverError === 'true';
+        if (!srvErr) {
+            errorDiv.innerText = '';
+        }
+        fieldInput.classList.remove('is-invalid');
+        fieldInput.classList.add('is-valid');
+        createButton.disabled = false;
 
+        if (fieldTypeSelect) {
+            fieldTypeSelect.disabled = false;
+        }
+        return false;
+    }
+}
     // ===== Check Field Name Availability Server-Side (ONLY for multifield) =====
     const checkFieldNameAvailability = debounce((fieldInput) => {
-    // Skip backend validation in edit mode
-    if (window.editMode) {
-        console.log("Edit mode — skipping backend field name check");
-        return;
-    }
-
-    const fieldName = fieldInput.value.trim();
-    if (!fieldName) {
-        validateFormFields();
-        return;
-    }
-
-    const row = fieldInput.closest('.field-row, .nested-row');
-    const rowType = row?.querySelector('.fieldType')?.value;
-    if (rowType !== 'multifield') {
-        const errDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
-        errDiv.dataset.serverError = 'false';
-        if (!errDiv.innerText) {
-            fieldInput.classList.remove('is-invalid');
-            fieldInput.classList.remove('is-valid');
+        const fieldName = fieldInput.value.trim();
+        if (!fieldName) {
+            validateFormFields();
+            return;
         }
-        validateFormFields();
-        return;
-    }
 
-    if (checkDuplicateFieldNameWithinComponent(fieldInput)) {
-        validateFormFields();
-        return;
-    }
+        // Only perform server-side existence check for multifield types
+        const row = fieldInput.closest('.field-row, .nested-row');
+        const rowType = row?.querySelector('.fieldType')?.value;
+        if (rowType !== 'multifield') {
+            // clear any server error flag/message
+            const errDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
+            errDiv.dataset.serverError = 'false';
+            if (!errDiv.innerText) {
+                fieldInput.classList.remove('is-invalid');
+                fieldInput.classList.remove('is-valid');
+            }
+            validateFormFields();
+            return;
+        }
 
         // If duplicate (local) check already detects problem, skip server call
         if (checkDuplicateFieldNameWithinComponent(fieldInput)) {
@@ -271,34 +272,15 @@ document.addEventListener("DOMContentLoaded", function () {
                 errorDiv.innerText = '⚠️ Server error while checking field name!';
                 errorDiv.classList.add('text-danger');
                 fieldInput.classList.add('is-invalid');
-                fieldInput.classList.remove('is-valid');
                 createButton.disabled = true;
-            } else {
-                if (errorDiv.innerText.includes('already exists')) {
-                    errorDiv.innerText = '';
-                }
-                fieldInput.classList.remove('is-invalid');
-                fieldInput.classList.add('is-valid');
-                validateFormFields();
-            }
-        })
-        .catch(() => {
-            const errorDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
-            errorDiv.dataset.serverError = 'true';
-            errorDiv.innerText = '⚠️ Server error while checking field name!';
-            errorDiv.classList.add('text-danger');
-            fieldInput.classList.add('is-invalid');
-            createButton.disabled = true;
-        });
-
-}, 400);
-
+            });
+    }, 400);
 
     function createFieldErrorDiv(input) {
         const existing = input.nextElementSibling;
         if (existing && existing.classList.contains('fieldError')) return existing;
         const div = document.createElement('div');
-        div.className = 'fieldError text-danger mt-1';
+        div.className = 'fieldError text-danger';
         div.dataset.serverError = 'false';
         input.insertAdjacentElement('afterend', div);
         return div;
@@ -857,3 +839,4 @@ document.addEventListener("DOMContentLoaded", function () {
     // Initial updateIndexes call to set names if template rows already exist
     updateIndexes();
 });
+

@@ -43,16 +43,18 @@
 
     <!-- Component Name -->
     <div class="mb-3">
-      <label for="componentName" class="form-label">Component Name</label>
-      <input type="text"
-             class="form-control"
-             name="componentName"
-             id="componentName"
-             th:value="${componentData != null} ? ${componentData.componentName} : ''"
-             th:readonly="${editMode}"
-             required>
-      <div id="nameError" class="mt-1 text-danger" style="font-size: 0.9rem;"></div>
-    </div>
+  <label for="componentName" class="form-label">Component Name</label>
+  <input type="text"
+         class="form-control"
+         name="componentName"
+         id="componentName"
+         placeholder="Enter component name (e.g., heroBanner, productCard)"
+         th:value="${componentData != null} ? ${componentData.componentName} : ''"
+         th:readonly="${editMode}"
+         required>
+  <div id="nameError" class="mt-1 text-danger" style="font-size: 0.9rem;"></div>
+</div>
+
 
     <!-- Component Group -->
     <div class="mb-3">
@@ -116,7 +118,7 @@
     </div>
 
     <!-- Add Field Button -->
-    <button type="button" class="btn btn-outline-primary mb-3" onclick="addFieldRow()">+ Add Field</button>
+    <button type="button" class="btn btn-outline-primary" onclick="addFieldRow()">+ Add Field</button>
 
     <!-- Submit Button -->
     <button type="submit" class="btn btn-primary" id="createButton"
