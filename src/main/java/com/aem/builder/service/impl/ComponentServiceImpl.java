@@ -1,5 +1,6 @@
 package com.aem.builder.service.impl;
 
+import com.aem.builder.jUnits.JunitsForSlingModels;
 import com.aem.builder.model.DTO.ComponentField;
 import com.aem.builder.model.DTO.ComponentRequest;
 import com.aem.builder.model.DTO.OptionItem;
@@ -414,34 +415,27 @@ public class ComponentServiceImpl implements ComponentService {
             FileUtils.deleteDirectory(new File(compPath));
             log.info("[deleteComponent] Deleted component folder '{}'", compPath);
 
-            // Delete component-level JUnit test class (e.g., GoalModelTest.java)
-            try {
-                String modelTestFileName = capitalize(componentName) + "ModelTest.java";
-
-                Path testClassPath = Paths.get("generated-projects", projectName,
-                        "core/src/test/java/com/aem/" + projectName + "/core/models",
-                        modelTestFileName);
-
-                if (Files.exists(testClassPath)) {
-                    Files.delete(testClassPath);
-                    log.info("🧹 Deleted component-level JUnit test class: {}", testClassPath);
-                } else {
-                    log.info("No JUnit test class found for component '{}'", componentName);
-                }
-            } catch (Exception e) {
-                log.warn("⚠️ Failed to delete JUnit test class for component '{}': {}", componentName, e.getMessage());
-            }
-
         } catch (IOException e) {
             log.error("[deleteComponent] Failed to delete component folder for '{}'", componentName, e);
         }
 
+        // Delete Sling Models + their JUnit test classes
         try (Stream<Path> paths = Files.walk(javaRoot)) {
             paths.filter(p -> javaClassesToDelete.contains(p.getFileName().toString()))
                     .forEach(p -> {
                         try {
+                            String classFile = p.getFileName().toString();
+                            String className = classFile.replace(".java", "");
+                            String basePackage = "com.aem." + projectName + ".core.models";
+
+                            // Delete JUnit before model class
+                            log.info("[deleteComponent] Calling JunitsForSlingModels for deleting jUnit Test class '{}'", p);
+                            JunitsForSlingModels.deleteJUnitForModel(projectName, basePackage, className);
+
+                            // Then delete the actual model Java file
                             Files.deleteIfExists(p);
                             log.info("[deleteComponent] Deleted Java class '{}'", p);
+
                         } catch (IOException ex) {
                             log.error("[deleteComponent] Failed to delete Java class '{}'", p, ex);
                         }
