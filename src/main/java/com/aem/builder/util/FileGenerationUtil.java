@@ -37,6 +37,7 @@ import java.util.stream.Stream;
 
 import static com.aem.builder.constants.ComponentConstants.*;
 import static com.aem.builder.constants.ModelAttributeKeys.PROJECTS_DIR;
+import static com.aem.builder.util.JavaFormatterUtil.cleanAndFormatJavaFile;
 import static com.aem.builder.util.XmlUtil.formatXml;
 
 /**
@@ -44,7 +45,6 @@ import static com.aem.builder.util.XmlUtil.formatXml;
  */
 @Slf4j
 public class FileGenerationUtil {
-
 
     /**
      * Generates all files required for a component in the given project.
@@ -703,8 +703,17 @@ public class FileGenerationUtil {
 
 
         log.info("{} Sling Model generated at {}/{}.java", MODEL_GEN_PREFIX, modelBasePath, className);
-    }
 
+
+        // ----------------------------------------------------------
+        // AUTO-GENERATE JUNIT TEST FOR THIS MODEL
+        // ----------------------------------------------------------
+        try {
+            generateJUnitTestForModel(modelBasePath, packageName, className, fields);
+        } catch (Exception e) {
+            log.warn("{} Failed to generate JUnit test for {}", MODEL_GEN_PREFIX, className, e);
+        }
+    }
 
     /**
      * Recursively adds fields to the Sling Model class.
@@ -839,6 +848,17 @@ public class FileGenerationUtil {
 
         log.info("{} Child Model '{}' generated at {}/{}.java with {} fields",
                 MODEL_GEN_PREFIX, className, modelBasePath, className, generatedFields.size());
+
+        // ----------------------------------------------------------
+        // AUTO-GENERATE JUNIT TEST FOR MULTIFIELD MODEL
+        // ----------------------------------------------------------
+        try {
+            generateJUnitTestForModel(modelBasePath, packageName, className, generatedFields);
+            log.info("{} JUnit Test generated for multifield model '{}'", MODEL_GEN_PREFIX, className);
+        } catch (Exception e) {
+            log.warn("{} Failed to generate JUnit test for multifield '{}'", MODEL_GEN_PREFIX, className, e);
+        }
+
     }
 
 
@@ -1185,6 +1205,138 @@ public class FileGenerationUtil {
         return deepestPos != -1 ? deepestPos : xml.length();
     }
 
+
+// -------------------- JUnit files Generation --------------------
+
+    /**
+     * Generates a basic JUnit test class for a Sling Model, including dynamic field tests.
+     *
+     * @param modelBasePath base output folder path (e.g., src/main/java/com/example/models)
+     * @param packageName   package name of the model
+     * @param className     name of the generated Sling Model class
+     * @param fields        list of fields defined in the Sling model
+     */
+    private static void generateJUnitTestForModel(
+            String modelBasePath, String packageName, String className, List<ComponentField> fields) throws IOException {
+
+        // Correct test base path (already includes package structure)
+        String testBasePath = modelBasePath.replace("src/main/java", "src/test/java");
+        File testDir = new File(testBasePath);
+
+        if (!testDir.exists()) {
+            testDir.mkdirs();
+        }
+
+        String testClassName = className + "Test";
+        File testFile = new File(testDir, testClassName + ".java");
+        String testPackage = packageName;
+
+        // --- Build dynamic field test methods ---
+        StringBuilder fieldTests = new StringBuilder();
+        for (ComponentField field : fields) {
+            String fieldName = field.getFieldName();
+            String getterName = "get" + capitalize(fieldName);
+            fieldTests.append("    @Test\n")
+                    .append("    void test").append(capitalize(fieldName)).append("() {\n")
+                    .append("        assertNotNull(model.").append(getterName).append("(), ")
+                    .append("\"").append(fieldName).append(" should not be null\");\n")
+                    .append("    }\n\n");
+        }
+
+        // --- If file already exists, update it instead of skipping ---
+        if (testFile.exists()) {
+            log.info("🔄 Updating existing JUnit for {}", className);
+            String existingContent = FileUtils.readFileToString(testFile, StandardCharsets.UTF_8);
+
+            // --- Normalize line endings ---
+            existingContent = existingContent.replace("\r\n", "\n");
+
+            // --- Always keep testModelNotNull intact ---
+            String modelNotNullBlock = """
+        @Test
+        void testModelNotNull() {
+            assertNotNull(model, "Model should be adaptable from resource");
+        }
+    """;
+
+            if (existingContent.contains("testModelNotNull")) {
+                existingContent = existingContent.replaceAll(
+                        "(?s)@Test\\s+void\\s+testModelNotNull\\(\\)\\s*\\{.*?\\}",
+                        modelNotNullBlock.trim());
+            }
+
+            // --- Remove old auto-generated test methods ---
+            existingContent = existingContent.replaceAll(
+                    "(?s)@Test\\s+void\\s+(?!testModelNotNull)test[A-Z][A-Za-z0-9_]*\\(\\)\\s*\\{.*?\\}"
+                    ,
+                    "");
+
+            // --- Insert new test methods before final closing brace ---
+            int insertPos = existingContent.lastIndexOf('}');
+            if (insertPos > 0) {
+                StringBuilder newFieldTests = new StringBuilder("\n");
+                for (ComponentField field : fields) {
+                    String fieldName = field.getFieldName();
+                    String getterName = "get" + capitalize(fieldName);
+                    newFieldTests.append("    @Test\n")
+                            .append("    void test").append(capitalize(fieldName)).append("() {\n")
+                            .append("        assertNotNull(model.").append(getterName).append("(), ")
+                            .append("\"").append(fieldName).append(" should not be null\");\n")
+                            .append("    }\n\n");
+                }
+
+                existingContent = new StringBuilder(existingContent)
+                        .insert(insertPos - 1, newFieldTests.toString())
+                        .toString();
+            }
+
+            FileUtils.writeStringToFile(testFile, existingContent, StandardCharsets.UTF_8);
+            JavaFormatterUtil.cleanAndFormatJavaFile(testFile);
+            log.info("✅ Existing JUnit updated for model: {}", className);
+            return;
+        }
+
+
+        // --- Build resource properties dynamically ---
+        StringBuilder resourceProps = new StringBuilder();
+        resourceProps.append("\"sling:resourceType\", \"")
+                .append(packageName).append("/components/")
+                .append(className.replace("Model", "").toLowerCase())
+                .append("\"");
+
+// Add dummy values for each model field
+        for (ComponentField field : fields) {
+            resourceProps.append(", \"").append(field.getFieldName()).append("\", \"Test")
+                    .append(capitalize(field.getFieldName())).append("\"");
+        }
+
+// --- Generate JUnit file content ---
+        String testContent =
+                "package " + testPackage + ";\n\n" +
+                        "import io.wcm.testing.mock.aem.junit5.AemContext;\n" +
+                        "import io.wcm.testing.mock.aem.junit5.AemContextExtension;\n" +
+                        "import org.junit.jupiter.api.BeforeEach;\n" +
+                        "import org.junit.jupiter.api.Test;\n" +
+                        "import org.junit.jupiter.api.extension.ExtendWith;\n" +
+                        "import static org.junit.jupiter.api.Assertions.*;\n\n" +
+                        "@ExtendWith(AemContextExtension.class)\n" +
+                        "public class " + testClassName + " {\n\n" +
+                        "    private final AemContext context = new AemContext();\n" +
+                        "    private " + className + " model;\n\n" +
+                        "    @BeforeEach\n" +
+                        "    void setUp() {\n" +
+                        "        context.create().resource(\"/content/test\",\n" +
+                        "            new Object[]{" + resourceProps + "});\n" +
+                        "        model = context.currentResource(\"/content/test\").adaptTo(" + className + ".class);\n" +
+                        "        assertNotNull(model, \"Model should be adaptable from resource\");\n" +
+                        "    }\n\n" +
+                        fieldTests +
+                        "}\n";
+
+        FileUtils.writeStringToFile(testFile, testContent, StandardCharsets.UTF_8);
+        JavaFormatterUtil.cleanAndFormatJavaFile(testFile);
+        log.info("✅ New JUnit Test generated for model: {}", className);
+    }
 
     //-------------------- update files --------------------
 
@@ -1938,6 +2090,33 @@ public class FileGenerationUtil {
         content = updateIsEmpty(content, fields);
 
         Files.writeString(javaFile, content);
+        // 🧹 Format the updated Sling Model file
+        cleanAndFormatJavaFile(javaFile.toFile());
+        log.info("Formatted Sling Model: {}", javaFile.getFileName());
+
+        try {
+            // ✅ 1. Define correct test base path
+            String testBasePath = Paths.get("generated-projects", projectName,
+                    "core/src/test/java").toString();
+
+            // ✅ 2. Get model class name (e.g. CrazyModel)
+            String className = javaFile.getFileName().toString().replace(".java", "");
+
+            // ✅ 3. Build proper modelBasePath for tests (includes package)
+            String modelBasePathForTests = Paths.get(testBasePath, basePackage.replace(".", "/")).toString();
+
+            // ✅ Ensure the package directory exists
+            Files.createDirectories(Paths.get(modelBasePathForTests));
+
+            // ✅ Generate or update JUnit test in correct folder
+            generateJUnitTestForModel(modelBasePathForTests, basePackage, className, fields);
+            log.info("✅ JUnit generated/updated for model: {} at {}", className, modelBasePathForTests);
+
+        } catch (Exception e) {
+            log.warn("⚠️ Failed to generate or update JUnit for model {}: {}", javaFile.getFileName(), e.getMessage());
+        }
+
+
     }
     
     /**
@@ -1956,44 +2135,65 @@ public class FileGenerationUtil {
             } else {
                 log.info("No nested Sling Model found for multifield '{}'", fieldName);
             }
+
+            // --- Delete corresponding JUnit test class ---
+            Path testDir = Paths.get("generated-projects", projectName,
+                    "core/src/test/java", basePackage.replace(".", "/"));
+            Path testClassPath = testDir.resolve(nestedClassName + "Test.java");
+
+            if (Files.exists(testClassPath)) {
+                Files.delete(testClassPath);
+                log.info("Deleted corresponding JUnit test class: {}", testClassPath);
+            } else {
+                log.info("No JUnit test found for multifield '{}'", fieldName);
+            }
+
         } catch (Exception e) {
             log.warn("Failed to delete nested Sling Model for field '{}': {}", fieldName, e.getMessage());
         }
     }
 
-
     private static String insertField(String content, ComponentField field,
                                       String packageName, String projectName) {
 
         String capName = capitalize(field.getFieldName());
+        String fieldCode;
 
-        // 1️⃣ Multifield / child element → List<NestedClass>
+        // Handle multifield or child
         if ("multifield".equalsIgnoreCase(field.getFieldType()) ||
                 "child".equalsIgnoreCase(field.getFieldType())) {
 
             String nestedClassName = capName;
-            String fieldCode =
+            fieldCode =
                     "    @ChildResource\n" +
                             "    private List<" + nestedClassName + "> " + field.getFieldName() + ";\n\n" +
                             "    public List<" + nestedClassName + "> get" + nestedClassName + "() {\n" +
                             "        return " + field.getFieldName() + ";\n" +
                             "    }\n\n";
-
-            int insertPos = content.lastIndexOf("}");
-            return content.substring(0, insertPos) + fieldCode + "}\n";
+        } else {
+            String type = mapFieldTypeToJavaType(field.getFieldType());
+            fieldCode =
+                    "    @ValueMapValue\n" +
+                            "    private " + type + " " + field.getFieldName() + ";\n\n" +
+                            "    public " + type + " get" + capName + "() {\n" +
+                            "        return " + field.getFieldName() + ";\n" +
+                            "    }\n\n";
         }
 
-        // 2️⃣ Single-value field → ValueMapValue
-        String type = mapFieldTypeToJavaType(field.getFieldType());
-        String fieldCode =
-                "    @ValueMapValue\n" +
-                        "    private " + type + " " + field.getFieldName() + ";\n\n" +
-                        "    public " + type + " get" + capName + "() {\n" +
-                        "        return " + field.getFieldName() + ";\n" +
-                        "    }\n\n";
+        // 🔍 Find where to insert (before isEmpty() or its comment)
+        Pattern commentPattern = Pattern.compile("/\\*\\*\\s*\\*\\s*Checks if all fields.*?\\*/", Pattern.DOTALL);
+        Matcher matcher = commentPattern.matcher(content);
 
-        int insertPos = content.lastIndexOf("}");
-        return content.substring(0, insertPos) + fieldCode + "}\n";
+        int insertPos;
+        if (matcher.find()) {
+            insertPos = matcher.start(); // Insert before the comment
+        } else {
+            // fallback if comment not found
+            insertPos = content.lastIndexOf("}");
+        }
+
+        // Insert field code before isEmpty() comment/method
+        return content.substring(0, insertPos) + fieldCode + content.substring(insertPos);
     }
 
     private static boolean fieldExists(String content, String fieldName) {
@@ -2030,7 +2230,10 @@ public class FileGenerationUtil {
                 ""
         );
 
-        return content;
+        // Clean up any excessive blank lines left
+        content = content.replaceAll("(?m)(\\n\\s*){3,}", "\n\n");
+
+        return content.trim() + "\n";
     }
 
     // Update existing field type/annotation if needed
@@ -2064,7 +2267,6 @@ public class FileGenerationUtil {
         return content;
     }
 
-    // Rebuild isEmpty()
 
     /**
      * Recursive generator for multifield classes
@@ -2123,6 +2325,25 @@ public class FileGenerationUtil {
         content = updateIsEmpty(content, nestedFields);
 
         Files.writeString(javaFile, content);
+        cleanAndFormatJavaFile(javaFile.toFile());
+        log.info("Formatted nested multifield Sling Model: {}", javaFile.getFileName());
+
+        // ---- Generate or Update corresponding JUnit Test class ----
+        try {
+            String testBasePath = Paths.get("generated-projects", projectName,
+                    "core/src/test/java").toString();
+
+            String modelBasePath = Paths.get("generated-projects", projectName,
+                    "core/src/main/java", packageName.replace(".", "/")).toString();
+
+            // ✅ Always generate/update JUnit (even if it already exists)
+            generateJUnitTestForModel(modelBasePath, packageName, className, nestedFields);
+
+            log.info("✅ JUnit generated/updated for multifield model: {}", className);
+        } catch (Exception e) {
+            log.warn("⚠️ Failed to generate/update JUnit for multifield model {}: {}", className, e.getMessage());
+        }
+
     }
 
     private static String updateIsEmpty(String content, List<ComponentField> fields) {
@@ -2269,126 +2490,6 @@ public class FileGenerationUtil {
         FileUtils.writeStringToFile(htlFile, finalHTL, StandardCharsets.UTF_8);
         log.info("HTL updated successfully for component '{}'", request.getComponentName());
     }
-
-
-    //*************** another way of updation (component Dialog recreating instead of updating )
-    public static void updateDialogContentXml(String componentName, String dialogFolder,
-                                              String superType, List<ComponentField> fields,
-                                              String projectName) {
-        if (fields == null || fields.isEmpty()) {
-            log.info("UPDATE: Skipping dialog update for component '{}' as no fields defined", componentName);
-            return;
-        }
-        log.info("UPDATE: Starting dialog update for component '{}'", componentName);
-
-        try (InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream("dialog-content-xml.json")) {
-            if (is == null) throw new FileNotFoundException("dialog-content-xml.json not found in resources");
-            JSONObject config = new JSONObject(new String(is.readAllBytes(), StandardCharsets.UTF_8));
-            String dialogTitle = componentName + " Dialog";
-
-            // Split fields by tabs
-            List<ComponentField> tabFields = new ArrayList<>();
-            List<ComponentField> nonTabFields = new ArrayList<>();
-            for (ComponentField f : fields) {
-                if ("tabs".equalsIgnoreCase(f.getFieldType())) tabFields.add(f);
-                else nonTabFields.add(f);
-            }
-
-            // Detect explicit Main tab
-            ComponentField explicitMainTab = tabFields.stream()
-                    .filter(tf -> "main".equalsIgnoreCase(safeNodeName(tf.getFieldName(), "tab")) ||
-                            (tf.getFieldLabel() != null && tf.getFieldLabel().trim().equalsIgnoreCase("Main")))
-                    .findFirst().orElse(null);
-            boolean willAutoCreateMain = explicitMainTab == null && !nonTabFields.isEmpty();
-
-            StringBuilder sb = new StringBuilder();
-
-            // Dialog header
-            sb.append(config.getJSONObject("declarations").getString("header")
-                            .replace("${dialogTitle}", dialogTitle)
-                            .replace("${superTypeAttr}", (superType != null && !superType.isBlank()) ?
-                                    "sling:resourceSuperType=\"" + superType + "\"" : ""))
-                    .append("\n");
-
-            // Start content container
-            sb.append("<content jcr:primaryType=\"nt:unstructured\" " +
-                    "sling:resourceType=\"granite/ui/components/coral/foundation/container\">\n");
-            sb.append("  <layout jcr:primaryType=\"nt:unstructured\" " +
-                    "sling:resourceType=\"granite/ui/components/coral/foundation/layouts/fixedcolumns\"/>\n");
-            sb.append("  <items jcr:primaryType=\"nt:unstructured\">\n");
-
-            // Insert non-tab fields if no tabs exist
-            if (tabFields.isEmpty()) {
-                for (ComponentField f : nonTabFields) {
-                    sb.append(generateFieldXml(safeNodeName(f.getFieldName(), "field"), f));
-                }
-            } else {
-                // Tabs exist
-                StringBuilder tabsBuilder = new StringBuilder();
-                tabsBuilder.append("<tabs jcr:primaryType=\"nt:unstructured\" ")
-                        .append("sling:resourceType=\"granite/ui/components/coral/foundation/tabs\">\n")
-                        .append("  <items jcr:primaryType=\"nt:unstructured\">\n");
-
-                Set<String> processedTabs = new HashSet<>();
-                for (ComponentField tabField : tabFields) {
-                    String tabNodeName = safeNodeName(tabField.getFieldName(), "tab");
-                    if (!processedTabs.add(tabNodeName.toLowerCase())) continue;
-
-                    StringBuilder fieldsBuilder = new StringBuilder();
-                    if (tabField.getNestedFields() != null) {
-                        for (ComponentField nf : tabField.getNestedFields()) {
-                            fieldsBuilder.append(generateFieldXml(safeNodeName(nf.getFieldName(), "field"), nf));
-                        }
-                    }
-
-                    // Add non-tab fields to explicit Main tab
-                    if (explicitMainTab == tabField && !nonTabFields.isEmpty()) {
-                        for (ComponentField f : nonTabFields) {
-                            fieldsBuilder.append(generateFieldXml(safeNodeName(f.getFieldName(), "field"), f));
-                        }
-                    }
-
-                    String tabXml = config.getString("tabTemplate")
-                            .replace("${tabNodeName}", tabNodeName)
-                            .replace("${tabTitle}", tabField.getFieldLabel() != null ? tabField.getFieldLabel() : tabNodeName)
-                            .replace("${resourceType}", getResourceType("tabs"))
-                            .replace("${fields}", fieldsBuilder.toString());
-
-                    tabsBuilder.append(tabXml).append("\n");
-                }
-
-                // Auto-create Main tab if needed
-                if (willAutoCreateMain) {
-                    String mainFieldsXml = nonTabFields.stream()
-                            .map(f -> generateFieldXml(safeNodeName(f.getFieldName(), "field"), f))
-                            .collect(Collectors.joining());
-
-                    String autoXml = config.getString("autoMainTabTemplate")
-                            .replace("${tabNodeName}", "main")
-                            .replace("${resourceType}", getResourceType("tabs"))
-                            .replace("${fields}", mainFieldsXml);
-
-                    tabsBuilder.append(autoXml).append("\n");
-                }
-
-                tabsBuilder.append("  </items>\n</tabs>\n");
-                sb.append(tabsBuilder.toString());
-            }
-
-            // Close content container
-            sb.append("  </items>\n</content>\n");
-            sb.append(config.getJSONObject("declarations").getString("footer")).append("\n");
-
-            // Write updated dialog
-            File out = new File(dialogFolder, ".content.xml");
-            FileUtils.writeStringToFile(out, formatXml(sb.toString()), StandardCharsets.UTF_8);
-            log.info("UPDATE: Dialog .content.xml updated successfully at {}", out.getAbsolutePath());
-
-        } catch (Exception e) {
-            log.error("UPDATE: Error updating dialog for '{}': {}", componentName, e.getMessage(), e);
-        }
-    }
-
 
 
 }
