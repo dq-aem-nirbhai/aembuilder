@@ -49,33 +49,6 @@ public class JunitsForSlingModels {
             String getterName = "get" + capitalize(name);
 
             switch (type) {
-                case "checkbox":
-                case "switch":
-                case "radiogroup":
-                    fieldTests.append("    @Test\n")
-                            .append("    void test").append(capitalize(name)).append("() {\n")
-                            .append("        assertTrue(model.").append(getterName).append("(), ")
-                            .append("\"").append(name).append(" should be true\");\n")
-                            .append("    }\n\n");
-                    break;
-
-                case "numberfield":
-                    fieldTests.append("    @Test\n")
-                            .append("    void test").append(capitalize(name)).append("() {\n")
-                            .append("        assertEquals(123, model.").append(getterName).append("(), ")
-                            .append("\"").append(name).append(" should match dummy value\");\n")
-                            .append("    }\n\n");
-                    break;
-
-                case "multifield":
-                    fieldTests.append("    @Test\n")
-                            .append("    void test").append(capitalize(name)).append("() {\n")
-                            .append("        assertNotNull(model.").append(getterName).append("());\n")
-                            .append("        assertFalse(model.").append(getterName).append("().isEmpty(), ")
-                            .append("\"").append(name).append(" list should not be empty\");\n")
-                            .append("    }\n\n");
-                    break;
-
                 default:
                     fieldTests.append("    @Test\n")
                             .append("    void test").append(capitalize(name)).append("() {\n")
@@ -86,6 +59,54 @@ public class JunitsForSlingModels {
             }
         }
 
+// --- 🧩 Build resource properties BEFORE update logic (used for @BeforeEach block) ---
+        StringBuilder resourcePropsBuilder = new StringBuilder();
+        resourcePropsBuilder.append("\"sling:resourceType\", \"")
+                .append(packageName).append("/components/")
+                .append(className.replace("Model", "").toLowerCase())
+                .append("\"");
+
+        for (ComponentField field : fields) {
+            String name = field.getFieldName();
+            String type = field.getFieldType() != null ? field.getFieldType().toLowerCase() : "textfield";
+
+            switch (type) {
+                case "numberfield":
+                    resourcePropsBuilder.append(", \"").append(name).append("\", 123");
+                    break;
+                case "checkbox":
+                case "switch":
+                case "radiogroup":
+                    resourcePropsBuilder.append(", \"").append(name).append("\", true");
+                    break;
+                case "multifield":
+                    resourcePropsBuilder.append(", \"").append(name).append("\", new String[]{\"Item1\", \"Item2\"}");
+                    break;
+                case "select":
+                    resourcePropsBuilder.append(", \"").append(name).append("\", \"Option1\"");
+                    break;
+
+                case "multiselect":
+                    resourcePropsBuilder.append(", \"").append(name).append("\", new String[]{\"Option1\", \"Option2\"}");
+                    break;
+
+                case "colorfield":
+                    resourcePropsBuilder.append(", \"").append(name).append("\", \"#FF5733\"");
+                    break;
+                case "datepicker":
+                    resourcePropsBuilder.append(", \"").append(name).append("\", \"2025-01-01\"");
+                    break;
+                case "tagfield":
+                case "pathfield":
+                    resourcePropsBuilder.append(", \"").append(name).append("\", \"/content/sample/path\"");
+                    break;
+                default:
+                    resourcePropsBuilder.append(", \"").append(name).append("\", \"Test")
+                            .append(capitalize(name)).append("\"");
+                    break;
+            }
+        }
+        String resourceProps = resourcePropsBuilder.toString();
 
         // --- If file already exists, update it instead of skipping ---
         if (testFile.exists()) {
@@ -95,13 +116,44 @@ public class JunitsForSlingModels {
             // --- Normalize line endings ---
             existingContent = existingContent.replace("\r\n", "\n");
 
-            // --- Always keep testModelNotNull intact ---
-            String modelNotNullBlock = """
-                        @Test
-                        void testModelNotNull() {
-                            assertNotNull(model, "Model should be adaptable from resource");
-                        }
-                    """;
+            // --- 🔄 Rebuild the @BeforeEach setup method dynamically ---
+            String newSetupBlock = "    @BeforeEach\n" +
+                    "    void setUp() {\n" +
+                    "        context.create().resource(\"/content/test\",\n" +
+                    "            new Object[]{" + resourceProps + "});\n" +
+                    "        model = context.currentResource(\"/content/test\").adaptTo(" + className + ".class);\n" +
+                    "        assertNotNull(model, \"Model should be adaptable from resource\");\n" +
+                    "    }";
+
+// 🧹 Clean any stray model or assert lines before replacing
+            existingContent = existingContent
+                    .replaceAll("(?m)^\\s*model\\s*=.*?;\\s*$", "")
+                    .replaceAll("(?m)^\\s*assertNotNull\\(model,.*?;\\s*$", "");
+
+// 🔄 Replace entire setUp() block robustly
+            existingContent = existingContent.replaceAll(
+                    "(?s)@BeforeEach\\s+void\\s+setUp\\s*\\(\\)\\s*\\{[\\s\\S]*?\\n\\s*\\}",
+                    newSetupBlock
+            );
+
+
+            StringBuilder modelNotNullBuilder = new StringBuilder();
+            modelNotNullBuilder.append("    @Test\n")
+                    .append("    void testModelNotNull() {\n")
+                    .append("        assertNotNull(model, \"Model should be adaptable from resource\");\n");
+
+            for (ComponentField field : fields) {
+                String getterName = "get" + capitalize(field.getFieldName());
+                modelNotNullBuilder.append("        assertNotNull(model.")
+                        .append(getterName)
+                        .append("(), \"")
+                        .append(field.getFieldName())
+                        .append(" should not be null\");\n");
+            }
+
+            modelNotNullBuilder.append("    }\n");
+
+            String modelNotNullBlock = modelNotNullBuilder.toString();
 
             if (existingContent.contains("testModelNotNull")) {
                 existingContent = existingContent.replaceAll(
@@ -119,14 +171,22 @@ public class JunitsForSlingModels {
             int insertPos = existingContent.lastIndexOf('}');
             if (insertPos > 0) {
                 StringBuilder newFieldTests = new StringBuilder("\n");
+
                 for (ComponentField field : fields) {
-                    String fieldName = field.getFieldName();
-                    String getterName = "get" + capitalize(fieldName);
-                    newFieldTests.append("    @Test\n")
-                            .append("    void test").append(capitalize(fieldName)).append("() {\n")
-                            .append("        assertNotNull(model.").append(getterName).append("(), ")
-                            .append("\"").append(fieldName).append(" should not be null\");\n")
-                            .append("    }\n\n");
+                    String name = field.getFieldName();
+                    String type = field.getFieldType() != null ? field.getFieldType().toLowerCase() : "textfield";
+                    String getterName = "get" + capitalize(name);
+
+                    switch (type) {
+                        default:
+                            newFieldTests.append("    @Test\n")
+                                    .append("    void test").append(capitalize(name)).append("() {\n")
+                                    .append("        assertNotNull(model.").append(getterName).append("(), ")
+                                    .append("\"").append(name).append(" should not be null\");\n")
+                                    .append("    }\n\n");
+                            break;
+                    }
+
                 }
 
                 existingContent = new StringBuilder(existingContent)
@@ -134,84 +194,47 @@ public class JunitsForSlingModels {
                         .toString();
             }
 
+
             FileUtils.writeStringToFile(testFile, existingContent, StandardCharsets.UTF_8);
             JavaFormatterUtil.cleanAndFormatJavaFile(testFile);
             log.info("✅ Existing JUnit updated for model: {}", className);
-            return;
         }
+        else {
 
 
-        // --- Build resource properties dynamically ---
-        StringBuilder resourceProps = new StringBuilder();
-        resourceProps.append("\"sling:resourceType\", \"")
-                .append(packageName).append("/components/")
-                .append(className.replace("Model", "").toLowerCase())
-                .append("\"");
-        for (ComponentField field : fields) {
-            String name = field.getFieldName();
-            String type = field.getFieldType() != null ? field.getFieldType().toLowerCase() : "textfield";
+            // --- Generate JUnit file content ---
+            String testContent =
+                    "package " + testPackage + ";\n\n" +
+                            "import io.wcm.testing.mock.aem.junit5.AemContext;\n" +
+                            "import io.wcm.testing.mock.aem.junit5.AemContextExtension;\n" +
+                            "import org.junit.jupiter.api.BeforeEach;\n" +
+                            "import org.junit.jupiter.api.Test;\n" +
+                            "import org.junit.jupiter.api.extension.ExtendWith;\n" +
+                            "import static org.junit.jupiter.api.Assertions.*;\n\n" +
+                            "@ExtendWith(AemContextExtension.class)\n" +
+                            "public class " + testClassName + " {\n\n" +
+                            "    private final AemContext context = new AemContext();\n" +
+                            "    private " + className + " model;\n\n" +
+                            "    @BeforeEach\n" +
+                            "    void setUp() {\n" +
+                            "        context.create().resource(\"/content/test\",\n" +
+                            "            new Object[]{" + resourceProps + "});\n" +
+                            "        model = context.currentResource(\"/content/test\").adaptTo(" + className + ".class);\n" +
+                            "        assertNotNull(model, \"Model should be adaptable from resource\");\n" +
+                            "    }\n\n" +
 
-            switch (type) {
-                case "numberfield":
-                    resourceProps.append(", \"").append(name).append("\", 123");
-                    break;
-                case "checkbox":
-                case "switch":
-                case "radiogroup":
-                    resourceProps.append(", \"").append(name).append("\", true");
-                    break;
-                case "multifield":
-                    resourceProps.append(", \"").append(name).append("\", new String[]{\"Item1\", \"Item2\"}");
-                    break;
-                case "select":
-                case "multiselect":
-                case "pathfield":
-                case "tagfield":
-                case "colorfield":
-                    resourceProps.append(", \"").append(name).append("\", \"#FF5733\"");
-                    break;
-                case "datepicker":
-                    resourceProps.append(", \"").append(name).append("\", \"2025-01-01\"");
-                    break;
-                case "hidden":
-                case "fileupload":
-                case "password":
-                case "richtext":
-                case "textarea":
-                default:
-                    resourceProps.append(", \"").append(name).append("\", \"Test")
-                            .append(capitalize(name)).append("\"");
-                    break;
-            }
+                            "    @Test\n" +
+                            "    void testModelNotNull() {\n" +
+                            "        assertNotNull(model, \"Model should be adaptable from resource\");\n" +
+                            "    }\n\n" +
+
+                            fieldTests +
+                            "}\n";
+
+            FileUtils.writeStringToFile(testFile, testContent, StandardCharsets.UTF_8);
+            JavaFormatterUtil.cleanAndFormatJavaFile(testFile);
+            log.info("✅ New JUnit Test generated for model: {}", className);
         }
-
-
-// --- Generate JUnit file content ---
-        String testContent =
-                "package " + testPackage + ";\n\n" +
-                        "import io.wcm.testing.mock.aem.junit5.AemContext;\n" +
-                        "import io.wcm.testing.mock.aem.junit5.AemContextExtension;\n" +
-                        "import org.junit.jupiter.api.BeforeEach;\n" +
-                        "import org.junit.jupiter.api.Test;\n" +
-                        "import org.junit.jupiter.api.extension.ExtendWith;\n" +
-                        "import static org.junit.jupiter.api.Assertions.*;\n\n" +
-                        "@ExtendWith(AemContextExtension.class)\n" +
-                        "public class " + testClassName + " {\n\n" +
-                        "    private final AemContext context = new AemContext();\n" +
-                        "    private " + className + " model;\n\n" +
-                        "    @BeforeEach\n" +
-                        "    void setUp() {\n" +
-                        "        context.create().resource(\"/content/test\",\n" +
-                        "            new Object[]{" + resourceProps + "});\n" +
-                        "        model = context.currentResource(\"/content/test\").adaptTo(" + className + ".class);\n" +
-                        "        assertNotNull(model, \"Model should be adaptable from resource\");\n" +
-                        "    }\n\n" +
-                        fieldTests +
-                        "}\n";
-
-        FileUtils.writeStringToFile(testFile, testContent, StandardCharsets.UTF_8);
-        JavaFormatterUtil.cleanAndFormatJavaFile(testFile);
-        log.info("✅ New JUnit Test generated for model: {}", className);
     }
 
 
