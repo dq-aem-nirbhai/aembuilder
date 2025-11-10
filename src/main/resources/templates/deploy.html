@@ -105,7 +105,7 @@
                     <div class="col" th:each="component : ${components}">
                         <div class="border rounded p-2 bg-light d-flex justify-content-between align-items-center shadow-sm">
                             <span th:text="${component}"></span>
-                            <a th:if="${#lists.contains(editableComponents, component)}"
+                            <a th:if="${#lists.contains(editableComponents, component) and component != 'helloworld'}"
                                th:href="@{/{projectName}/editcomponent(componentName=${component}, projectName=${projectName})}"
                                class="btn btn-sm btn-outline-secondary ms-2"
                                onclick="return checkRestrictedBranch('edit this component')">Edit</a>
