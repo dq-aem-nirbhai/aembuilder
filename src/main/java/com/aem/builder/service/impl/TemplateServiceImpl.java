@@ -338,10 +338,10 @@ public class TemplateServiceImpl implements TemplateService {
 
             TemplateModel model = new TemplateModel();
             model.setName(templateName);
-            model.setTitle(root.getAttribute(ATTR_JCR_TITLE ));
+
 
             Element content = (Element) root.getElementsByTagName( JCR_CONTENT_TAG).item(0);
-            model.setTitle(content.getAttribute(ATTR_JCR_TITLE ));
+
             model.setStatus(content.getAttribute(STATUS));
             model.setDescription(content.getAttribute(ATT_DESCRIPTION));
             String templateType=content.getAttribute(ATTR_TEMPLATE_TYPE);
@@ -418,10 +418,11 @@ public class TemplateServiceImpl implements TemplateService {
             Element content = (Element) root.getElementsByTagName(JCR_CONTENT_TAG).item(0);
 
             root.setAttribute( ATTR_JCR_TITLE , updatedModel.getName()); // updates root title
-            if (updatedModel.getTitle() != null) content.setAttribute(ATTR_JCR_TITLE,
-                    updatedModel.getTitle());
+            if (updatedModel.getName() != null) content.setAttribute(ATTR_JCR_TITLE,
+                    updatedModel.getName());
             if (updatedModel.getStatus() != null) content.setAttribute(STATUS,
                     updatedModel.getStatus());
+            if(updatedModel.getDescription()!=null)content.setAttribute(ATT_DESCRIPTION,updatedModel.getDescription());
 
             if (updatedModel.getTemplateType() != null) {
                 content.setAttribute(ATTR_TEMPLATE_TYPE, CONF_PATH +
