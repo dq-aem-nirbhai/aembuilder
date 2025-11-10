@@ -1179,6 +1179,20 @@ public class ComponentServiceImpl implements ComponentService {
                         log.info("[copySelectedComponents] Updated HTL model reference in '{}'", html.getAbsolutePath());
                     }
                 }
+                // Update componentGroup in .content.xml
+                //File contentXml = new File(destination, CONTENT_XML);
+                String capitalizedProject = projectName.substring(0, 1).toUpperCase() + projectName.substring(1);
+
+                if (contentXml.exists()) {
+                    String content = FileUtils.readFileToString(contentXml, UTF_8);
+
+                    // Replace componentGroup="anything"
+                    content = content.replaceAll("componentGroup=\"[^\"]*\"",
+                            "componentGroup=\"" + capitalizedProject + " - Content\"");
+                    FileUtils.writeStringToFile(contentXml, content, UTF_8);
+                    log.info("[copySelectedComponents] Updated componentGroup in '{}'", contentXml.getAbsolutePath());
+                }
+
 
                 // Copy model and dependencies
                 if (parentModel != null && parentModel.exists()) {
