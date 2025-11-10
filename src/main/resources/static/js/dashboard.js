@@ -5,52 +5,63 @@ document.addEventListener("DOMContentLoaded", () => {
   const zipFile = document.getElementById("zipFile");
   const repoUrl = document.getElementById("repoUrl");
   const feedback = document.getElementById("importFeedback");
-  const helpTourBtn = document.getElementById("helpTourBtn");
-
   const filterSelect = document.getElementById("filterSelect");
-  const projectContainer = document.querySelector(".row.row-cols-1");
+  const projectContainer = document.getElementById("projectContainer");
 
-  /** Reset form to default state */
-  function resetState() {
-    uploadBtn.disabled = true;
-    feedback.innerHTML = "";
-    uploadSpinner.style.display = "none";
-    zipFile.value = "";
-    repoUrl.value = "";
-    uploadBtn.innerHTML = `<i class="bi bi-cloud-arrow-up me-1"></i> Upload`;
-  }
+  // Tooltip init
+  var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+  tooltipTriggerList.map(el => new bootstrap.Tooltip(el));
 
-  /** Flash message auto-fade */
+  // Make project card clickable
+  document.querySelectorAll(".project-card").forEach(card => {
+    card.style.cursor = "pointer";
+    card.addEventListener("click", e => {
+      if (e.target.closest("button, a, form")) return;
+      const path = card.getAttribute("data-path");
+      if (path) window.location.href = path;
+    });
+  });
+
+  // Flash message auto-fade
   setTimeout(() => {
-  const flash = document.getElementById('flashMessage');
-  if (flash) {
-    flash.classList.remove('show'); // Bootstrap fade-out
-    setTimeout(() => { if (flash) flash.remove(); }, 600);
-  }
-}, 4000);
+    const flash = document.getElementById('flashMessage');
+    if (flash) {
+      flash.classList.remove('show');
+      setTimeout(() => { if (flash) flash.remove(); }, 600);
+    }
+  }, 4000);
 
-  /** Intro.js Quick Tour (existing code) */
-  const tourShown = localStorage.getItem("aemDashboardTourShown");
-  const hasProjects = document.querySelectorAll(".project-card").length > 0;
+  // Intro.js Tour
+  function getTourSteps() {
+    const steps = [];
+    const createBtn = document.querySelector("a[href='/create']");
+    const importBtn = document.querySelector("button[data-bs-target='#importModal']");
+    if (createBtn) steps.push({ element: createBtn, intro: "Click here to create a new AEM project." });
+    if (importBtn) steps.push({ element: importBtn, intro: "You can also import existing projects from ZIP or Git." });
 
-  const steps = [
-    { element: document.querySelector("[data-step='1']"), intro: "Click here to create a new AEM project." },
-    { element: document.querySelector("[data-step='2']"), intro: "You can also import existing projects from ZIP or Git." },
-  ];
+    const firstCard = document.querySelector(".project-card");
+    if (firstCard) {
+      const viewBtn = firstCard.querySelector("a.btn-outline-primary");
+      const folderBtn = firstCard.querySelector("a.btn-outline-warning");
+      const downloadBtn = firstCard.querySelector("a.btn-outline-success");
+      const vscodeBtn = firstCard.querySelector("form button.btn-outline-dark");
 
-  if (hasProjects) {
-    steps.push(
-      { element: document.querySelector("[data-step='4']"), intro: "Each project provides quick actions here — let's explore them!" },
-      { element: document.querySelector("[data-step='5']"), intro: "Click to view this project's full structure and details." },
-      { element: document.querySelector("[data-step='6']"), intro: "Open the folder where this project is stored on your system." },
-      { element: document.querySelector("[data-step='7']"), intro: "Download the project as a ZIP file for backup or sharing." },
-      { element: document.querySelector("[data-step='8']"), intro: "Open this project directly in Visual Studio Code." }
-    );
+      steps.push({ element: firstCard, intro: "This project provides quick actions — let's explore them!" });
+      if (viewBtn) steps.push({ element: viewBtn, intro: "Click to view this project's full structure and details." });
+      if (folderBtn) steps.push({ element: folderBtn, intro: "Open the folder where this project is stored on your system." });
+      if (downloadBtn) steps.push({ element: downloadBtn, intro: "Download the project as a ZIP file for backup or sharing." });
+      if (vscodeBtn) steps.push({ element: vscodeBtn, intro: "Open this project directly in Visual Studio Code." });
+    }
+
+    return steps;
   }
 
   function startTour() {
+    const steps = getTourSteps();
+    if (!steps.length) return;
+
     introJs().setOptions({
-      steps: steps.filter(s => s.element),
+      steps: steps,
       showProgress: true,
       showBullets: false,
       exitOnOverlayClick: false,
@@ -60,16 +71,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }).start();
   }
 
-  if (!tourShown && steps.some(s => s.element)) {
+  if (!localStorage.getItem("aemDashboardTourShown")) {
     setTimeout(() => {
       startTour();
       localStorage.setItem("aemDashboardTourShown", "true");
     }, 1000);
   }
 
-  if (helpTourBtn) helpTourBtn.addEventListener("click", startTour);
-
-  /** ZIP File Validation (existing code) */
+  // ZIP Validation
   zipFile.addEventListener("change", () => {
     const file = zipFile.files[0];
     feedback.innerHTML = "";
@@ -96,20 +105,21 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   });
 
-  /** Repo URL Input (existing code) */
+  // Repo URL Input
   repoUrl.addEventListener("input", () => {
     const url = repoUrl.value.trim();
     feedback.innerHTML = "";
     zipFile.value = "";
     if (url === "") {
-      resetState();
+      uploadBtn.disabled = true;
+      uploadBtn.innerHTML = `<i class="bi bi-cloud-arrow-up me-1"></i> Upload`;
     } else {
       uploadBtn.disabled = false;
       uploadBtn.innerHTML = `<i class="bi bi-git me-1"></i> Clone`;
     }
   });
 
-  /** Import Form Submit (existing code) */
+  // Import Form Submit
   importForm.addEventListener("submit", e => {
     e.preventDefault();
     const file = zipFile.files[0];
@@ -143,14 +153,9 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   });
 
-  /** -------------------------------
-   * Filter / Sort Projects
-   * ------------------------------- */
+  // Filter / Sort Projects
   if (filterSelect && projectContainer) {
-    const parseDate = dateStr => {
-      // Try to convert date string to Date object
-      return new Date(dateStr.replace(" ", "T"));
-    };
+    const parseDate = dateStr => new Date(dateStr.replace(" ", "T"));
 
     const sortProjects = () => {
       const projects = Array.from(projectContainer.querySelectorAll(".col")).filter(col => col.querySelector(".project-card"));
@@ -166,6 +171,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     filterSelect.addEventListener("change", sortProjects);
-    sortProjects(); // initial sort
+    sortProjects();
   }
 });
