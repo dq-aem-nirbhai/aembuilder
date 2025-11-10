@@ -173,59 +173,48 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     // ===== Check duplicate field names in same component (multifield only) =====
+     // ===== Check duplicate field names in same component (multifield only) =====
     function checkDuplicateFieldNameWithinComponent(fieldInput) {
-  const fieldName = fieldInput.value.trim();
-  if (!fieldName) return false;
+    const fieldName = fieldInput.value.trim();
+    if (!fieldName) return false;
 
-  const allRows = Array.from(document.querySelectorAll('#fieldsContainer .field-row, #fieldsContainer .nested-row'));
-  const duplicates = allRows.filter(row => {
-    const fname = row.querySelector('.fieldName')?.value.trim();
-    return fname && fname === fieldName;
-  });
-
-  const errorDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
-
-  const fieldTypeSelect = fieldInput.closest('.field-row')?.querySelector('.fieldType');
-
-  if (duplicates.length > 1) {
-    // Show error message
-    errorDiv.innerText = '⚠️ Duplicate name detected!';
-    errorDiv.classList.add('text-danger');
-    fieldInput.classList.add('is-invalid');
-
-    // Disable field type selection
-    if (fieldTypeSelect) fieldTypeSelect.disabled = true;
-
-    // Disable Create button
-    document.getElementById('createButton').disabled = true;
-    return true;
-  } else {
-    // Clear message
-    const srvErr = errorDiv.dataset.serverError === 'true';
-    if (!srvErr) {
-      errorDiv.innerText = '';
-    }
-    fieldInput.classList.remove('is-invalid');
-    fieldInput.classList.add('is-valid');
-
-    // Enable field type again
-    if (fieldTypeSelect) fieldTypeSelect.disabled = false;
-
-    // Enable create button only if no duplicates exist
-    const hasAnyDuplicate = Array.from(document.querySelectorAll('.fieldName')).some(input => {
-      const name = input.value.trim();
-      if (!name) return false;
-      const matches = allRows.filter(row => row.querySelector('.fieldName')?.value.trim() === name);
-      return matches.length > 1;
+    const allRows = Array.from(document.querySelectorAll('#fieldsContainer .field-row, #fieldsContainer .nested-row'));
+    const duplicates = allRows.filter(row => {
+        const fname = row.querySelector('.fieldName')?.value.trim();
+        return fname === fieldName;
     });
 
-    document.getElementById('createButton').disabled = hasAnyDuplicate;
-    return false;
-  }
+    const errorDiv = fieldInput.nextElementSibling || createFieldErrorDiv(fieldInput);
+    const fieldRow = fieldInput.closest('.field-row, .nested-row');
+    const fieldTypeSelect = fieldRow ? fieldRow.querySelector('.fieldType') : null;
+
+    if (duplicates.length > 1) {
+        // ⚠️ Duplicate found — show message and disable type select
+        errorDiv.innerText = '⚠️ Duplicate field name detected!';
+        errorDiv.classList.add('text-danger');
+        fieldInput.classList.add('is-invalid');
+        createButton.disabled = true;
+
+        if (fieldTypeSelect) {
+            fieldTypeSelect.disabled = true;
+        }
+        return true;
+    } else {
+        // ✅ No duplicates — clear error and re-enable field type
+        const srvErr = errorDiv.dataset.serverError === 'true';
+        if (!srvErr) {
+            errorDiv.innerText = '';
+        }
+        fieldInput.classList.remove('is-invalid');
+        fieldInput.classList.add('is-valid');
+        createButton.disabled = false;
+
+        if (fieldTypeSelect) {
+            fieldTypeSelect.disabled = false;
+        }
+        return false;
+    }
 }
-
-
-
     // ===== Check Field Name Availability Server-Side (ONLY for multifield) =====
     const checkFieldNameAvailability = debounce((fieldInput) => {
         const fieldName = fieldInput.value.trim();
@@ -291,7 +280,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const existing = input.nextElementSibling;
         if (existing && existing.classList.contains('fieldError')) return existing;
         const div = document.createElement('div');
-        div.className = 'fieldError text-danger mt-1';
+        div.className = 'fieldError text-danger';
         div.dataset.serverError = 'false';
         input.insertAdjacentElement('afterend', div);
         return div;
@@ -354,6 +343,8 @@ document.addEventListener("DOMContentLoaded", function () {
         updateIndexes();
         validateFormFields();
     };
+
+    
 
     function addNestedFieldRow(btn) {
         const container = btn.closest('.nested-container');
@@ -688,55 +679,73 @@ document.addEventListener("DOMContentLoaded", function () {
         validateFormFields();
     }
 
-    function populateFieldRow(row, field, level = 0) {
-        if (!row || !field) return;
+   function populateFieldRow(row, field, level = 0) {
+    if (!row || !field) return;
 
-        const labelEl = row.querySelector('.fieldLabel');
-        const nameEl = row.querySelector('.fieldName');
-        const typeEl = row.querySelector('.fieldType');
+    const labelEl = row.querySelector('.fieldLabel');
+    const nameEl = row.querySelector('.fieldName');
+    const typeEl = row.querySelector('.fieldType');
 
-        // set type first (so validation functions know the type)
-        if (typeEl) typeEl.value = field.fieldType || '';
+    // set type first (so validation functions know the type)
+    if (typeEl) typeEl.value = field.fieldType || '';
 
-        if (labelEl) labelEl.value = field.fieldLabel || '';
-        if (nameEl) {
-            nameEl.value = field.fieldName || '';
-            // run duplicate & server checks only when appropriate
-            checkDuplicateFieldNameWithinComponent(nameEl);
-            if (isFieldTypeMultifield(nameEl)) {
-                checkFieldNameAvailability(nameEl);
-            }
-        }
-
-        const optionsContainer = row.querySelector('.options-container');
-        const nestedContainer = row.querySelector('.nested-container');
-        if (optionsContainer) optionsContainer.innerHTML = '';
-        if (nestedContainer) nestedContainer.innerHTML = '';
-
-        if (
-            ["select", "multiselect", "checkboxgroup", "radiogroup"].includes(field.fieldType) &&
-            Array.isArray(field.options)
-        ) {
-            field.options.forEach((opt) => {
-                const div = document.createElement('div');
-                div.className = 'option-row nested-row input-group mb-2';
-                div.innerHTML = `
-                    <input type="text" class="form-control optionText" placeholder="Text" value="${escapeHtml(opt.text)}" required>
-                    <input type="text" class="form-control optionValue" placeholder="Value" value="${escapeHtml(opt.value)}" required>
-                    <button type="button" class="btn btn-danger" onclick="removeOptionRow(this)">-</button>`;
-                optionsContainer.appendChild(div);
-            });
-        } else if (
-            (field.fieldType === 'multifield' || field.fieldType === 'tabs') &&
-            Array.isArray(field.nestedFields)
-        ) {
-            field.nestedFields.forEach((nf) => {
-                const rowNested = createBaseRow(true, level + 1);
-                nestedContainer.appendChild(rowNested);
-                populateFieldRow(rowNested, nf, level + 1);
-            });
+    if (labelEl) labelEl.value = field.fieldLabel || '';
+    if (nameEl) {
+        nameEl.value = field.fieldName || '';
+        // run duplicate & server checks only when appropriate
+        checkDuplicateFieldNameWithinComponent(nameEl);
+        if (isFieldTypeMultifield(nameEl) && !window.editMode) {
+            checkFieldNameAvailability(nameEl);
         }
     }
+
+    const optionsContainer = row.querySelector('.options-container');
+    const nestedContainer = row.querySelector('.nested-container');
+    if (optionsContainer) optionsContainer.innerHTML = '';
+    if (nestedContainer) nestedContainer.innerHTML = '';
+
+    // ===== Add Options (select, multiselect, checkboxgroup, radiogroup) =====
+    if (
+        ["select", "multiselect", "checkboxgroup", "radiogroup"].includes(field.fieldType) &&
+        Array.isArray(field.options)
+    ) {
+        field.options.forEach((opt) => {
+            const div = document.createElement('div');
+            div.className = 'option-row nested-row input-group mb-2';
+            div.innerHTML = `
+                <input type="text" class="form-control optionText" placeholder="Text" value="${escapeHtml(opt.text)}" required>
+                <input type="text" class="form-control optionValue" placeholder="Value" value="${escapeHtml(opt.value)}" required>
+                <button type="button" class="btn btn-danger" onclick="removeOptionRow(this)">-</button>`;
+            optionsContainer.appendChild(div);
+        });
+        // ===== Add "Add Option" button in edit mode =====
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'btn btn-sm btn-secondary mb-2';
+        addBtn.textContent = 'Add Option';
+        addBtn.addEventListener('click', () => addTextValueRow(addBtn));
+        optionsContainer.appendChild(addBtn);
+    } 
+    // ===== Add Nested Fields (multifield, tabs) =====
+    else if (
+        (field.fieldType === 'multifield' || field.fieldType === 'tabs') &&
+        Array.isArray(field.nestedFields)
+    ) {
+        field.nestedFields.forEach((nf) => {
+            const rowNested = createBaseRow(true, level + 1);
+            nestedContainer.appendChild(rowNested);
+            populateFieldRow(rowNested, nf, level + 1);
+        });
+        // ===== Add "Add Field" button in edit mode =====
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'btn btn-sm btn-secondary mb-2';
+        addBtn.textContent = 'Add Field';
+        addBtn.addEventListener('click', () => addNestedFieldRow(addBtn));
+        nestedContainer.appendChild(addBtn);
+    }
+}
+
 
     // ===== Fetch parent tabs and fields from backend and populate fieldsContainer =====
     function fetchParentTabsAndFields(superType) {
@@ -830,3 +839,4 @@ document.addEventListener("DOMContentLoaded", function () {
     // Initial updateIndexes call to set names if template rows already exist
     updateIndexes();
 });
+

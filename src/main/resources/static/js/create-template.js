@@ -63,10 +63,24 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-    // Check for duplicate name while typing
+    // ✅ Restrict spaces & check duplicates in Template Name
     nameInput.addEventListener("input", function () {
+        let inputValue = this.value;
+
+        // Restrict spaces (remove and show warning)
+        if (/\s/.test(inputValue)) {
+            this.value = inputValue.replace(/\s+/g, "");
+            nameError.innerText = "⚠️ Spaces are not allowed in the template name, you can use - or _ instead of spaces.";
+            return;
+        }
+
+        // Clear warning if name becomes valid
         const inputName = this.value.trim().toLowerCase();
-        nameError.innerText = existingTemplates.includes(inputName) ? "Template already exists." : "";
+        if (existingTemplates.includes(inputName)) {
+            nameError.innerText = "❌ Template already exists.";
+        } else {
+            nameError.innerText = "";
+        }
     });
 
     // Handle form submission
@@ -77,6 +91,12 @@ document.addEventListener("DOMContentLoaded", function () {
         const description = descriptionInput.value.trim();
         const status = statusInput.value;
         const templateType = templatetypeSelect.value;
+
+        // Prevent submission if spaces exist (extra safety)
+        if (/\s/.test(name)) {
+            nameError.innerText = "Spaces are not allowed in the template name.";
+            return;
+        }
 
         if (existingTemplates.includes(name.toLowerCase())) {
             nameError.innerText = "Template already exists.";

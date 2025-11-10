@@ -141,6 +141,7 @@ document.addEventListener("DOMContentLoaded", function () {
      } else {
        // Case 2: Some individual items checked → store their values
        checkboxes.forEach((cb) => {
+        
          if (cb.checked) {
            selectedItems.push(cb.value);
          }
