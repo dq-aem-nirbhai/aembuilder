@@ -1,7 +1,5 @@
 package com.aem.builder.jUnits;
 
-import com.aem.builder.model.DTO.ComponentField;
-import com.aem.builder.util.JavaFormatterUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 
@@ -11,200 +9,108 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.apache.tomcat.util.IntrospectionUtils.capitalize;
 
 @Slf4j
 public class JunitsForSlingModels {
 
-    /**
-     * Generates a basic JUnit test class for a Sling Model, including dynamic field tests.
-     *
-     * @param modelBasePath base output folder path (e.g., src/main/java/com/example/models)
-     * @param packageName   package name of the model
-     * @param className     name of the generated Sling Model class
-     * @param fields        list of fields defined in the Sling model
-     */
-    public static void generateJUnitTestForModel(
-            String modelBasePath, String packageName, String className, List<ComponentField> fields) throws IOException {
-
-        // Correct test base path (already includes package structure)
-        String testBasePath = modelBasePath.replace("src/main/java", "src/test/java");
-        File testDir = new File(testBasePath);
-
-        if (!testDir.exists()) {
-            testDir.mkdirs();
-        }
-
-        String testClassName = className + "Test";
-        File testFile = new File(testDir, testClassName + ".java");
-        String testPackage = packageName;
-
-        StringBuilder fieldTests = new StringBuilder();
-
-        for (ComponentField field : fields) {
-            String name = field.getFieldName();
-            String type = field.getFieldType() != null ? field.getFieldType().toLowerCase() : "textfield";
-            String getterName = "get" + capitalize(name);
-
-            switch (type) {
-                default:
-                    fieldTests.append("    @Test\n")
-                            .append("    void test").append(capitalize(name)).append("() {\n")
-                            .append("        assertNotNull(model.").append(getterName).append("(), ")
-                            .append("\"").append(name).append(" should not be null\");\n")
-                            .append("    }\n\n");
-                    break;
-            }
-        }
-
-// --- 🧩 Build resource properties BEFORE update logic (used for @BeforeEach block) ---
-        StringBuilder resourcePropsBuilder = new StringBuilder();
-        resourcePropsBuilder.append("\"sling:resourceType\", \"")
-                .append(packageName).append("/components/")
-                .append(className.replace("Model", "").toLowerCase())
-                .append("\"");
-
-        for (ComponentField field : fields) {
-            String name = field.getFieldName();
-            String type = field.getFieldType() != null ? field.getFieldType().toLowerCase() : "textfield";
-
-            switch (type) {
-                case "numberfield":
-                    resourcePropsBuilder.append(", \"").append(name).append("\", 123");
-                    break;
-                case "checkbox":
-                case "switch":
-                case "radiogroup":
-                    resourcePropsBuilder.append(", \"").append(name).append("\", true");
-                    break;
-                case "multifield":
-                    resourcePropsBuilder.append(", \"").append(name).append("\", new String[]{\"Item1\", \"Item2\"}");
-                    break;
-                case "select":
-                    resourcePropsBuilder.append(", \"").append(name).append("\", \"Option1\"");
-                    break;
-
-                case "multiselect":
-                    resourcePropsBuilder.append(", \"").append(name).append("\", new String[]{\"Option1\", \"Option2\"}");
-                    break;
-
-                case "colorfield":
-                    resourcePropsBuilder.append(", \"").append(name).append("\", \"#FF5733\"");
-                    break;
-                case "datepicker":
-                    resourcePropsBuilder.append(", \"").append(name).append("\", \"2025-01-01\"");
-                    break;
-                case "tagfield":
-                case "pathfield":
-                    resourcePropsBuilder.append(", \"").append(name).append("\", \"/content/sample/path\"");
-                    break;
-                default:
-                    resourcePropsBuilder.append(", \"").append(name).append("\", \"Test")
-                            .append(capitalize(name)).append("\"");
-                    break;
-            }
-        }
-        String resourceProps = resourcePropsBuilder.toString();
-
-        // --- If file already exists, update it instead of skipping ---
-        if (testFile.exists()) {
-            log.info("🔄 Updating existing JUnit for {}", className);
-            String existingContent = FileUtils.readFileToString(testFile, StandardCharsets.UTF_8);
-
-            // --- Normalize line endings ---
-            existingContent = existingContent.replace("\r\n", "\n");
-
-            // --- 🔄 Rebuild the @BeforeEach setup method dynamically ---
-            String newSetupBlock = "    @BeforeEach\n" +
-                    "    void setUp() {\n" +
-                    "        context.create().resource(\"/content/test\",\n" +
-                    "            new Object[]{" + resourceProps + "});\n" +
-                    "        model = context.currentResource(\"/content/test\").adaptTo(" + className + ".class);\n" +
-                    "        assertNotNull(model, \"Model should be adaptable from resource\");\n" +
-                    "    }";
-
-// 🧹 Clean any stray model or assert lines before replacing
-            existingContent = existingContent
-                    .replaceAll("(?m)^\\s*model\\s*=.*?;\\s*$", "")
-                    .replaceAll("(?m)^\\s*assertNotNull\\(model,.*?;\\s*$", "");
-
-// 🔄 Replace entire setUp() block robustly
-            existingContent = existingContent.replaceAll(
-                    "(?s)@BeforeEach\\s+void\\s+setUp\\s*\\(\\)\\s*\\{[\\s\\S]*?\\n\\s*\\}",
-                    newSetupBlock
-            );
-
-
-            StringBuilder modelNotNullBuilder = new StringBuilder();
-            modelNotNullBuilder.append("    @Test\n")
-                    .append("    void testModelNotNull() {\n")
-                    .append("        assertNotNull(model, \"Model should be adaptable from resource\");\n");
-
-            for (ComponentField field : fields) {
-                String getterName = "get" + capitalize(field.getFieldName());
-                modelNotNullBuilder.append("        assertNotNull(model.")
-                        .append(getterName)
-                        .append("(), \"")
-                        .append(field.getFieldName())
-                        .append(" should not be null\");\n");
+    public static void generateJUnitTestForModel(String modelBasePath, String testBasePath, String packageName, String className) {
+        try {
+            Path modelFilePath = Paths.get(modelBasePath, className + ".java");
+            if (!Files.exists(modelFilePath)) {
+                log.warn("Model file not found: {}", modelFilePath);
+                return;
             }
 
-            modelNotNullBuilder.append("    }\n");
+            // Read model content
+            String modelContent = Files.readString(modelFilePath);
+            Map<String, String> fieldTypes = extractFieldTypes(modelContent);
 
-            String modelNotNullBlock = modelNotNullBuilder.toString();
-
-            if (existingContent.contains("testModelNotNull")) {
-                existingContent = existingContent.replaceAll(
-                        "(?s)@Test\\s+void\\s+testModelNotNull\\(\\)\\s*\\{.*?\\}",
-                        modelNotNullBlock.trim());
+            if (fieldTypes.isEmpty()) {
+                log.warn("No fields found in {}", className);
+                return;
             }
 
-            // --- Remove old auto-generated test methods ---
-            existingContent = existingContent.replaceAll(
-                    "(?s)@Test\\s+void\\s+(?!testModelNotNull)test[A-Z][A-Za-z0-9_]*\\(\\)\\s*\\{.*?\\}"
-                    ,
-                    "");
+            // Create test folder
+            Path testFolderPath = Paths.get(testBasePath);
+            Files.createDirectories(testFolderPath);
 
-            // --- Insert new test methods before final closing brace ---
-            int insertPos = existingContent.lastIndexOf('}');
-            if (insertPos > 0) {
-                StringBuilder newFieldTests = new StringBuilder("\n");
+            File testFile = testFolderPath.resolve(className + "Test.java").toFile();
 
-                for (ComponentField field : fields) {
-                    String name = field.getFieldName();
-                    String type = field.getFieldType() != null ? field.getFieldType().toLowerCase() : "textfield";
-                    String getterName = "get" + capitalize(name);
+            // ------------------ Full-model test ------------------
+            StringBuilder modelTest = new StringBuilder();
+            modelTest.append("    @Test\n")
+                    .append("    void test").append(className).append("Model() {\n")
+                    .append("        assertNotNull(model);\n");
 
-                    switch (type) {
-                        default:
-                            newFieldTests.append("    @Test\n")
-                                    .append("    void test").append(capitalize(name)).append("() {\n")
-                                    .append("        assertNotNull(model.").append(getterName).append("(), ")
-                                    .append("\"").append(name).append(" should not be null\");\n")
-                                    .append("    }\n\n");
-                            break;
-                    }
-
+            for (Map.Entry<String, String> entry : fieldTypes.entrySet()) {
+                String field = entry.getKey();
+                String type = entry.getValue();
+                String getter;
+                if ("boolean".equalsIgnoreCase(type)) {
+                    getter = "is" + capitalize(field); // boolean fields use is<Field>()
+                } else {
+                    getter = "get" + capitalize(field);
+                }
+                if (type.startsWith("List<") || type.startsWith("java.util.List<")) {
+                    modelTest.append("        assertNotNull(model.").append(getter).append("(), \"")
+                            .append(field).append(" list should not be null\");\n");
+                    modelTest.append("        assertFalse(model.").append(getter).append("().isEmpty(), \"")
+                            .append(field).append(" list should not be empty\");\n");
+                    modelTest.append("        assertNotNull(model.").append(getter)
+                            .append("().get(0), \"First element of ").append(field).append(" list should not be null\");\n");
+                } else {
+                    modelTest.append("        assertEquals(")
+                            .append(getMockValue(type, field, false))
+                            .append(", model.").append(getter).append("(), ")
+                            .append("\"").append(field).append(" should match expected value\");\n");
                 }
 
-                existingContent = new StringBuilder(existingContent)
-                        .insert(insertPos - 1, newFieldTests.toString())
-                        .toString();
+
+            }
+            modelTest.append("    }\n\n");
+
+            // ------------------ Individual getter tests ------------------
+            StringBuilder individualTests = new StringBuilder();
+            for (Map.Entry<String, String> entry : fieldTypes.entrySet()) {
+                String field = entry.getKey();
+                String type = entry.getValue();
+                String getter;
+                if ("boolean".equalsIgnoreCase(type)) {
+                    getter = "is" + capitalize(field); // boolean fields use is<Field>()
+                } else {
+                    getter = "get" + capitalize(field);
+                }
+
+                individualTests.append("    @Test\n")
+                        .append("    void test").append(capitalize(getter)).append("() {\n")
+                        .append("        assertNotNull(model.").append(getter).append("(), ")
+                        .append("\"").append(field).append(" should not be null\");\n")
+                        .append("    }\n\n");
             }
 
 
-            FileUtils.writeStringToFile(testFile, existingContent, StandardCharsets.UTF_8);
-            JavaFormatterUtil.cleanAndFormatJavaFile(testFile);
-            log.info("✅ Existing JUnit updated for model: {}", className);
-        }
-        else {
+            // ------------------ Setup block ------------------
+            String modelName = className.replace("Model", "").toLowerCase();
+
+            String setupBlock =
+                    "    @BeforeEach\n" +
+                            "    void setUp() {\n" +
+                            "        context.addModelsForClasses(" + className + ".class);\n" +
+                            "        context.load().json(\"/" + modelName + "/" + className + "Test.json\", \"/content\");\n" +
+                            "        context.currentResource(\"/content\");\n" +
+                            "        model = context.currentResource().adaptTo(" + className + ".class);\n" +
+                            "    }\n\n";
 
 
-            // --- Generate JUnit file content ---
+            // ------------------ Build test class content ------------------
             String testContent =
-                    "package " + testPackage + ";\n\n" +
+                    "package " + packageName + ";\n\n" +
                             "import io.wcm.testing.mock.aem.junit5.AemContext;\n" +
                             "import io.wcm.testing.mock.aem.junit5.AemContextExtension;\n" +
                             "import org.junit.jupiter.api.BeforeEach;\n" +
@@ -212,31 +118,147 @@ public class JunitsForSlingModels {
                             "import org.junit.jupiter.api.extension.ExtendWith;\n" +
                             "import static org.junit.jupiter.api.Assertions.*;\n\n" +
                             "@ExtendWith(AemContextExtension.class)\n" +
-                            "public class " + testClassName + " {\n\n" +
+                            "class " + className + "Test {\n\n" +
                             "    private final AemContext context = new AemContext();\n" +
                             "    private " + className + " model;\n\n" +
-                            "    @BeforeEach\n" +
-                            "    void setUp() {\n" +
-                            "        context.create().resource(\"/content/test\",\n" +
-                            "            new Object[]{" + resourceProps + "});\n" +
-                            "        model = context.currentResource(\"/content/test\").adaptTo(" + className + ".class);\n" +
-                            "        assertNotNull(model, \"Model should be adaptable from resource\");\n" +
-                            "    }\n\n" +
-
-                            "    @Test\n" +
-                            "    void testModelNotNull() {\n" +
-                            "        assertNotNull(model, \"Model should be adaptable from resource\");\n" +
-                            "    }\n\n" +
-
-                            fieldTests +
+                            setupBlock +
+                            modelTest +
+                            individualTests +
                             "}\n";
 
+            // Write test file
             FileUtils.writeStringToFile(testFile, testContent, StandardCharsets.UTF_8);
-            JavaFormatterUtil.cleanAndFormatJavaFile(testFile);
-            log.info("✅ New JUnit Test generated for model: {}", className);
+            log.info("JUnit Test generated: {}", testFile.getAbsolutePath());
+
+            // ------------------ Generate JSON test resource ------------------
+            // Base test resources path
+            String[] packageParts = packageName.split("\\.");
+            String projectName = packageParts.length > 2 ? packageParts[2] : "default";
+
+            Path resourcesBase = Paths.get("generated-projects", projectName, "core/src/test/resources");
+
+            // Create folder for model (e.g., smilemodel)
+            Path modelJsonFolder = resourcesBase.resolve(className.replace("Model", "").toLowerCase());
+            Files.createDirectories(modelJsonFolder);
+
+            // JSON file path
+            File jsonFile = modelJsonFolder.resolve(className + "Test.json").toFile();
+
+            // Build JSON content
+            StringBuilder jsonBuilder = new StringBuilder();
+            jsonBuilder.append("{\n");
+            jsonBuilder.append("  \"jcr:primaryType\": \"nt:unstructured\",\n");
+
+            String resourceType = projectName.toLowerCase() + "/components/" + className.replace("Model", "").toLowerCase();
+            jsonBuilder.append("  \"sling:resourceType\": \"").append(resourceType).append("\",\n");
+
+            int count = 0;
+            for (Map.Entry<String, String> entry : fieldTypes.entrySet()) {
+                if (count++ > 0) jsonBuilder.append(",\n");
+
+                String fieldName = entry.getKey();
+                String type = entry.getValue();
+
+                // --- Handle List types properly ---
+                if (type.startsWith("List<") || type.startsWith("java.util.List<")) {
+                    String childClass = type.substring(type.indexOf("<") + 1, type.indexOf(">")).trim();
+
+                    // --- Case 1: List<String> — simple multi-valued property ---
+                    if (childClass.equalsIgnoreCase("String")) {
+                        jsonBuilder.append("  \"").append(fieldName).append("\": [\"Item1\", \"Item2\"]");
+                    }
+                    // --- Case 2: List<ChildModel> — nested node structure (multifield) ---
+                    else {
+                        jsonBuilder.append("  \"").append(fieldName).append("\": {\n");
+                        jsonBuilder.append("    \"item0\": {\n");
+                        jsonBuilder.append("      \"jcr:primaryType\": \"nt:unstructured\",\n");
+
+                        // Try to read the child model to generate its fields dynamically
+                        Path childModelPath = Paths.get(modelBasePath).resolve(childClass + ".java");
+                        if (Files.exists(childModelPath)) {
+                            String childContent = Files.readString(childModelPath);
+                            Map<String, String> childFields = extractFieldTypes(childContent);
+                            int subCount = 0;
+                            for (Map.Entry<String, String> sub : childFields.entrySet()) {
+                                if (subCount++ > 0) jsonBuilder.append(",\n");
+                                jsonBuilder.append("      \"").append(sub.getKey()).append("\": ")
+                                        .append(getMockValue(sub.getValue(), sub.getKey(), true));
+                            }
+                            jsonBuilder.append("\n");
+                        } else {
+                            jsonBuilder.append("      \"sampleField\": \"TestValue\"\n");
+                        }
+
+                        jsonBuilder.append("    },\n");
+                        jsonBuilder.append("    \"item1\": {\n");
+                        jsonBuilder.append("      \"jcr:primaryType\": \"nt:unstructured\",\n");
+                        jsonBuilder.append("      \"sampleField\": \"TestValue\"\n");
+                        jsonBuilder.append("    }\n");
+                        jsonBuilder.append("  }");
+                    }
+                }
+                // --- Regular field (not a list) ---
+                else {
+                    jsonBuilder.append("  \"").append(fieldName).append("\": ")
+                            .append(getMockValue(type, fieldName, true));
+                }
+            }
+            jsonBuilder.append("\n}");
+
+
+// Write JSON to file
+            FileUtils.writeStringToFile(jsonFile, jsonBuilder.toString(), StandardCharsets.UTF_8);
+            log.info("JSON test data generated at: {}", jsonFile.getAbsolutePath());
+
+
+        } catch (Exception e) {
+            log.error("Error generating JUnit for model {}: {}", className, e.getMessage(), e);
         }
     }
 
+    private static Map<String, String> extractFieldTypes(String modelContent) {
+        Map<String, String> fieldMap = new LinkedHashMap<>();
+        Pattern pattern = Pattern.compile("private\\s+([A-Za-z0-9_<>\\[\\]]+)\\s+([a-zA-Z0-9_]+)\\s*;");
+        Matcher matcher = pattern.matcher(modelContent);
+        while (matcher.find()) {
+            fieldMap.put(matcher.group(2), matcher.group(1));
+        }
+        return fieldMap;
+    }
+
+    private static String getMockValue(String type, String fieldName, boolean forJson) {
+        type = type.toLowerCase();
+        fieldName = fieldName.toLowerCase();
+
+        if (fieldName.contains("path") || fieldName.contains("url") || fieldName.contains("link")) {
+            return forJson ? "\"/content/dam/sample-file.txt\"" : "\"/content/dam/sample-file.txt\"";
+        }
+
+        switch (type) {
+            case "list<string>":
+            case "multiselect":
+            case "multifield":
+            case "tagfield":
+                return forJson ? "[\"Item1\", \"Item2\"]" : "java.util.Arrays.asList(\"Item1\", \"Item2\")";
+
+            case "boolean":
+            case "checkbox":
+            case "switch":
+                return forJson ? "true" : "true";
+
+            case "int":
+            case "integer":
+            case "long":
+            case "numberfield":
+                return forJson ? "123" : "123";
+
+            case "double":
+                return forJson ? "12.34" : "12.34";
+
+            default:
+                return forJson ? "\"TestValue\"" : "\"TestValue\"";
+        }
+    }
 
     /**
      * Deletes the JUnit test class for a given Sling Model or Multifield model.
@@ -257,10 +279,24 @@ public class JunitsForSlingModels {
             } else {
                 log.info("No JUnit test found for model '{}'", className);
             }
+
+            // Delete JSON test resource
+            Path resourcesBase = Paths.get("generated-projects", projectName, "core/src/test/resources");
+            Path modelJsonFolder = resourcesBase.resolve(className.replace("Model", "").toLowerCase());
+            if (Files.exists(modelJsonFolder)) {
+                try {
+                    FileUtils.deleteDirectory(modelJsonFolder.toFile());
+                    log.info("Deleted JSON test data folder for model: {}", modelJsonFolder);
+                } catch (IOException ex) {
+                    log.warn("Failed to delete JSON test data for model '{}': {}", className, ex.getMessage());
+                }
+            }
+
+
         } catch (Exception e) {
             log.warn("Failed to delete JUnit test for model '{}': {}", className, e.getMessage());
         }
     }
-
-
 }
+
+

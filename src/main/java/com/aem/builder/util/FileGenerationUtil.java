@@ -711,9 +711,17 @@ public class FileGenerationUtil {
         // AUTO-GENERATE JUNIT TEST FOR THIS MODEL
         // ----------------------------------------------------------
         try {
-            generateJUnitTestForModel(modelBasePath, packageName, className, fields);
+           // generateJUnitTestForModel(modelBasePath, packageName, className, fields);
+
+            String testBasePath = modelBasePath.replace("main", "test");
+            log.info("{} testBasePath :"+ testBasePath);
+            log.info("{} modelBasePath :"+ modelBasePath);
+            log.info("{} packageName :"+ packageName);
+            log.info("{} className :"+ className);
+            JunitsForSlingModels.generateJUnitTestForModel(modelBasePath, testBasePath, packageName, className);
+
         } catch (Exception e) {
-            log.warn("{} Failed to generate JUnit test for {}", MODEL_GEN_PREFIX, className, e);
+            log.info("{} Failed to generate JUnit test for {}", MODEL_GEN_PREFIX, className, e);
         }
     }
 
@@ -855,7 +863,10 @@ public class FileGenerationUtil {
         // AUTO-GENERATE JUNIT TEST FOR MULTIFIELD MODEL
         // ----------------------------------------------------------
         try {
-            generateJUnitTestForModel(modelBasePath, packageName, className, generatedFields);
+           // generateJUnitTestForModel(modelBasePath, packageName, className, generatedFields);
+            String testBasePath = modelBasePath.replace("main", "test");
+            JunitsForSlingModels.generateJUnitTestForModel(modelBasePath, testBasePath, packageName, className);
+
             log.info("{} JUnit Test generated for multifield model '{}'", MODEL_GEN_PREFIX, className);
         } catch (Exception e) {
             log.warn("{} Failed to generate JUnit test for multifield '{}'", MODEL_GEN_PREFIX, className, e);
@@ -1977,7 +1988,14 @@ public class FileGenerationUtil {
             Files.createDirectories(Paths.get(modelBasePathForTests));
 
             // Generate or update JUnit test in correct folder
-            generateJUnitTestForModel(modelBasePathForTests, basePackage, className, fields);
+           // generateJUnitTestForModel(modelBasePathForTests, basePackage, className, fields);
+            JunitsForSlingModels.generateJUnitTestForModel(
+                    modelBasePathForTests.replace("main", "test"),
+                    modelBasePathForTests,
+                    basePackage,
+                    className
+            );
+
             log.info("JUnit generated/updated for model: {} at {}", className, modelBasePathForTests);
 
         } catch (Exception e) {
@@ -2195,7 +2213,7 @@ public class FileGenerationUtil {
                     "core/src/main/java", packageName.replace(".", "/")).toString();
 
             // ✅ Always generate/update JUnit (even if it already exists)
-            generateJUnitTestForModel(modelBasePath, packageName, className, nestedFields);
+            generateJUnitTestForModel(modelBasePath,testBasePath, packageName, className);
 
             log.info("✅ JUnit generated/updated for multifield model: {}", className);
         } catch (Exception e) {
