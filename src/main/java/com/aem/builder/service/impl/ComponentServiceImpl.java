@@ -2448,7 +2448,6 @@ public class ComponentServiceImpl implements ComponentService {
         }
 
         // <tabs> node
-        log.info("is it tag or not {} ","tabs".equals(node.getNodeName()));
         return "tabs".equals(node.getNodeName());
     }
     private boolean isContainerTab(Node node) {
@@ -2472,20 +2471,6 @@ public class ComponentServiceImpl implements ComponentService {
         return tabNode.getNodeName();
     }
 
-
-
-    private static final Set<String> FIELD_TYPES = Set.of(
-            "granite/ui/components/coral/foundation/form/textfield",
-            "granite/ui/components/coral/foundation/form/textarea",
-            "granite/ui/components/coral/foundation/form/select",
-            "granite/ui/components/coral/foundation/form/numberfield",
-            "granite/ui/components/coral/foundation/form/pathfield",
-            "granite/ui/components/coral/foundation/form/fileupload",
-            "granite/ui/components/coral/foundation/form/radiogroup",
-            "granite/ui/components/coral/foundation/form/checkbox",
-            "granite/ui/components/coral/foundation/form/multifield"
-    );
-
     /**
      * Reads the superType of an AEM component from its .content.xml file.
      * <p>
@@ -2505,6 +2490,7 @@ public class ComponentServiceImpl implements ComponentService {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         factory.setNamespaceAware(true);
         DocumentBuilder builder = factory.newDocumentBuilder();
+
         Document doc = builder.parse(compContentFile);
 
         NodeList rootNodes = doc.getElementsByTagName("*");
