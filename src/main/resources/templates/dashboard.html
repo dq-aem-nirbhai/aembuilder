@@ -84,7 +84,10 @@
             <p><strong>Artifact-Id:</strong> <span class="badge bg-info text-dark" th:text="${project.name}"></span></p>
             <p><strong>Version:</strong> <span class="badge bg-info text-dark" th:text="${project.version}"></span></p>
             <p><strong>Package:</strong> <span th:text="${project.groupId}"></span></p>
-            <p><strong>Created:</strong> <span class="project-date" th:text="${project.createdDate}"></span></p>
+            <p>
+              <strong th:text="${project.dateLabel + ':'}"></strong>
+              <span th:text="${project.effectiveDate}" class="project-date"></span>
+            </p>
             <p><strong>Path:</strong> <span th:text="${project.path}"></span></p>
           </div>
 
