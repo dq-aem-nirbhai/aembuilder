@@ -7,6 +7,7 @@ import com.aem.builder.util.TemplateUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
+import org.slf4j.Logger;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.commons.io.FileUtils;
 
 import static com.aem.builder.constants.AemProjectConstants.PROJECTS_DIR;
 import static com.aem.builder.constants.PolicyConstants.*;
@@ -494,4 +496,37 @@ public class TemplateServiceImpl implements TemplateService {
         }
 
     }
+    @Override
+    public void deleteTemplate(String projectName, String templateName){
+        String appId=getAppId(PROJECTS_DIR,projectName);
+        String basePath = GENERATED_PROJECTS_PATH+ projectName + UI_CONTENT_PATH  +
+                appId + WCM_TEMPLATES_RELATIVE_PATH;
+        File folder = new File(basePath + templateName);
+        File contentXml = new File(basePath + ".content.xml");
+        log.info("[deleteTemplate]  templates contentXml path: {} ",contentXml.getAbsolutePath());
+     try{
+         if(folder.exists()){
+             FileUtils.deleteDirectory(folder);
+             log.info("[deleteTemplate] template folder deleted suceessfylly:  {}",folder.getAbsolutePath());
+         }
+         // 2️⃣ Remove corresponding tag from .content.xml
+         if (contentXml.exists()) {
+             String xml = Files.readString(contentXml.toPath());
+             // Pattern to match <templateName/> or <templateName ...>...</templateName>
+             String regex = String.format("<%s(\\s*/>|>.*?</%s>)", templateName, templateName);
+             String updatedXml = xml.replaceAll(regex, "");
+
+             Files.writeString(contentXml.toPath(), updatedXml);
+             log.info("[deleteTemplate] Removed template tag '{}' from .content.xml", templateName);
+         } else {
+             log.warn("[deleteTemplate] .content.xml not found at path: {}", contentXml.getAbsolutePath());
+         }
+
+     }
+     catch (Exception e){
+         log.info( "[deleteTemplate] folder path not found : {}",folder.getAbsolutePath());
+     }
+
+    }
+
 }

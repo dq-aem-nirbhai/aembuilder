@@ -9,11 +9,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.aem.builder.constants.ModelAttributeKeys.ERROR;
 import static com.aem.builder.constants.UrlMappings.*;
 import static com.aem.builder.constants.UrlMappings.CREATE_TEMPLATE;
 import static com.aem.builder.constants.ViewNames.*;
@@ -129,7 +132,18 @@ public class TemplateController {
         }
     }
 
+@PostMapping(DELETE_TEMPLATE)
+    public String deleteTemplate(@PathVariable String projectName, @PathVariable String templateName, RedirectAttributes redirectAttributes){
+      try {
+          templateService.deleteTemplate(projectName, templateName);
+          log.info("[deleteTemplate] deleted templated sucessfully: {} ", templateName);
+      }catch (Exception e) {
+          log.error("[deleteTemplate] Error deleting template '{}' from project '{}': {}", templateName, projectName, e.getMessage(), e);
+          redirectAttributes.addFlashAttribute(ERROR, "Failed to delete template: " + e.getMessage());
+      }
+            return  REDIRECT_VIEW_PREFIX+ projectName ;
 
+}
 
 }
 
