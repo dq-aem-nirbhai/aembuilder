@@ -2415,23 +2415,36 @@ public class ComponentServiceImpl implements ComponentService {
             if (isFieldNode(child)) {
                 NamedNodeMap attrs = child.getAttributes();
 
-                // ✅ field name must come from "name" attribute
                 String fieldName = attrs.getNamedItem("name") != null
                         ? attrs.getNamedItem("name").getNodeValue()
                         : child.getNodeName();
 
-                // ✅ Make the type readable
+                if (fieldName.startsWith("./jcr:")) {
+                    log.info("[parseFieldNodes] ⏭ Skipping internal JCR field: {}", fieldName);
+                    continue;
+                }
+
                 String type = attrs.getNamedItem(SLING_RESOURCE_TYPE).getNodeValue();
-                type = type.substring(type.lastIndexOf('/') + 1); // after last slash
+                type = type.substring(type.lastIndexOf('/') + 1);
 
-                tabData.addField(new FieldData(fieldName, type));
+                FieldData field = new FieldData(fieldName, type);
+                tabData.addField(field);
 
-                log.info("[parseFieldNodes] ✅ Field detected in tab '{}': {} ({})",
-                        tabData.getName(), fieldName, type);
+                if ("select".equals(type)) {
+                    field.setSelectOptions(extractSelectOptions(child));
+                }
+
+                if ("multifield".equals(type)) {
+                    field.setMultiFieldItems(extractMultiFieldItems(child));
+                }
+
+                // 🚨 DO NOT RECURSE into field nodes
+                continue;
             }
 
-            // ✅ recursion for nested items or containers
+// safe to recurse into containers
             parseFieldNodes(child, tabData);
+
         }
     }
 
@@ -2561,6 +2574,54 @@ public class ComponentServiceImpl implements ComponentService {
 
         log.info("[getEditableComponents] Total editable components found: {}", editableComponents.size());
         return editableComponents;
+    }
+
+    private List<String> extractSelectOptions(Node selectNode) {
+        List<String> options = new ArrayList<>();
+
+        NodeList children = selectNode.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node child = children.item(i);
+            if (!"items".equals(child.getNodeName())) continue;
+
+            NodeList optionNodes = child.getChildNodes();
+            for (int j = 0; j < optionNodes.getLength(); j++) {
+                Node option = optionNodes.item(j);
+                if (option.getNodeType() != Node.ELEMENT_NODE) continue;
+
+                NamedNodeMap attrs = option.getAttributes();
+                if (attrs == null) continue;
+
+                Node valueAttr = attrs.getNamedItem("value");
+                Node titleAttr = attrs.getNamedItem("jcr:title");
+
+                String display = (titleAttr != null ? titleAttr.getNodeValue() : option.getNodeName());
+                String value = (valueAttr != null ? valueAttr.getNodeValue() : display);
+
+                options.add(display + " = " + value);
+            }
+        }
+
+        return options;
+    }
+
+    private List<String> extractMultiFieldItems(Node multiFieldNode) {
+        List<String> items = new ArrayList<>();
+
+        NodeList children = multiFieldNode.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node child = children.item(i);
+            if (child.getNodeType() != Node.ELEMENT_NODE) continue;
+
+            NamedNodeMap attrs = child.getAttributes();
+            if (attrs == null) continue;
+
+            Node nameAttr = attrs.getNamedItem("name");
+            if (nameAttr != null) {
+                items.add(nameAttr.getNodeValue());
+            }
+        }
+        return items;
     }
 
 }

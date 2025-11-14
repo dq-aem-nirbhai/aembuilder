@@ -21,6 +21,19 @@ public class TabData {
     public void addField(FieldData field) {
         this.fields.add(field);
     }
+    public void addSelectOptions(String fieldName, List<String> options) {
+        fields.stream()
+                .filter(f -> f.getName().equals(fieldName))
+                .findFirst()
+                .ifPresent(f -> f.setSelectOptions(options));
+    }
+
+    public void addMultiFieldItems(String fieldName, List<String> items) {
+        fields.stream()
+                .filter(f -> f.getName().equals(fieldName))
+                .findFirst()
+                .ifPresent(f -> f.setMultiFieldItems(items));
+    }
 
 
 }
