@@ -895,10 +895,6 @@ data.tabs.forEach(tabItem => {
     }
 });
 
-
-
-
-
                 } else {
                     // no useful data returned
                     // Keep existing fields or show message
