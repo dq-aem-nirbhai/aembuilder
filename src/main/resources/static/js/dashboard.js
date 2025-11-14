@@ -97,11 +97,11 @@ document.addEventListener("DOMContentLoaded", () => {
           feedback.innerHTML = `<div class="text-success">✅ Project is valid and ready to import.</div>`;
           uploadBtn.disabled = false;
         } else {
-          feedback.innerHTML = `<div class="text-danger">❌ ${data.error}</div>`;
+          feedback.innerHTML = `<div class="text-danger"> ❌ ${data.error}</div>`;
         }
       })
       .catch(() => {
-        feedback.innerHTML = `<div class="text-danger">❌ Validation failed. Please try again.</div>`;
+        feedback.innerHTML = `<div class="text-danger"> ❌ Validation failed. Please try again.</div>`;
       });
   });
 
