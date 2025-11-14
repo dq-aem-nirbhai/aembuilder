@@ -108,6 +108,8 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ---------- Inline Tool Section ----------
+// ------------------ TOOLS SECTION HANDLER ------------------
+
 function openToolSection() {
     const section = document.getElementById("toolListSection");
     const inlineToolList = document.getElementById("inlineToolList");
@@ -115,10 +117,11 @@ function openToolSection() {
     const projectName = el ? el.getAttribute("data-project") : "";
 
     if (!projectName) {
-        console.error("Project name missing — cannot load tools.");
+        console.error("❌ Project name missing — cannot load tools.");
         return;
     }
 
+    // Toggle section
     if (section.style.display === "block") {
         section.style.display = "none";
         inlineToolList.innerHTML = "";
@@ -126,20 +129,25 @@ function openToolSection() {
     }
 
     section.style.display = "block";
+    inlineToolList.innerHTML = `<p class="text-muted">Loading tools...</p>`;
 
+    // Fetch both all tools and existing tools for project
     Promise.all([
         fetch(`/tools/fetchtools/${projectName}`).then(res => res.json()),
         fetch(`/tools/existingtools/${projectName}`).then(res => res.json())
     ])
     .then(([allTools, existingTools]) => {
+        console.log("📦 All tools:", allTools);
+        console.log("🧩 Existing tools:", existingTools);
         renderToolListInline(allTools, existingTools);
     })
     .catch(err => {
         console.error("❌ Error loading tools:", err);
-        inlineToolList.innerHTML = `<p class="text-danger">Failed to load tools.</p>`;
+        inlineToolList.innerHTML = `<p class="text-danger">Failed to load tools. Please try again later.</p>`;
     });
 }
 
+// Render list of tools in inline section
 function renderToolListInline(allTools, existingTools = []) {
     const container = document.getElementById("inlineToolList");
     if (!container) return;
@@ -147,14 +155,14 @@ function renderToolListInline(allTools, existingTools = []) {
     container.innerHTML = "";
 
     if (!allTools || allTools.length === 0) {
-        container.innerHTML = `<p class="text-muted">No tools found in the library.</p>`;
+        container.innerHTML = `<p class="text-muted">No tools available in the library.</p>`;
         return;
     }
 
     allTools.forEach(tool => {
         const isExisting = existingTools.includes(tool);
         const div = document.createElement("div");
-        div.classList.add("col");
+        div.classList.add("col", "mb-2");
 
         div.innerHTML = `
             <div class="card p-3 shadow-sm border-0 h-100 ${isExisting ? 'bg-light' : ''}">
@@ -173,6 +181,50 @@ function renderToolListInline(allTools, existingTools = []) {
     });
 }
 
+// Add selected tools (inline version)
+function addSelectedTools() {
+    const el = document.getElementById('toolModal');
+    const projectName = el ? el.getAttribute('data-project') : '';
+    if (!projectName) {
+        alert("Project name missing — cannot add tools.");
+        return;
+    }
+
+    const selectedTools = Array.from(
+        document.querySelectorAll('#inlineToolList input[type="checkbox"]:checked:not(:disabled)')
+    ).map(cb => cb.value);
+
+    if (selectedTools.length === 0) {
+        alert("Please select at least one new tool to add.");
+        return;
+    }
+
+    console.log("🧩 Selected Tools to Add:", selectedTools);
+
+    fetch(`/tools/add-tool/${projectName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(selectedTools)
+    })
+    .then(res => {
+        if (!res.ok) throw new Error("Failed to add tools");
+        return res.text();
+    })
+    .then(response => {
+        if (response === "OK") {
+            alert(`✅ Successfully added ${selectedTools.length} tool(s) to project '${projectName}'`);
+            window.location.reload();
+        } else {
+            throw new Error("Server returned error response");
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("❌ Failed to add tools. Please check server logs.");
+    });
+}
+
+// Cancel button handler
 function cancelToolSelection() {
     const section = document.getElementById('toolListSection');
     const list = document.getElementById('inlineToolList');
@@ -180,15 +232,15 @@ function cancelToolSelection() {
     list.innerHTML = '';
 }
 
-// ---------- Keep your existing modal logic untouched ----------
-function openToolModal() { /* unchanged, retained for backward compatibility */ }
+// ------------------ KEEP EXISTING MODAL LOGIC ------------------
+function openToolModal() { /* unchanged */ }
 function renderToolList() { /* unchanged */ }
-function addSelectedTools() { /* unchanged */ }
 
-// Helpers
+// ------------------ HELPERS ------------------
 function escapeId(str) {
     return String(str).replace(/[^a-z0-9\-_]/gi, '-');
 }
+
 function escapeHtml(str) {
     return String(str)
         .replace(/&/g, "&amp;")
@@ -197,3 +249,9 @@ function escapeHtml(str) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
+
+// Flash message auto remove
+window.addEventListener("DOMContentLoaded", () => {
+    const flash = document.getElementById("flashMessage");
+    if (flash) setTimeout(() => flash.remove(), 5000);
+});

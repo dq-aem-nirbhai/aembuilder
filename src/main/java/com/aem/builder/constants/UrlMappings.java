@@ -66,7 +66,7 @@ public final class UrlMappings {
 
 
     public static final String FETCH_TOOLS="/fetchtools/{projectname}";
-    public static final String ADD_TOOL="/add/{projectname}";
+    public static final String ADD_TOOL="/add-tool/{projectname}";
     public static final String EXISTING_TOOLS="/existingtools/{projectname}";
     public static final String TOOL="/tools";
 
