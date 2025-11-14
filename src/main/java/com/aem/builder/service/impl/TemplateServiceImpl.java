@@ -27,31 +27,34 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+
 import org.apache.commons.io.FileUtils;
 
 import static com.aem.builder.constants.AemProjectConstants.PROJECTS_DIR;
 import static com.aem.builder.constants.PolicyConstants.*;
 import static com.aem.builder.util.AemUtil.getAppId;
+import static com.aem.builder.util.TemplateUtil.saveXml;
 import static com.aem.builder.util.TemplateUtil.writeFile;
+import static com.aem.builder.util.XmlUtil.formatXml;
 
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class TemplateServiceImpl implements TemplateService {
-    private final List<TemplateModel>templateModels;
+    private final List<TemplateModel> templateModels;
     private final ResourceLoader resourceLoader;
 
     /**
      * Retrieves the list of template file names from the 'aem-templates' directory in the classpath.
      * It uses the ClassLoader to access the folder and list all files inside it.
      * If the folder or files are not found, it returns an empty list.
-     *
      */
     @Override
     public List<String> getTemplateFileNames() throws IOException {
@@ -69,8 +72,7 @@ public class TemplateServiceImpl implements TemplateService {
                         log.info("[getTemplateFileNames] Found template file - {}", file.getName());
                     }
                 }
-            }
-            else{
+            } else {
                 log.info("[getTemplateFileNames] 'aem-templates' directory not found in classpath.");
             }
         }
@@ -83,7 +85,6 @@ public class TemplateServiceImpl implements TemplateService {
      * into the specified project's templates directory.
      * It ensures the destination folder exists, and for each selected template,
      * it copies the template's files from the resource location to the project's template directory.
-     *
      */
     @Override
     public void copySelectedTemplatesToGeneratedProject(String projectName, List<String> selectedTemplates)
@@ -99,8 +100,7 @@ public class TemplateServiceImpl implements TemplateService {
             log.info("[copySelectedTemplatesToGeneratedProject] Created destination folder '{}'",
                     destinationFolder.getAbsolutePath());
 
-        }
-        else{
+        } else {
             log.info("[copySelectedTemplatesToGeneratedProject] Destination folder already exists '{}'",
                     destinationFolder.getAbsolutePath());
 
@@ -123,10 +123,10 @@ public class TemplateServiceImpl implements TemplateService {
      */
     @Override
     public List<String> getDistinctTemplates(String projectname,
-                                             List<String> resourceTemplates,List<String>projectTemplates) {
+                                             List<String> resourceTemplates, List<String> projectTemplates) {
         log.info("[getDistinctTemplates] Computing distinct templates for project '{}'", projectname);
-        List<String>distinct=new ArrayList<>();
-        distinct= resourceTemplates.stream()
+        List<String> distinct = new ArrayList<>();
+        distinct = resourceTemplates.stream()
                 .filter(t -> !projectTemplates.contains(t))
                 .collect(Collectors.toList());
         log.info("[getDistinctTemplates] Found {} distinct templates for project '{}'", distinct.size(), projectname);
@@ -139,7 +139,7 @@ public class TemplateServiceImpl implements TemplateService {
      * the resourceTemplates and projectTemplates lists.
      */
     @Override
-    public List<String>getCommonTemplates(List<String> resourceTemplates,List<String>projectTemplates){
+    public List<String> getCommonTemplates(List<String> resourceTemplates, List<String> projectTemplates) {
         log.info("[getCommonTemplates] Computing common templates");
         List<String> commonTemplates = resourceTemplates.stream()
                 .filter(projectTemplates::contains)
@@ -154,7 +154,6 @@ public class TemplateServiceImpl implements TemplateService {
     /**
      * Retrieves the list of template names from the project's template directory,
      * excluding any XML files.
-     *
      */
     @Override
     public List<String> getTemplateNamesFromDestination(String projectName) {
@@ -167,16 +166,15 @@ public class TemplateServiceImpl implements TemplateService {
             File[] files = folder.listFiles();
             if (files != null) {
                 for (File file : files) {
-                    String filename=file.getName();
-                    if(!filename.endsWith(".xml")) {
+                    String filename = file.getName();
+                    if (!filename.endsWith(".xml")) {
                         templateNames.add(filename);
                         log.info("[getTemplateNamesFromDestination] Added template '{}'", filename);
                     }
                 }
             }
 
-        }
-        else{
+        } else {
             log.warn("[getTemplateNamesFromDestination] Directory '{}' does not exist or is not a directory",
                     destinationPath);
         }
@@ -200,8 +198,8 @@ public class TemplateServiceImpl implements TemplateService {
             File[] files = folder.listFiles();
             if (files != null) {
                 for (File file : files) {
-                    String filename=file.getName();
-                    if(!filename.endsWith(".xml")) {
+                    String filename = file.getName();
+                    if (!filename.endsWith(".xml")) {
                         templateNames.add(filename);
                         log.info("[getTemplateTypesFromDestination] Added template type '{}'", filename);
                     }
@@ -236,44 +234,43 @@ public class TemplateServiceImpl implements TemplateService {
      */
     @Override
     public TemplateModel createTemplate(TemplateModel model, String projectName) throws IOException {
-        String appId=getAppId(PROJECTS_DIR,projectName);
+        String appId = getAppId(PROJECTS_DIR, projectName);
         log.info("[createTemplate:] Creating template '{}' for project '{}'", model.getName(), projectName);
-        String url = TemplateUtil.getTemplateParent(projectName,model.getName());
+        String url = TemplateUtil.getTemplateParent(projectName, model.getName());
 
         // Create parent directory
         new File(url).mkdirs();
         log.info("[createTemplate] Created directory '{}'", url);
 
         // Create subfolders
-        new File(TemplateUtil.getIntialFilePath(projectName,model.getName())).mkdirs();
-        new File(TemplateUtil.getStructureFilePath(projectName,model.getName())).mkdirs();
-        new File(TemplateUtil.getPoliciesFilePath(projectName,model.getName())).mkdirs();
+        new File(TemplateUtil.getIntialFilePath(projectName, model.getName())).mkdirs();
+        new File(TemplateUtil.getStructureFilePath(projectName, model.getName())).mkdirs();
+        new File(TemplateUtil.getPoliciesFilePath(projectName, model.getName())).mkdirs();
 
         // Write XML files
-        writeFile(TemplateUtil.getRootContentFilePath(projectName,model.getName()),
-                TemplateUtil.getTemplateRootXmlPage(model.getName(),appId,
-                        model.getTemplateType(),model.getStatus(),model.getDescription()));
+        writeFile(TemplateUtil.getRootContentFilePath(projectName, model.getName()),
+                TemplateUtil.getTemplateRootXmlPage(model.getName(), appId,
+                        model.getTemplateType(), model.getStatus(), model.getDescription()));
 
-        if(model.getTemplateType().equals("page")) {
-            writeFile(TemplateUtil.getIntialContentFile(projectName,model.getName()),
+        if (model.getTemplateType().equals("page")) {
+            writeFile(TemplateUtil.getIntialContentFile(projectName, model.getName()),
                     TemplateUtil.getInitialXmlPage(appId,
-                    model.getName()));
-            writeFile(TemplateUtil.getStructureContentFile(projectName,model.getName()),
+                            model.getName()));
+            writeFile(TemplateUtil.getStructureContentFile(projectName, model.getName()),
                     TemplateUtil.getStructureXmlPage(model.getName(),
                             appId));
-            writeFile(TemplateUtil.getPoliciesContentFile(projectName,model.getName()),
+            writeFile(TemplateUtil.getPoliciesContentFile(projectName, model.getName()),
                     TemplateUtil.getPoliciesPage(appId));
             log.info("[createTemplate] Page type XML files created for template '{}'", model.getName());
-        }
-        else {
+        } else {
 
-            writeFile(TemplateUtil.getIntialContentFile(projectName,model.getName()),
+            writeFile(TemplateUtil.getIntialContentFile(projectName, model.getName()),
                     TemplateUtil.getIntialContentXf(appId,
-                    model.getName()));
-            writeFile(TemplateUtil.getStructureContentFile(projectName,model.getName()),
+                            model.getName()));
+            writeFile(TemplateUtil.getStructureContentFile(projectName, model.getName()),
                     TemplateUtil.generateStructureContentXmlXf(appId,
-                    model.getName()));
-            writeFile(TemplateUtil.getPoliciesContentFile(projectName,model.getName()),
+                            model.getName()));
+            writeFile(TemplateUtil.getPoliciesContentFile(projectName, model.getName()),
                     TemplateUtil.generatePoliciesXmlXf(appId));
             log.info("[createTemplate:] XF type XML files created for template '{}'", model.getName());
         }
@@ -328,7 +325,7 @@ public class TemplateServiceImpl implements TemplateService {
     public TemplateModel loadTemplateByName(String projectName, String templateName) {
         log.info("[loadTemplateByName] Loading template '{}' from project '{}'", templateName, projectName);
         try {
-            File contentXmlFile = new File(TemplateUtil.getRootContentFilePath(projectName,templateName));
+            File contentXmlFile = new File(TemplateUtil.getRootContentFilePath(projectName, templateName));
             if (!contentXmlFile.exists()) {
                 log.warn("[loadTemplateByName] .content.xml not found for template '{}'", templateName);
                 throw new FileNotFoundException(".content.xml not found for template: " + templateName);
@@ -342,11 +339,11 @@ public class TemplateServiceImpl implements TemplateService {
             model.setName(templateName);
 
 
-            Element content = (Element) root.getElementsByTagName( JCR_CONTENT_TAG).item(0);
+            Element content = (Element) root.getElementsByTagName(JCR_CONTENT_TAG).item(0);
 
             model.setStatus(content.getAttribute(STATUS));
             model.setDescription(content.getAttribute(ATT_DESCRIPTION));
-            String templateType=content.getAttribute(ATTR_TEMPLATE_TYPE);
+            String templateType = content.getAttribute(ATTR_TEMPLATE_TYPE);
             if (templateType != null && templateType.contains("/")) {
                 model.setTemplateType(templateType.substring(templateType.lastIndexOf("/") + 1));
             }
@@ -368,15 +365,16 @@ public class TemplateServiceImpl implements TemplateService {
     @Override
     public void updateTemplate(TemplateModel updatedModel, String projectName, String oldTemplateName)
             throws ParserConfigurationException, IOException, SAXException, TransformerException {
-        String appId=getAppId(PROJECTS_DIR,projectName);
+        String appId = getAppId(PROJECTS_DIR, projectName);
 
-        String basePath = GENERATED_PROJECTS_PATH+ projectName + UI_CONTENT_PATH  +
+        String basePath = GENERATED_PROJECTS_PATH + projectName + UI_CONTENT_PATH +
                 appId + WCM_TEMPLATES_RELATIVE_PATH;
-        String targetpath=basePath+updatedModel.getName();
+        String targetpath = basePath + updatedModel.getName();
         File oldFolder = new File(basePath + oldTemplateName);
         File newFolder = new File(basePath + updatedModel.getName());
+        TemplateModel oldTemplate = loadTemplateByName(projectName, oldTemplateName);
         if (!oldFolder.exists()) {
-            throw new FileNotFoundException("Old template folder not found: " + oldFolder.getAbsolutePath());
+            throw new FileNotFoundException("[updatedTemplate] Old template folder not found: " + oldFolder.getAbsolutePath());
         }
 
         // Safely rename folder
@@ -392,140 +390,185 @@ public class TemplateServiceImpl implements TemplateService {
             }
             oldFolder.delete();
         }
-
-        if(updatedModel.getTemplateType().equals("page")) {
-            writeFile(targetpath + STRUCTURE+ CONTENT_FILE,
-                    TemplateUtil.getStructureXmlPage(updatedModel.getName(),
-                    appId)); // Pass projectname here
-            writeFile(targetpath + POLICIES+CONTENT_FILE,
-                    TemplateUtil.getPoliciesPage(appId));
-
+        String newTemplateStructureXmlPath;
+        if (!updatedModel.getName().equalsIgnoreCase(oldTemplateName)) {
+            newTemplateStructureXmlPath = basePath + updatedModel.getName() + STRUCTURE_FILE;
+        } else {
+            newTemplateStructureXmlPath = basePath + oldTemplateName + STRUCTURE_FILE;
         }
-        else {
+        log.info("[updatedTemplate] old template type : {} , new template type : {}", oldTemplate.getTemplateType(), updatedModel.getTemplateType());
+        //update structure
+        File structureContentFile = new File(newTemplateStructureXmlPath);
+        String oldType = oldTemplate.getTemplateType();   // "page" or "xf"
+        String newType = updatedModel.getTemplateType();  // "page" or "xf"
+        try {
+            TemplateUtil.updateStructureXml(structureContentFile, oldType, newType, projectName, oldTemplateName, updatedModel.getName());
 
-            writeFile(targetpath +STRUCTURE+ CONTENT_FILE,
-                    TemplateUtil.generateStructureContentXmlXf(appId,
-                    updatedModel.getName())); // Pass projectname here
-            writeFile(targetpath+ POLICIES+CONTENT_FILE,
-                    TemplateUtil.generatePoliciesXmlXf(appId));
-
+        } catch (Exception e) {
+            log.info("exception fond while updating structure .content.xml file");
         }
+        try {
+            updateTemplateOwnXml(newFolder, updatedModel, projectName, oldTemplateName, basePath);
+        } catch (Exception e) {
+            log.error("[updatedTemplate] {}", e.getMessage());
+        }
+        //update intial/.content.xml
+        try {
+            updateTemplateIntialXmlFile(newFolder, projectName, updatedModel);
+        } catch (Exception e) {
+            log.error("[updatedTemplate] {}", e.getMessage());
+        }
+        //  2. Update the parent folder's .content.xml (register template if not present)
+        try {
+            updateParentTemplatesFolderXml(basePath, oldTemplateName, updatedModel);
+        } catch (Exception e) {
+            log.error("[updatedTemplate] {}", e.getMessage());
+        }
+        String xml = Files.readString(Path.of(newTemplateStructureXmlPath));
+        String formatted = formatXml(xml);
+        Files.writeString(Path.of(newTemplateStructureXmlPath), formatted);
+        log.info("[updatedTemplate] updated the template");
 
-        //  1. Update the template's own .content.xml
-        File templateContentFile = new File(newFolder, ".content.xml");
+
+    }
+
+    private static void updateTemplateOwnXml(File newFolder, TemplateModel updatedModel, String projectName, String oldTemplateName, String basePath) throws Exception {
+        File templateContentFile = new File(newFolder, CONTENT_XML);
         if (templateContentFile.exists()) {
             DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
             Document doc = builder.parse(templateContentFile);
             Element root = doc.getDocumentElement();
             Element content = (Element) root.getElementsByTagName(JCR_CONTENT_TAG).item(0);
 
-            root.setAttribute( ATTR_JCR_TITLE , updatedModel.getName()); // updates root title
+            root.setAttribute(ATTR_JCR_TITLE, updatedModel.getName()); // updates root title
             if (updatedModel.getName() != null) content.setAttribute(ATTR_JCR_TITLE,
                     updatedModel.getName());
             if (updatedModel.getStatus() != null) content.setAttribute(STATUS,
                     updatedModel.getStatus());
-            if(updatedModel.getDescription()!=null)content.setAttribute(ATT_DESCRIPTION,updatedModel.getDescription());
+            if (updatedModel.getDescription() != null)
+                content.setAttribute(ATT_DESCRIPTION, updatedModel.getDescription());
 
             if (updatedModel.getTemplateType() != null) {
                 content.setAttribute(ATTR_TEMPLATE_TYPE, CONF_PATH +
-                        projectName + WCM_TEMPLATE_TYPES_PATH  + updatedModel.getTemplateType());
+                        projectName + WCM_TEMPLATE_TYPES_PATH + updatedModel.getTemplateType());
             }
 
-            // Save updated template .content.xml
-            Transformer transformer = TransformerFactory.newInstance().newTransformer();
-            transformer.transform(new DOMSource(doc), new StreamResult(templateContentFile));
+
+            try {
+                saveXml(doc, templateContentFile);
+            } catch (Exception e) {
+                log.info("[updatedTemplate] something happend while saving .content.xml file");
+            }
+            if (!oldTemplateName.equalsIgnoreCase(updatedModel.getName())) {
+
+                String xml2 = Files.readString(Path.of(basePath + updatedModel.getName() + CONTENT_FILE));
+                String formatted2 = formatXml(xml2);
+                Files.writeString(Path.of(basePath + updatedModel.getName() + CONTENT_FILE), formatted2);
+            } else {
+                String xml2 = Files.readString(Path.of(basePath + oldTemplateName + CONTENT_FILE));
+                String formatted2 = formatXml(xml2);
+                Files.writeString(Path.of(basePath + oldTemplateName + CONTENT_FILE), formatted2);
+            }
 
 
             log.info("[updatedTemplate] Updated template .content.xml");
         }
+    }
+
+    private static void updateTemplateIntialXmlFile(File newFolder, String projectName, TemplateModel updatedModel) throws Exception {
         //update intial/.content.xml
-        String intial=newFolder+INITIAL;
+        String intial = newFolder + INITIAL;
 
 
-        File intialContentFile=new File(intial,".content.xml");
+        File intialContentFile = new File(intial, CONTENT_XML);
         log.info("[updatedTemplate] intial location");
-        if(intialContentFile.exists()){
+        if (intialContentFile.exists()) {
             DocumentBuilder builder1 = DocumentBuilderFactory.newInstance().newDocumentBuilder();
             Document doc1 = builder1.parse(intialContentFile);
             Element root1 = doc1.getDocumentElement();
             Element content1 = (Element) root1.getElementsByTagName(JCR_CONTENT_TAG).item(0);
-            String cqTemplate=CONF_PATH +projectName+TEMPLATES_SUBPATH +updatedModel.getName();
-            content1.setAttribute("cq:template",cqTemplate);
-            content1.setAttribute(ATTR_SLING_RESOURCE_TYPE,projectName+"/components/xfpage");
-            //"project_1/components/xfpage"
+            String cqTemplate = CONF_PATH + projectName + TEMPLATES_SUBPATH + updatedModel.getName();
+            content1.setAttribute(ATTR_TEMPLATE, cqTemplate);
+            if (updatedModel.getTemplateType().equalsIgnoreCase("xf")) {
+                content1.setAttribute(ATTR_SLING_RESOURCE_TYPE, projectName + COMPONENT_XFPAGE_PATH);
+            } else {
+                content1.setAttribute(ATTR_SLING_RESOURCE_TYPE, projectName + COMPONENT_PAGE);
+            }
             log.info("[updatedTemplate]  updated cq template field");
-            Transformer transformer = TransformerFactory.newInstance().newTransformer();
-            transformer.transform(new DOMSource(doc1), new StreamResult(intialContentFile));
+            try {
+                saveXml(doc1, intialContentFile);
+            } catch (Exception e) {
+                log.info("[updatedTemplate] something happend while saving intial/.content.xml file");
+            }
         }
+        String xml2 = Files.readString(Path.of(intial, CONTENT_XML));
+        String formatted2 = formatXml(xml2);
+        Files.writeString(Path.of(intial, CONTENT_XML), formatted2);
+    }
 
-        //  2. Update the parent folder's .content.xml (register template if not present)
-        File parentContentFile = new File(basePath + ".content.xml");
+
+    private static void updateParentTemplatesFolderXml(String basePath, String oldTemplateName, TemplateModel updatedModel) throws Exception {
+        File parentContentFile = new File(basePath + CONTENT_XML);
         if (parentContentFile.exists()) {
             DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
             Document doc = builder.parse(parentContentFile);
             Element root = doc.getDocumentElement();
-
-            // Remove old template node if present
-            Node oldNode = null;
-            NodeList children = root.getChildNodes();
-            for (int i = 0; i < children.getLength(); i++) {
-                Node n = children.item(i);
-                if (n.getNodeType() == Node.ELEMENT_NODE && n.getNodeName().equals(oldTemplateName)) {
-                    oldNode = n;
-                    break;
-                }
-            }
-            if (oldNode != null) {
+            // 🧹 Remove old template node if exists
+            NodeList oldNodes = doc.getElementsByTagName(oldTemplateName);
+            if (oldNodes.getLength() > 0) {
+                Node oldNode = oldNodes.item(0);
                 root.removeChild(oldNode);
-                log.info("[updatedTemplate] Removed old template node: " + oldTemplateName);
+                log.info("[updatedTemplate] Removed old template node: {}", oldTemplateName);
             }
-
             // Add new template node if missing
             if (doc.getElementsByTagName(updatedModel.getName()).getLength() == 0) {
                 Element newElement = doc.createElement(updatedModel.getName());
                 root.appendChild(newElement);
-
                 log.info("[updatedTemplate] Added new template node: " + updatedModel.getName());
             }
-
-            // Save updated XML
-            Transformer transformer = TransformerFactory.newInstance().newTransformer();
-
-            transformer.transform(new DOMSource(doc), new StreamResult(parentContentFile));
-           log.info("[updatedTemplate] updated the template");
+// ✅ Save updated parent .content.xml properly
+            try {
+                saveXml(doc, parentContentFile);
+                log.info("[updatedTemplate] Saved updated parent .content.xml successfully");
+            } catch (Exception e) {
+                log.error("[updatedTemplate] Failed to save updated parent .content.xml", e);
+            }
         }
+        String parentXml = Files.readString(Path.of(basePath + CONTENT_XML));
 
+        String formatted1 = formatXml(parentXml);
+        Files.writeString(Path.of(basePath, CONTENT_XML), formatted1);
     }
+
     @Override
-    public void deleteTemplate(String projectName, String templateName){
-        String appId=getAppId(PROJECTS_DIR,projectName);
-        String basePath = GENERATED_PROJECTS_PATH+ projectName + UI_CONTENT_PATH  +
+    public void deleteTemplate(String projectName, String templateName) {
+        String appId = getAppId(PROJECTS_DIR, projectName);
+        String basePath = GENERATED_PROJECTS_PATH + projectName + UI_CONTENT_PATH +
                 appId + WCM_TEMPLATES_RELATIVE_PATH;
         File folder = new File(basePath + templateName);
         File contentXml = new File(basePath + ".content.xml");
-        log.info("[deleteTemplate]  templates contentXml path: {} ",contentXml.getAbsolutePath());
-     try{
-         if(folder.exists()){
-             FileUtils.deleteDirectory(folder);
-             log.info("[deleteTemplate] template folder deleted suceessfylly:  {}",folder.getAbsolutePath());
-         }
-         // 2️⃣ Remove corresponding tag from .content.xml
-         if (contentXml.exists()) {
-             String xml = Files.readString(contentXml.toPath());
-             // Pattern to match <templateName/> or <templateName ...>...</templateName>
-             String regex = String.format("<%s(\\s*/>|>.*?</%s>)", templateName, templateName);
-             String updatedXml = xml.replaceAll(regex, "");
+        log.info("[deleteTemplate]  templates contentXml path: {} ", contentXml.getAbsolutePath());
+        try {
+            if (folder.exists()) {
+                FileUtils.deleteDirectory(folder);
+                log.info("[deleteTemplate] template folder deleted suceessfylly:  {}", folder.getAbsolutePath());
+            }
+            // 2️⃣ Remove corresponding tag from .content.xml
+            if (contentXml.exists()) {
+                String xml = Files.readString(contentXml.toPath());
+                // Pattern to match <templateName/> or <templateName ...>...</templateName>
+                String regex = String.format("<%s(\\s*/>|>.*?</%s>)", templateName, templateName);
+                String updatedXml = xml.replaceAll(regex, "");
 
-             Files.writeString(contentXml.toPath(), updatedXml);
-             log.info("[deleteTemplate] Removed template tag '{}' from .content.xml", templateName);
-         } else {
-             log.warn("[deleteTemplate] .content.xml not found at path: {}", contentXml.getAbsolutePath());
-         }
+                Files.writeString(contentXml.toPath(), updatedXml);
+                log.info("[deleteTemplate] Removed template tag '{}' from .content.xml", templateName);
+            } else {
+                log.warn("[deleteTemplate] .content.xml not found at path: {}", contentXml.getAbsolutePath());
+            }
 
-     }
-     catch (Exception e){
-         log.info( "[deleteTemplate] folder path not found : {}",folder.getAbsolutePath());
-     }
+        } catch (Exception e) {
+            log.info("[deleteTemplate] folder path not found : {}", folder.getAbsolutePath());
+        }
 
     }
 
