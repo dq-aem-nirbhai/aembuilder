@@ -2437,7 +2437,6 @@ public class ComponentServiceImpl implements ComponentService {
                 if ("multifield".equals(type)) {
                     field.setMultiFieldItems(extractMultiFieldItems(child));
                 }
-
                 // 🚨 DO NOT RECURSE into field nodes
                 continue;
             }
