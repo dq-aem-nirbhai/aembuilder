@@ -95,10 +95,8 @@ public class JunitsForSlingModels {
         String existing = FileUtils.readFileToString(jsonFile, StandardCharsets.UTF_8);
         String updated = refreshJsonContent(existing, modelBasePath, projectName, className, fieldTypes);
         FileUtils.writeStringToFile(jsonFile, updated, StandardCharsets.UTF_8);
-        JavaFormatterUtil.cleanAndFormatJavaFile(jsonFile);
         log.info("JSON updated: {}", jsonFile.getAbsolutePath());
     }
-
 
     // SUPPORTING METHODS
     private static Path resolveModelPath(String modelBasePath, String packageName, String className) {
@@ -123,18 +121,9 @@ public class JunitsForSlingModels {
             String field = e.getKey();
             String type = e.getValue();
             String getter = ("boolean".equalsIgnoreCase(type)) ? "is" + capitalize(field) : "get" + capitalize(field);
-            /*f (type.startsWith("List<")) {
-                modelTest.append("        assertNotNull(model.").append(getter).append("(), \"")
-                        .append(field).append(" list not null\");\n")
-                        .append("        assertFalse(model.").append(getter).append("().isEmpty(), \"")
-                        .append(field).append(" list not empty\");\n");
-            } else {
-                modelTest.append("        assertEquals(")
-                        .append(getMockValue(type, field, false))
-                        .append(", model.").append(getter).append("(), \"").append(field).append(" value match\");\n");
-            }*/
+            // Handle List<Child> multifield
             if (type.startsWith("List<") && !type.contains("String")) {
-                // List of child objects
+
                 String child = type.substring(type.indexOf("<") + 1, type.indexOf(">"));
                 modelTest.append("        assertNotNull(model.").append(getter).append("(), \"")
                         .append(field).append(" list not null\");\n")
@@ -143,19 +132,35 @@ public class JunitsForSlingModels {
                         .append("        model.").append(getter).append("().forEach(child -> {\n")
                         .append("            assertNotNull(child);\n");
 
-                // read child model file to generate assertions for its fields
-                Path childModelPath = Paths.get("path/to/models", child + ".java");
+                // read child model fields and add assertions
+               // Path childModelPath = Paths.get("path/to/models", child + ".java");
+                // 🔥 Correct path to child Sling Model file
+                log.info("Childmodel class calling: ");
+                Path childModelPath = Paths.get(
+                        "core/src/main/java",
+                        packageName.replace(".", "/"),
+                        child + ".java"
+                );
                 if (Files.exists(childModelPath)) {
                     String childContent = Files.readString(childModelPath);
                     Map<String, String> childFields = extractFieldTypes(childContent);
                     for (Map.Entry<String, String> cf : childFields.entrySet()) {
                         String childGetter = "get" + capitalize(cf.getKey());
-                        modelTest.append("            assertNotNull(child.").append(childGetter)
-                                .append("(), \"").append(cf.getKey()).append(" not null\");\n");
+                        modelTest.append("            assertNotNull(child.")
+                                .append(childGetter).append("(), \"")
+                                .append(cf.getKey()).append(" not null\");\n");
                     }
                 }
 
                 modelTest.append("        });\n");
+            }
+
+// 🔥 ADD THIS ELSE BLOCK (THIS WAS MISSING)
+            else {
+                modelTest.append("        assertEquals(")
+                        .append(getMockValue(type, field, false))
+                        .append(", model.").append(getter).append("(), \"")
+                        .append(field).append(" value match\");\n");
             }
 
         }
@@ -195,41 +200,68 @@ public class JunitsForSlingModels {
     }
 
     private static String rebuildJUnitContent(String existing, String className, Map<String, String> fieldTypes) {
-        // Remove all getter tests
-        existing = existing.replaceAll("(?s)@Test\\s+void\\s+test(Get|Is)[A-Za-z0-9_]+\\(\\)\\s*\\{.*?\\n\\s*\\}", "");
 
-        StringBuilder getters = new StringBuilder();
-        for (Map.Entry<String, String> e : fieldTypes.entrySet()) {
-            String field = e.getKey();
-            String type = e.getValue();
-            String getter = ("boolean".equalsIgnoreCase(type)) ? "is" + capitalize(field) : "get" + capitalize(field);
-            getters.append("    @Test\n")
-                    .append("    void test").append(capitalize(getter)).append("() {\n")
-                    .append("        assertNotNull(model.").append(getter).append("(), \"")
-                    .append(field).append(" not null\");\n    }\n\n");
-        }
-
-        // Update the main model test
-        StringBuilder modelTest = new StringBuilder();
-        modelTest.append("    @Test\n    void test").append(className).append("Model() {\n")
+        // 1. Build new main model test method
+        StringBuilder newMainMethod = new StringBuilder();
+        newMainMethod.append("    @Test\n")
+                .append("    void test").append(className).append("Model() {\n")
                 .append("        assertNotNull(model);\n");
+
         for (Map.Entry<String, String> e : fieldTypes.entrySet()) {
             String field = e.getKey();
             String type = e.getValue();
-            String getter = ("boolean".equalsIgnoreCase(type)) ? "is" + capitalize(field) : "get" + capitalize(field);
-            modelTest.append("        assertNotNull(model.").append(getter).append("(), \"").append(field).append(" not null\");\n");
-        }
-        modelTest.append("    }\n\n");
+            String getter = ("boolean".equalsIgnoreCase(type))
+                    ? "is" + capitalize(field)
+                    : "get" + capitalize(field);
 
-        // Replace or append tests
-        if (existing.contains("void test" + className + "Model()")) {
-            existing = existing.replaceAll("(?s)@Test\\s+void\\s+test" + className + "Model\\(\\).*?\\}", modelTest.toString());
+            newMainMethod.append("        assertNotNull(model.")
+                    .append(getter).append("(), \"")
+                    .append(field).append(" not null\");\n");
+        }
+
+        newMainMethod.append("    }\n\n");
+
+        // 2. Replace the OLD main test method
+        String methodRegex =
+                "@Test\\s+void\\s+test" + className +
+                        "Model\\(\\)[\\s\\S]*?(?=@Test|}\\s*$)";
+
+        if (existing.matches("(?s).*" + methodRegex + ".*")) {
+            existing = existing.replaceAll(methodRegex, Matcher.quoteReplacement(newMainMethod.toString()));
         } else {
-            existing = existing.replaceAll("}\\s*$", modelTest + "}\n");
+            // no existing method → append it before last closing brace
+            existing = existing.replaceAll("}\\s*$", Matcher.quoteReplacement(newMainMethod.toString()) + "}");
         }
 
-        return existing.replaceAll("}\\s*$", getters + "}\n");
+        // 3. Remove ALL getter tests
+        existing = existing.replaceAll(
+                "(?s)@Test\\s+void\\s+test(?:Get|Is)[A-Za-z0-9_]+\\s*\\(\\)\\s*\\{[\\s\\S]*?\\}",
+                ""
+        );
+
+        // 4. Generate fresh getter tests
+        StringBuilder getterTests = new StringBuilder();
+        for (Map.Entry<String, String> e : fieldTypes.entrySet()) {
+            String field = e.getKey();
+            String type = e.getValue();
+            String getter = ("boolean".equalsIgnoreCase(type))
+                    ? "is" + capitalize(field)
+                    : "get" + capitalize(field);
+
+            getterTests.append("    @Test\n")
+                    .append("    void test").append(capitalize(getter)).append("() {\n")
+                    .append("        assertNotNull(model.").append(getter)
+                    .append("(), \"").append(field).append(" not null\");\n")
+                    .append("    }\n\n");
+        }
+
+        // 5. Append all getter tests before last brace
+        existing = existing.replaceAll("}\\s*$",
+                Matcher.quoteReplacement(getterTests.toString()) + "}");
+
+        return existing;
     }
+
 
     private static String buildJsonContent(String modelBasePath, String projectName, String className, Map<String, String> fieldTypes)
             throws IOException {
@@ -360,9 +392,8 @@ public class JunitsForSlingModels {
 
                     String newJsonBlock = buildMultifieldJson(field, child, modelBasePath, count);
 
-                    // convert string → map
                     Map<String, Object> newMap = mapper.readValue(
-                            "{" + newJsonBlock + "}",
+                            "{\n" + newJsonBlock + "\n}",
                             LinkedHashMap.class);
 
                     finalJson.put(field, newMap.get(field));
