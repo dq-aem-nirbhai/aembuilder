@@ -2,33 +2,27 @@ package com.aem.builder.service.impl;
 
 import static com.aem.builder.constants.AemProjectConstants.PROJECTS_DIR;
 import static com.aem.builder.constants.DeployConstants.*;
+
 import com.aem.builder.service.DeployService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.time.Duration;
 
-/**
- * Implementation of {@link DeployService} for deploying AEM projects.
- * Streams build logs live using Reactor {@link Flux}.
- */
 @Slf4j
 @Service
 public class DeployServiceImpl implements DeployService {
 
-    /**
-     * Deploys the given project and streams logs live.
-     *
-     * @param projectName the name of the project to deploy
-     * @return Flux<String> emitting deployment logs in real-time
-     */
     @Override
-    public Flux<String> deployProjectLive(String projectName) {
-        log.info("{} Starting deployment for '{}'", DEPLOY_LOG_PREFIX, projectName);
+    public Flux<String> deployProjectLive(String projectName, String deployType) {
+
+        log.info("{} Starting deployment for '{}' with type '{}'",
+                DEPLOY_LOG_PREFIX, projectName, deployType);
 
         return Flux.<String>create(emitter -> {
             Schedulers.boundedElastic().schedule(() -> {
@@ -37,35 +31,51 @@ public class DeployServiceImpl implements DeployService {
 
                 try {
                     File projectDir = new File(PROJECTS_DIR, projectName);
+
                     if (!projectDir.exists()) {
                         emitter.next("Project directory does not exist: " + projectDir.getAbsolutePath());
                         emitter.complete();
-                        log.warn("[deployProjectLive] Project directory does not exist: {}", projectDir.getAbsolutePath());
                         return;
                     }
 
-                    // Prepare Maven command
-                    ProcessBuilder pb = new ProcessBuilder("mvn", "clean", "install", "-PautoInstallPackage");
-                    pb.directory(projectDir);
-                    pb.redirectErrorStream(true);
-                    Process process = pb.start();
+                    // Decide command + working directory
+                    ProcessBuilder pb;
+                    File workingDir;
 
-                    // Read output stream
+                    if ("core".equalsIgnoreCase(deployType)) {
+                        workingDir = new File(projectDir, "core");
+                        pb = new ProcessBuilder("mvn", "clean", "install", "-PautoInstallBundle");
+                        emitter.next("Running CORE deployment...");
+                    } else {
+                        workingDir = projectDir;
+                        pb = new ProcessBuilder("mvn", "clean", "install", "-PautoInstallPackage");
+                        emitter.next("Running FULL deployment...");
+                    }
+
+                    if (!workingDir.exists()) {
+                        emitter.next("Module directory does not exist: " + workingDir.getAbsolutePath());
+                        emitter.complete();
+                        return;
+                    }
+
+                    pb.directory(workingDir);
+                    pb.redirectErrorStream(true);
+
+                    Process process = pb.start();
                     reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+
                     String line;
                     String finalStatus = "";
 
                     while ((line = reader.readLine()) != null) {
-                        // Emit only INFO, WARN, ERROR logs
                         if (line.contains(INFO_LOG) || line.contains(WARN_LOG) || line.contains(ERROR_LOG)) {
                             emitter.next(line);
                         }
 
-                        // Capture build status
-                        String lineLower = line.toLowerCase();
-                        if (lineLower.contains(BUILD_SUCCESS_KEYWORD)) {
+                        String l = line.toLowerCase();
+                        if (l.contains(BUILD_SUCCESS_KEYWORD)) {
                             finalStatus = "Build successful for project: " + projectName;
-                        } else if (lineLower.contains(BUILD_FAILED_KEYWORD)) {
+                        } else if (l.contains(BUILD_FAILED_KEYWORD)) {
                             finalStatus = "Build failed for project: " + projectName;
                         }
                     }
@@ -77,24 +87,16 @@ public class DeployServiceImpl implements DeployService {
 
                     emitter.next(finalStatus);
                     emitter.complete();
-                    log.info("[deployProjectLive] Deployment completed for '{}'", projectName);
 
                 } catch (Exception e) {
-                    String errorMessage = "Exception during deployment: " + e.getMessage();
-                    emitter.next(errorMessage);
+                    emitter.next("Exception during deployment: " + e.getMessage());
                     emitter.complete();
-                    log.error("[deployProjectLive] Error during deployment for '{}'", projectName, e);
-
                 } finally {
-                    // Safely close resources
                     try {
                         if (reader != null) reader.close();
-                        log.debug("[deployProjectLive] BufferedReader closed for '{}'", projectName);
-                    } catch (Exception e) {
-                        log.error("[deployProjectLive] Failed to close BufferedReader for '{}'", projectName, e);
-                    }
+                    } catch (Exception ignored) {}
                 }
             });
-        }).delayElements(Duration.ofMillis(10)); // throttle emission slightly for frontend
+        }).delayElements(Duration.ofMillis(10));
     }
 }

@@ -252,6 +252,29 @@ function saveAll() {
         });
 }
 
+/**
+ * New: starts deploy navigation with selected deploy type.
+ * It will respect restricted-branch checks (same UX as other actions).
+ */
+function startDeploy() {
+    const projectName = getProjectName();
+    if (!projectName) return false;
+
+    // respect branch restrictions
+    if (!checkRestrictedBranch('deploy this project')) {
+        return false;
+    }
+
+    const select = document.getElementById('deployTypeSelect');
+    const type = select ? select.value : 'full';
+
+    // navigate to deploy page, which will render deploy-logs and pass deployType to SSE endpoint
+    const url = `/${encodeURIComponent(projectName)}/deploy?type=${encodeURIComponent(type)}`;
+    // open in same tab (original behavior). If you prefer new tab, use window.open(url, '_blank').
+    window.location.href = url;
+    return false; // prevent default anchor navigation
+}
+
 window.addEventListener("DOMContentLoaded", () => {
     // hide flash message after 5s
     const flash = document.getElementById("flashMessage");
