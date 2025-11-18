@@ -4,6 +4,8 @@ import com.aem.builder.model.DTO.ComponentField;
 import com.aem.builder.model.DTO.ComponentRequest;
 import com.aem.builder.model.DTO.OptionItem;
 import com.aem.builder.model.Enum.FieldType;
+import com.aem.builder.model.FieldData;
+import com.aem.builder.model.TabData;
 import com.aem.builder.service.ComponentService;
 import com.aem.builder.util.AemUtil;
 import com.aem.builder.util.FileGenerationUtil;
@@ -338,8 +340,8 @@ public class ComponentServiceImpl implements ComponentService {
         File componentFolder = new File(compPath);
         log.info("Checking component path: {}", componentFolder);
 
-        FileGenerationUtil.generateAllFiles(projectName, request);
-        log.info("[updateComponent] Regenerated component '{}' in project '{}'", request.getComponentName(), projectName);
+        // FileGenerationUtil.generateAllFiles(projectName, request);
+        // log.info("[updateComponent] Regenerated component '{}' in project '{}'", request.getComponentName(), projectName);
         if (!componentFolder.exists()) {
             // Component does not exist → generate new
             log.info("generate the component :");
@@ -1179,6 +1181,20 @@ public class ComponentServiceImpl implements ComponentService {
                         log.info("[copySelectedComponents] Updated HTL model reference in '{}'", html.getAbsolutePath());
                     }
                 }
+                // Update componentGroup in .content.xml
+                //File contentXml = new File(destination, CONTENT_XML);
+                String capitalizedProject = projectName.substring(0, 1).toUpperCase() + projectName.substring(1);
+
+                if (contentXml.exists()) {
+                    String content = FileUtils.readFileToString(contentXml, UTF_8);
+
+                    // Replace componentGroup="anything"
+                    content = content.replaceAll("componentGroup=\"[^\"]*\"",
+                            "componentGroup=\"" + capitalizedProject + " - Content\"");
+                    FileUtils.writeStringToFile(contentXml, content, UTF_8);
+                    log.info("[copySelectedComponents] Updated componentGroup in '{}'", contentXml.getAbsolutePath());
+                }
+
 
                 // Copy model and dependencies
                 if (parentModel != null && parentModel.exists()) {
@@ -2058,7 +2074,7 @@ public class ComponentServiceImpl implements ComponentService {
         log.info("[getParentTabs] Fetching parent tabs for superType '{}' in project '{}'", superType, projectName);
 
         Map<String, Object> result = new HashMap<>();
-        Set<String> tabs = new LinkedHashSet<>();
+        List<TabData> tabs = new LinkedList<>();
 
         try {
             collectTabsRecursively(projectName, superType, tabs);
@@ -2094,7 +2110,7 @@ public class ComponentServiceImpl implements ComponentService {
      * @param tabs        A set to accumulate tab names; duplicates are ignored.
      * @throws Exception If there is an error reading or parsing dialog files.
      */
-    private void collectTabsRecursively(String projectName, String superType, Set<String> tabs) throws Exception {
+    private void collectTabsRecursively(String projectName, String superType, List<TabData>  tabs) throws Exception {
         log.info("[collectTabsRecursively] Collecting tabs for superType '{}' in project '{}'", superType, projectName);
 
         if (superType == null || superType.isBlank()) {
@@ -2110,7 +2126,7 @@ public class ComponentServiceImpl implements ComponentService {
 
         File dialogFile = new File(basePath, DIALOG_FILE);
         if (dialogFile.exists()) {
-            List<String> currentTabs = isCore
+            List<TabData>  currentTabs = isCore
                     ? parseCoreTabsFromDialog(dialogFile)
                     : parseProjectTabsFromDialog(dialogFile);
 
@@ -2139,7 +2155,7 @@ public class ComponentServiceImpl implements ComponentService {
             File coreDialog = new File(corePath, DIALOG_FILE);
 
             if (coreDialog.exists()) {
-                List<String> coreTabs = parseCoreTabsFromDialog(coreDialog);
+                List<TabData>  coreTabs = parseCoreTabsFromDialog(coreDialog);
                 if (!coreTabs.isEmpty()) {
                     tabs.addAll(coreTabs);
                     log.info("[collectTabsRecursively] Core Tabs collected from '{}': {}", parentSuperType, coreTabs);
@@ -2163,48 +2179,62 @@ public class ComponentServiceImpl implements ComponentService {
      * @return A list of tab titles defined in the dialog. Returns an empty list if no tabs are found.
      * @throws Exception If an error occurs while reading or parsing the dialog file.
      */
-    private List<String> parseProjectTabsFromDialog(File dialogFile) throws Exception {
+    private List<TabData> parseProjectTabsFromDialog(File dialogFile) throws Exception {
         log.info("[parseProjectTabsFromDialog] Parsing project dialog for tabs: {}", dialogFile.getAbsolutePath());
 
-        List<String> tabs = new ArrayList<>();
+        List<TabData> tabs = new ArrayList<>();
 
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder = factory.newDocumentBuilder();
         Document doc = builder.parse(dialogFile);
 
         NodeList nodes = doc.getElementsByTagName("*");
+
         for (int i = 0; i < nodes.getLength(); i++) {
-            org.w3c.dom.Node node = nodes.item(i);
+
+            Node node = nodes.item(i);
             NamedNodeMap attrs = node.getAttributes();
             if (attrs == null) continue;
 
-            // Check if this node is a <tabs> definition (granite resource type)
-            org.w3c.dom.Node resType = attrs.getNamedItem(SLING_RESOURCE_TYPE);
+            // Check if this node is a <tabs> definition
+            Node resType = attrs.getNamedItem(SLING_RESOURCE_TYPE);
+
             if (resType != null && GRANITE_TABS.equals(resType.getNodeValue())) {
                 log.info("[parseProjectTabsFromDialog] Found granite tabs node at index {}", i);
 
                 NodeList itemsNodes = node.getChildNodes();
+
                 for (int j = 0; j < itemsNodes.getLength(); j++) {
-                    org.w3c.dom.Node itemsNode = itemsNodes.item(j);
+
+                    Node itemsNode = itemsNodes.item(j);
                     if (!ITEMS.equals(itemsNode.getNodeName())) continue;
 
                     NodeList tabNodes = itemsNode.getChildNodes();
+
                     for (int k = 0; k < tabNodes.getLength(); k++) {
-                        org.w3c.dom.Node tabNode = tabNodes.item(k);
-                        if (tabNode.getNodeType() != org.w3c.dom.Node.ELEMENT_NODE) continue;
+
+                        Node tabNode = tabNodes.item(k);
+                        if (tabNode.getNodeType() != Node.ELEMENT_NODE) continue;
 
                         NamedNodeMap tabAttrs = tabNode.getAttributes();
                         if (tabAttrs == null) continue;
 
-                        org.w3c.dom.Node tabResType = tabAttrs.getNamedItem(SLING_RESOURCE_TYPE);
+                        Node tabResType = tabAttrs.getNamedItem(SLING_RESOURCE_TYPE);
                         if (tabResType != null && GRANITE_CONTAINER.equals(tabResType.getNodeValue())) {
 
+                            // ✅ EXTRACT TAB NAME
                             String tabTitle = tabAttrs.getNamedItem(JCR_TITLE) != null
                                     ? tabAttrs.getNamedItem(JCR_TITLE).getNodeValue()
                                     : tabNode.getNodeName();
 
-                            tabs.add(tabTitle);
+                            TabData tabData = new TabData(tabTitle);
                             log.info("[parseProjectTabsFromDialog] ➕ Project Tab detected: {}", tabTitle);
+
+                            // ✅ PARSE FIELDS INSIDE THIS TAB
+                            parseFieldNodes
+                                    (tabNode, tabData);
+
+                            tabs.add(tabData);
                         }
                     }
                 }
@@ -2231,10 +2261,10 @@ public class ComponentServiceImpl implements ComponentService {
      * @return A list of tab titles found in the core dialog. Returns an empty list if none are found.
      * @throws Exception If an error occurs while reading or parsing the dialog file.
      */
-    private List<String> parseCoreTabsFromDialog(File dialogFile) throws Exception {
+    private List<TabData>  parseCoreTabsFromDialog(File dialogFile) throws Exception {
         log.info("[parseCoreTabsFromDialog] Parsing core dialog for tabs: {}", dialogFile.getAbsolutePath());
 
-        List<String> tabs = new ArrayList<>();
+        List<TabData> tabs = new ArrayList<>();
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         factory.setNamespaceAware(true);
         DocumentBuilder builder = factory.newDocumentBuilder();
@@ -2267,51 +2297,178 @@ public class ComponentServiceImpl implements ComponentService {
      * @param node The XML node to inspect recursively.
      * @param tabs The list to populate with discovered tab titles.
      */
-    private void parseTabsRecursive(org.w3c.dom.Node node, List<String> tabs) {
-        if (node.getNodeType() != org.w3c.dom.Node.ELEMENT_NODE) {
-            return;
-        }
+    private void parseTabsRecursive(Node node, List<TabData> tabs) {
 
-        NamedNodeMap attrs = node.getAttributes();
-
-        boolean isTabsNode = TYPE_TABS.equals(node.getNodeName()) ||
-                (attrs != null && attrs.getNamedItem(SLING_RESOURCE_TYPE) != null &&
-                        GRANITE_TABS.equals(attrs.getNamedItem(SLING_RESOURCE_TYPE).getNodeValue()));
-
-        if (isTabsNode) {
-            log.info("[parseTabsRecursive] Found <tabs> node at '{}'", node.getNodeName());
-
+        if (isTabsNode(node)) {
             NodeList itemsNodes = node.getChildNodes();
+
             for (int i = 0; i < itemsNodes.getLength(); i++) {
-                org.w3c.dom.Node itemsNode = itemsNodes.item(i);
-                if (!ITEMS.equals(itemsNode.getNodeName())) continue;
+                Node items = itemsNodes.item(i);
 
-                NodeList tabNodes = itemsNode.getChildNodes();
+                if (!"items".equals(items.getNodeName())) continue;
+
+                NodeList tabNodes = items.getChildNodes();
+
                 for (int j = 0; j < tabNodes.getLength(); j++) {
-                    org.w3c.dom.Node tabNode = tabNodes.item(j);
-                    if (tabNode.getNodeType() != org.w3c.dom.Node.ELEMENT_NODE) continue;
+                    Node tabNode = tabNodes.item(j);
 
-                    NamedNodeMap tabAttrs = tabNode.getAttributes();
-                    if (tabAttrs == null) continue;
+                    if (!isContainerTab(tabNode)) continue;
 
-                    org.w3c.dom.Node resTypeAttr = tabAttrs.getNamedItem(SLING_RESOURCE_TYPE);
-                    if (resTypeAttr != null && GRANITE_CONTAINER.equals(resTypeAttr.getNodeValue())) {
-                        org.w3c.dom.Node titleAttr = tabAttrs.getNamedItem(JCR_TITLE);
-                        String tabTitle = (titleAttr != null) ? titleAttr.getNodeValue() : tabNode.getNodeName();
-                        tabs.add(tabTitle);
-                        log.info("[parseTabsRecursive] ➕ Core Tab detected: {}", tabTitle);
-                    }
+                    String tabTitle = getTabTitle(tabNode);
 
-                    // Recursive call for nested structures
+                    TabData tabData = new TabData(tabTitle);
+
+                    // ✅ parse fields in this tab
+                    parseFieldNodes(tabNode, tabData);
+
+                    tabs.add(tabData);
+
+                    // Recursively check nested dialogs
                     parseTabsRecursive(tabNode, tabs);
                 }
             }
+
         } else {
             NodeList children = node.getChildNodes();
             for (int i = 0; i < children.getLength(); i++) {
                 parseTabsRecursive(children.item(i), tabs);
             }
         }
+    }
+
+    // helper: a more forgiving set of "field" patterns (not just exact matches)
+    private static final Set<String> FIELD_TYPE_SUFFIXES = Set.of(
+            "/form/textfield",
+            "/form/textarea",
+            "/form/select",
+            "/form/numberfield",
+            "/form/pathfield",
+            "/form/fileupload",
+            "/form/radiogroup",
+            "/form/checkbox",
+            "/form/multifield",
+            "/foundation/form/textfield",     // some variants
+            "/foundation/form/textarea",
+            "/coral/foundation/form/textfield",
+            "/coral/foundation/form/textarea",
+            "/coral/foundation/form/select",
+            "/coral/foundation/form/numberfield",
+            "/coral/foundation/form/pathfield",
+            "/cq/gui/components/authoring/dialog/field" // legacy-ish fallback
+    );
+
+    // Improved field detector: true if node looks like a field
+    private boolean isFieldNode(Node node) {
+        if (node == null || node.getNodeType() != Node.ELEMENT_NODE) return false;
+
+        NamedNodeMap attrs = node.getAttributes();
+        if (attrs != null) {
+            Node rt = attrs.getNamedItem(SLING_RESOURCE_TYPE);
+            if (rt != null) {
+                String rtVal = rt.getNodeValue();
+                if (rtVal != null) {
+                    // direct suffix match
+                    for (String suffix : FIELD_TYPE_SUFFIXES) {
+                        if (rtVal.endsWith(suffix) || rtVal.contains(suffix)) {
+                            return true;
+                        }
+                    }
+                    // exact common type checks (optional)
+                    if (rtVal.equals("granite/ui/components/coral/foundation/form/field")
+                            || rtVal.equals("granite/ui/components/coral/foundation/form")) {
+                        return true;
+                    }
+                }
+            }
+
+            // Sometimes the field type is expressed via a property like "xtype" or "fieldLabel" in legacy dialogs.
+            Node xtype = attrs.getNamedItem("xtype");
+            if (xtype != null) {
+                String xtypeVal = xtype.getNodeValue();
+                if (xtypeVal != null && (xtypeVal.contains("textfield") || xtypeVal.contains("textarea") || xtypeVal.contains("select"))) {
+                    return true;
+                }
+            }
+        }
+
+        // fallback: node name looks like a field (e.g. "title", "description", "alignment")
+        String nodeName = node.getNodeName();
+        if (nodeName != null) {
+            String lower = nodeName.toLowerCase();
+            if (lower.contains("title") || lower.contains("text") || lower.contains("description") || lower.contains("align") || lower.contains("padding") || lower.contains("field") || lower.contains("path")) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Robust parseFields implementation
+    private void parseFieldNodes(Node node, TabData tabData) {
+        if (node == null) return;
+
+        NodeList children = node.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node child = children.item(i);
+            if (child.getNodeType() != Node.ELEMENT_NODE) continue;
+
+            if (isFieldNode(child)) {
+                NamedNodeMap attrs = child.getAttributes();
+
+                // ✅ field name must come from "name" attribute
+                String fieldName = attrs.getNamedItem("name") != null
+                        ? attrs.getNamedItem("name").getNodeValue()
+                        : child.getNodeName();
+
+                // ✅ Make the type readable
+                String type = attrs.getNamedItem(SLING_RESOURCE_TYPE).getNodeValue();
+                type = type.substring(type.lastIndexOf('/') + 1); // after last slash
+
+                tabData.addField(new FieldData(fieldName, type));
+
+                log.info("[parseFieldNodes] ✅ Field detected in tab '{}': {} ({})",
+                        tabData.getName(), fieldName, type);
+            }
+
+            // ✅ recursion for nested items or containers
+            parseFieldNodes(child, tabData);
+        }
+    }
+
+    private boolean isTabsNode(Node node) {
+        if (node.getNodeType() != Node.ELEMENT_NODE) return false;
+
+        NamedNodeMap attrs = node.getAttributes();
+        if (attrs == null) return false;
+
+        // resourceType="granite/ui/components/coral/foundation/tabs"
+        Node resType = attrs.getNamedItem(SLING_RESOURCE_TYPE);
+        if (resType != null && GRANITE_TABS.equals(resType.getNodeValue())) {
+            return true;
+        }
+
+        // <tabs> node
+        return "tabs".equals(node.getNodeName());
+    }
+    private boolean isContainerTab(Node node) {
+        if (node.getNodeType() != Node.ELEMENT_NODE) return false;
+
+        NamedNodeMap attrs = node.getAttributes();
+        if (attrs == null) return false;
+
+        Node resType = attrs.getNamedItem(SLING_RESOURCE_TYPE);
+        if (resType == null) return false;
+
+        return GRANITE_CONTAINER.equals(resType.getNodeValue());
+    }
+    private String getTabTitle(Node tabNode) {
+        NamedNodeMap attrs = tabNode.getAttributes();
+        if (attrs == null) return tabNode.getNodeName();
+
+        Node title = attrs.getNamedItem(JCR_TITLE);
+        if (title != null) return title.getNodeValue();
+
+        return tabNode.getNodeName();
     }
 
     /**
@@ -2333,6 +2490,7 @@ public class ComponentServiceImpl implements ComponentService {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         factory.setNamespaceAware(true);
         DocumentBuilder builder = factory.newDocumentBuilder();
+
         Document doc = builder.parse(compContentFile);
 
         NodeList rootNodes = doc.getElementsByTagName("*");

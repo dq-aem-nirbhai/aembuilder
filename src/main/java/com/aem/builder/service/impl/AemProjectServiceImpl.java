@@ -280,6 +280,20 @@ public class AemProjectServiceImpl implements AemProjectService {
             } else {
                 log.info("[getAllProjects] pom.xml not found for project '{}'", projectName);
             }
+            String dateLabel;
+            String effectiveDate;
+
+            if (createdDate != null && !createdDate.equals("Unknown")) {
+                dateLabel = "Created";
+                effectiveDate = createdDate;
+            } else if (cloneDate != null && !cloneDate.equals("Unknown")) {
+                dateLabel = "Cloned";
+                effectiveDate = cloneDate;
+            } else {
+                dateLabel = "Imported";
+                effectiveDate = importDate;
+            }
+
 
             projects.add(new ProjectDetails(
                     displayName,
@@ -289,7 +303,9 @@ public class AemProjectServiceImpl implements AemProjectService {
                     createdDate,
                     importDate,
                     cloneDate,
-                    projectPath.toString()
+                    projectPath.toString(),
+                    dateLabel,
+                    effectiveDate
             ));
         }
 

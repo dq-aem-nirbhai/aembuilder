@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const projectnameInput = document.getElementById("projectname");
     const nameInput = document.getElementById("name");
-    const titleInput = document.getElementById("title");
+
     const descriptionInput = document.getElementById("description");
     const statusInput = document.getElementById("status");
     const templatetypeSelect = document.getElementById("templatetype");
@@ -88,7 +88,6 @@ document.addEventListener("DOMContentLoaded", function () {
         event.preventDefault();
 
         const name = nameInput.value.trim();
-        const title = titleInput.value.trim();
         const description = descriptionInput.value.trim();
         const status = statusInput.value;
         const templateType = templatetypeSelect.value;
@@ -104,7 +103,7 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        const data = { name, title, description, status, templateType };
+        const data = { name, description, status, templateType };
 
         // Show spinner immediately
         spinnerOverlay.classList.remove("d-none");

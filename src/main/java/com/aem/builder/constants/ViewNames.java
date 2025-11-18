@@ -14,7 +14,7 @@ public final class ViewNames {
     
     /*URL Redirections...*/
     public static final String CREATE_TEMPLATE_VIEW = "createtemplate";
-    public static final String TEMPLATE_UI = "template-ui";
+    public static final String TEMPLATE_UI = "template-update";
     public static final String DASHBOARD = "dashboard";
     public static final String CREATE = "create";
     public static final String POLICES="policies";
