@@ -16,4 +16,5 @@ public class TemplateModel {
     private String status;
     private String templateType; // <--- CHANGE THIS TO camelCase
 
+
 }

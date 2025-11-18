@@ -19,7 +19,7 @@ public interface AemProjectService {
      * @param projectModel the project configuration
      * @throws IOException if project generation fails
      */
-    void generateProject(AemProjectModel projectModel) throws IOException;
+    void generateProject(AemProjectModel projectModel, boolean lombok) throws IOException;
 
     /**
      * Retrieves the list of all existing projects.

@@ -158,4 +158,52 @@ public class PomXmlUtil {
         }
         return null;
     }
+    public static void ensureAllDatesPresent(Path pomFile) {
+        try {
+            Document doc = loadDocument(pomFile);
+
+            Element props = (Element) doc.getElementsByTagName("properties").item(0);
+            if (props == null) return;
+
+            if (props.getElementsByTagName("createdDate").getLength() == 0) {
+                appendTag(doc, props, "createdDate", "Unknown");
+            }
+            if (props.getElementsByTagName("importDate").getLength() == 0) {
+                appendTag(doc, props, "importDate", "Unknown");
+            }
+            if (props.getElementsByTagName("cloneDate").getLength() == 0) {
+                appendTag(doc, props, "cloneDate", "Unknown");
+            }
+
+            saveDocument(doc, pomFile);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static Document loadDocument(Path filePath) throws Exception {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setIgnoringElementContentWhitespace(true);
+
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        return builder.parse(filePath.toFile());
+    }
+    public static void saveDocument(Document doc, Path filePath) throws Exception {
+        TransformerFactory transformerFactory = TransformerFactory.newInstance();
+        Transformer transformer = transformerFactory.newTransformer();
+
+        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+
+        DOMSource source = new DOMSource(doc);
+        StreamResult result = new StreamResult(filePath.toFile());
+
+        transformer.transform(source, result);
+    }
+    public static void appendTag(Document doc, Element parent, String tagName, String value) {
+        Element newTag = doc.createElement(tagName);
+        newTag.setTextContent(value);
+        parent.appendChild(newTag);
+    }
+
 }

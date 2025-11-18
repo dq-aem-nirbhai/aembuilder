@@ -56,4 +56,22 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         })
         .catch(error => console.error("Error loading template types:", error));
+
+        // ✅ Delete button functionality
+            const deleteBtn = document.getElementById("delete-template-btn");
+            if (deleteBtn) {
+                deleteBtn.addEventListener("click", () => {
+                    const confirmed = confirm("Are you sure you want to delete this template? This action cannot be undone.");
+                    if (confirmed) {
+                        const deleteForm = document.getElementById("deleteForm");
+                        if (deleteForm) {
+                            deleteForm.submit();
+                        } else {
+                            console.error("Delete form not found in DOM.");
+                            alert("Error: Delete form not found. Please reload the page and try again.");
+                        }
+                    }
+                });
+            }
+
 });

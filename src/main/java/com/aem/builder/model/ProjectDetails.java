@@ -16,4 +16,6 @@ public class ProjectDetails {
     private String importDate;
     private String cloneDate;
     private String path;
+    private String dateLabel;
+    private String effectiveDate;
 }

@@ -37,6 +37,7 @@ public final class UrlMappings {
     // ------------------- REDIRECT -------------------
     public static final String REDIRECT_VIEW_PROJECT_URL = "redirect:/view/{projectName}";
 
+//----------------------Template------------------
     public static final String SHOW_FOLDER_URL = "/show-folder";
     public static final String FETCH_TEMPLATES = "/fetch-templates/{projectname}";
     public static final String ADD_TEMPLATE = "/add-template/{projectname}";
@@ -46,7 +47,8 @@ public final class UrlMappings {
     public static final String TEMPLATE_TYPES = "/template-types/{projectName}";
     public static final String EDIT_TEMPLATE = "/{projectName}/edittemplate";
     public static final String UPDATE_TEMPLATE = "/{projectname}/updatetemplate/{templateName}";
-
+    public static final String DELETE_TEMPLATE="/{projectName}/deletetemplate/{templateName}";
+//---------------------policy--------------------------------------------
     public static final String ADD_OR_UPDATE_POLICY = "/policies/add/{projectName}";
     public static final String REDIRECT_POLICY_FORM = "/{projectName}/addpolicy";
     public static final String GET_EXISTING_POLICIES = "/get-existing-policies";
@@ -64,7 +66,7 @@ public final class UrlMappings {
 
 
     public static final String FETCH_TOOLS="/fetchtools/{projectname}";
-    public static final String ADD_TOOL="/add/{projectname}";
+    public static final String ADD_TOOL="/add-tool/{projectname}";
     public static final String EXISTING_TOOLS="/existingtools/{projectname}";
     public static final String TOOL="/tools";
 
