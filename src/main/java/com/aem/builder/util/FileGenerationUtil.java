@@ -2389,9 +2389,11 @@ public class FileGenerationUtil {
         log.info("HTL updated successfully for component '{}'", request.getComponentName());
     }
 
+
     public static boolean isLombokEnabled(Path corePom) throws IOException {
         if (!Files.exists(corePom)) return false;
         String content = Files.readString(corePom);
         return content.contains("<artifactId>lombok</artifactId>");
     }
+
 }
