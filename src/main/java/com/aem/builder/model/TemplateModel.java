@@ -12,9 +12,9 @@ import lombok.NoArgsConstructor;
 public class TemplateModel {
 
     private String name;
-    private String title;
     private String description;
     private String status;
     private String templateType; // <--- CHANGE THIS TO camelCase
+
 
 }

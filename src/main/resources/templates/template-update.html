@@ -13,13 +13,14 @@
 <div class="container mt-5">
     <a th:href="@{'/view/' + ${projectName}}" class="btn btn-outline-secondary mb-3">← Back to DeployPage</a>
     <form id="templateForm"
-          th:action="@{'/' + ${projectName} + '/updatetemplate/'+${tempname}}"
+          th:action="@{'/' + ${projectName} + '/updatetemplate/' + ${tempname}}"
           th:object="${template}" method="post" class="card p-4 shadow-sm rounded-4">
 
         <input type="hidden" id="projectname" th:value="${projectName}"/>
 
         <div class="form-group mb-3">
-            <h2 class="mb-4 animate__animated animate__fadeInDown" th:text="${editMode} ? 'Edit Template' : 'Create Template'"></h2>
+            <h2 class="mb-4 animate__animated animate__fadeInDown"
+                th:text="${editMode} ? 'Edit Template' : 'Create Template'"></h2>
             <label for="templatetype" class="form-label">Template Type:</label>
             <select id="templatetype"
                     name="templatetype"
@@ -37,11 +38,6 @@
         </div>
 
         <div class="mb-3">
-            <label for="templateTitle" class="form-label">Title</label>
-            <input type="text" class="form-control" th:field="*{title}" id="title" required/>
-        </div>
-
-        <div class="mb-3">                                                                                                                                        
             <label for="templateDescription" class="form-label">Description</label>
             <input type="text" class="form-control" th:field="*{description}" id="description"/>
         </div>
@@ -54,10 +50,30 @@
             </select>
         </div>
 
-        <button type="submit" class="btn btn-primary w-100"
-                th:text="${editMode} ? 'Update Template' : 'Create Template'">
-        </button>
+        <!-- Action Buttons -->
+        <div class="d-flex justify-content-between">
+            <button type="submit" class="btn btn-primary flex-fill me-2"
+                    th:text="${editMode} ? 'Update Template' : 'Create Template'">
+            </button>
+
+            <!-- Delete Button (only in Edit mode) -->
+            <button type="button"
+                    class="btn btn-danger flex-fill ms-2"
+                    th:if="${editMode}"
+                    id="delete-template-btn">
+                Delete Template
+            </button>
+        </div>
+
+
         <div id="response" class="mt-3"></div>
+    </form>
+
+    <!-- Hidden Delete Form -->
+    <form id="deleteForm"
+          th:action="@{'/' + ${projectName} + '/deletetemplate/' + ${tempname}}"
+          method="post"
+          style="display: none;">
     </form>
 </div>
 
