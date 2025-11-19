@@ -1,5 +1,6 @@
 package com.aem.builder.service.impl;
 
+import com.aem.builder.jUnits.JunitsForSlingModels;
 import com.aem.builder.model.DTO.ComponentField;
 import com.aem.builder.model.DTO.ComponentRequest;
 import com.aem.builder.model.DTO.OptionItem;
@@ -36,6 +37,7 @@ import static com.aem.builder.constants.AemProjectConstants.USER_DIR_SYS_PROP;
 import static com.aem.builder.constants.AemProjectConstants.UTF_8;
 import static com.aem.builder.constants.ComponentConstants.*;
 import static com.aem.builder.constants.ModelAttributeKeys.*;
+import static org.apache.tomcat.util.IntrospectionUtils.capitalize;
 
 @Service
 @RequiredArgsConstructor
@@ -414,16 +416,28 @@ public class ComponentServiceImpl implements ComponentService {
         try {
             FileUtils.deleteDirectory(new File(compPath));
             log.info("[deleteComponent] Deleted component folder '{}'", compPath);
+
         } catch (IOException e) {
             log.error("[deleteComponent] Failed to delete component folder for '{}'", componentName, e);
         }
 
+        // Delete Sling Models + their JUnit test classes
         try (Stream<Path> paths = Files.walk(javaRoot)) {
             paths.filter(p -> javaClassesToDelete.contains(p.getFileName().toString()))
                     .forEach(p -> {
                         try {
+                            String classFile = p.getFileName().toString();
+                            String className = classFile.replace(".java", "");
+                            String basePackage = "com.aem." + projectName + ".core.models";
+
+                            // Delete JUnit before model class
+                            log.info("[deleteComponent] Calling JunitsForSlingModels for deleting jUnit Test class '{}'", p);
+                            JunitsForSlingModels.deleteJUnitForModel(projectName, basePackage, className);
+
+                            // Then delete the actual model Java file
                             Files.deleteIfExists(p);
                             log.info("[deleteComponent] Deleted Java class '{}'", p);
+
                         } catch (IOException ex) {
                             log.error("[deleteComponent] Failed to delete Java class '{}'", p, ex);
                         }

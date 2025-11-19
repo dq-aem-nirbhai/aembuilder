@@ -1,6 +1,7 @@
 package com.aem.builder.util;
 
 import com.aem.builder.config.ConfigLoader;
+import com.aem.builder.jUnits.JunitsForSlingModels;
 import com.aem.builder.model.DTO.ComponentField;
 import com.aem.builder.model.DTO.ComponentRequest;
 import com.aem.builder.model.DTO.OptionItem;
@@ -37,6 +38,7 @@ import java.util.stream.Stream;
 
 import static com.aem.builder.constants.ComponentConstants.*;
 import static com.aem.builder.constants.ModelAttributeKeys.PROJECTS_DIR;
+import static com.aem.builder.jUnits.JunitsForSlingModels.generateJUnitTestForModel;
 import static com.aem.builder.util.XmlUtil.formatXml;
 
 /**
@@ -44,7 +46,6 @@ import static com.aem.builder.util.XmlUtil.formatXml;
  */
 @Slf4j
 public class FileGenerationUtil {
-
 
     /**
      * Generates all files required for a component in the given project.
@@ -647,6 +648,7 @@ public class FileGenerationUtil {
      * </p>
      *
      * @param modelBasePath output folder path
+     * @param modelBasePath output folder path
      * @param packageName   Java package
      * @param componentName component name (used for class name)
      * @param fields        list of dialog fields
@@ -713,8 +715,17 @@ public class FileGenerationUtil {
 
 
         log.info("{} Sling Model generated at {}/{}.java", MODEL_GEN_PREFIX, modelBasePath, className);
-    }
 
+        try {
+
+            String testBasePath = modelBasePath.replace("main", "test");
+            log.info("{} testBasePath :"+ testBasePath);
+            JunitsForSlingModels.generateJUnitTestForModel(projectName, modelBasePath, testBasePath, packageName, className);
+
+        } catch (Exception e) {
+            log.info("{} Failed to generate JUnit test for {}", MODEL_GEN_PREFIX, className, e);
+        }
+    }
 
     /**
      * Recursively adds fields to the Sling Model class.
@@ -861,6 +872,18 @@ public class FileGenerationUtil {
 
         log.info("{} Child Model '{}' generated at {}/{}.java with {} fields",
                 MODEL_GEN_PREFIX, className, modelBasePath, className, generatedFields.size());
+
+        try {
+
+            String testBasePath = modelBasePath.replace("main", "test");
+
+            JunitsForSlingModels.generateJUnitTestForModel(projectName, modelBasePath, testBasePath, packageName, className);
+
+            log.info("{} JUnit Test generated for multifield model '{}'", MODEL_GEN_PREFIX, className);
+        } catch (Exception e) {
+            log.warn("{} Failed to generate JUnit test for multifield '{}'", MODEL_GEN_PREFIX, className, e);
+        }
+
     }
 
 
@@ -1212,7 +1235,6 @@ public class FileGenerationUtil {
         log.info("{}: Deepest <items> position found at {}", METHOD, deepestPos);
         return deepestPos != -1 ? deepestPos : xml.length();
     }
-
 
     //-------------------- update files --------------------
 
@@ -1910,22 +1932,21 @@ public class FileGenerationUtil {
         log.info("patchSlingModel Method called....!!");
 
         String content = Files.readString(javaFile);
-        log.info("patchSlingModel content ...!!" + content);
 
-        // 1️⃣ Extract existing fields
+        // Extract existing fields
         Map<String, String> existingFields = extractFieldMap(content);
         log.info("patchSlingModel existingFields ...!!" + existingFields);
 
-        // 2️⃣ Remove fields that no longer exist
+        // Remove fields that no longer exist
         for (String fieldName : new HashSet<>(existingFields.keySet())) {
             if (fields.stream().noneMatch(f -> f.getFieldName().equals(fieldName))) {
                 content = removeField(content, fieldName);
-                // 2️⃣ Try deleting nested multifield class (if exists)
+                // Try deleting nested multifield class (if exists)
                 deleteMultifieldClassIfExists(projectName, basePackage, fieldName);
             }
         }
 
-        // 3️⃣ Add or update fields
+        // Add or update fields
         for (ComponentField field : fields) {
 
             // If tab → add nested fields directly to main class
@@ -1945,6 +1966,7 @@ public class FileGenerationUtil {
                 }
                 continue; // skip creating a field for the tab itself
             }
+
 
             // Regular field
             if (fieldExists(content, field.getFieldName())) {
@@ -1966,6 +1988,42 @@ public class FileGenerationUtil {
         content = updateIsEmpty(content, fields);
 
         Files.writeString(javaFile, content);
+        // Format the updated Sling Model file
+        log.info("Formatted Sling Model: {}", javaFile.getFileName());
+
+        try {
+            // Define correct base paths
+            String modelBasePath = Paths.get("generated-projects", projectName, "core/src/main/java").toString();
+            String testBasePath = Paths.get("generated-projects", projectName, "core/src/test/java").toString();
+            log.info("modelBasePath : {}", modelBasePath);
+            log.info("testBasePath : {}", testBasePath);
+
+            // Extract class name (e.g., Snitch1Model)
+            String className = javaFile.getFileName().toString().replace(".java", "");
+            log.info("className : {}", className);
+
+            // Build proper model base path for tests (includes package)
+            String modelBasePathForTests = Paths.get(testBasePath, basePackage.replace(".", "/")).toString();
+            log.info("modelBasePathForTests : {}", modelBasePathForTests);
+
+            // Ensure package directories exist
+            Files.createDirectories(Paths.get(modelBasePathForTests));
+
+            // Generate/Update JUnit and JSON
+            JunitsForSlingModels.generateJUnitTestForModel(
+                    projectName,
+                    modelBasePath,
+                    testBasePath,
+                    basePackage,
+                    className
+            );
+
+            log.info("JUnit generated/updated for model: {} at {}", className, modelBasePathForTests);
+
+        } catch (Exception e) {
+            log.warn("Failed to generate or update JUnit for model {}: {}", javaFile.getFileName(), e.getMessage());
+        }
+
     }
     
     /**
@@ -1984,44 +2042,55 @@ public class FileGenerationUtil {
             } else {
                 log.info("No nested Sling Model found for multifield '{}'", fieldName);
             }
+
+            JunitsForSlingModels.deleteJUnitForModel(projectName, basePackage, nestedClassName);
+
         } catch (Exception e) {
             log.warn("Failed to delete nested Sling Model for field '{}': {}", fieldName, e.getMessage());
         }
     }
 
-
     private static String insertField(String content, ComponentField field,
                                       String packageName, String projectName) {
 
         String capName = capitalize(field.getFieldName());
+        String fieldCode;
 
-        // 1️⃣ Multifield / child element → List<NestedClass>
+        // Handle multifield or child
         if ("multifield".equalsIgnoreCase(field.getFieldType()) ||
                 "child".equalsIgnoreCase(field.getFieldType())) {
 
             String nestedClassName = capName;
-            String fieldCode =
+            fieldCode =
                     "    @ChildResource\n" +
                             "    private List<" + nestedClassName + "> " + field.getFieldName() + ";\n\n" +
                             "    public List<" + nestedClassName + "> get" + nestedClassName + "() {\n" +
                             "        return " + field.getFieldName() + ";\n" +
                             "    }\n\n";
-
-            int insertPos = content.lastIndexOf("}");
-            return content.substring(0, insertPos) + fieldCode + "}\n";
+        } else {
+            String type = mapFieldTypeToJavaType(field.getFieldType());
+            fieldCode =
+                    "    @ValueMapValue\n" +
+                            "    private " + type + " " + field.getFieldName() + ";\n\n" +
+                            "    public " + type + " get" + capName + "() {\n" +
+                            "        return " + field.getFieldName() + ";\n" +
+                            "    }\n\n";
         }
 
-        // 2️⃣ Single-value field → ValueMapValue
-        String type = mapFieldTypeToJavaType(field.getFieldType());
-        String fieldCode =
-                "    @ValueMapValue\n" +
-                        "    private " + type + " " + field.getFieldName() + ";\n\n" +
-                        "    public " + type + " get" + capName + "() {\n" +
-                        "        return " + field.getFieldName() + ";\n" +
-                        "    }\n\n";
+        // Find where to insert (before isEmpty() or its comment)
+        Pattern commentPattern = Pattern.compile("/\\*\\*\\s*\\*\\s*Checks if all fields.*?\\*/", Pattern.DOTALL);
+        Matcher matcher = commentPattern.matcher(content);
 
-        int insertPos = content.lastIndexOf("}");
-        return content.substring(0, insertPos) + fieldCode + "}\n";
+        int insertPos;
+        if (matcher.find()) {
+            insertPos = matcher.start(); // Insert before the comment
+        } else {
+            // fallback if comment not found
+            insertPos = content.lastIndexOf("}");
+        }
+
+        // Insert field code before isEmpty() comment/method
+        return content.substring(0, insertPos) + fieldCode + content.substring(insertPos);
     }
 
     private static boolean fieldExists(String content, String fieldName) {
@@ -2058,7 +2127,10 @@ public class FileGenerationUtil {
                 ""
         );
 
-        return content;
+        // Clean up any excessive blank lines left
+        content = content.replaceAll("(?m)(\\n\\s*){3,}", "\n\n");
+
+        return content.trim() + "\n";
     }
 
     // Update existing field type/annotation if needed
@@ -2092,7 +2164,6 @@ public class FileGenerationUtil {
         return content;
     }
 
-    // Rebuild isEmpty()
 
     /**
      * Recursive generator for multifield classes
@@ -2151,6 +2222,24 @@ public class FileGenerationUtil {
         content = updateIsEmpty(content, nestedFields);
 
         Files.writeString(javaFile, content);
+        log.info("Formatted nested multifield Sling Model: {}", javaFile.getFileName());
+
+        // ---- Generate or Update corresponding JUnit Test class ----
+        try {
+            String testBasePath = Paths.get("generated-projects", projectName,
+                    "core/src/test/java").toString();
+
+            String modelBasePath = Paths.get("generated-projects", projectName,
+                    "core/src/main/java", packageName.replace(".", "/")).toString();
+
+            // Always generate/update JUnit (even if it already exists)
+            generateJUnitTestForModel(projectName, modelBasePath,testBasePath, packageName, className);
+
+            log.info("JUnit generated/updated for multifield model: {}", className);
+        } catch (Exception e) {
+            log.warn("Failed to generate/update JUnit for multifield model {}: {}", className, e.getMessage());
+        }
+
     }
 
     private static String updateIsEmpty(String content, List<ComponentField> fields) {
