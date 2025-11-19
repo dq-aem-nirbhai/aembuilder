@@ -83,7 +83,7 @@ public class FileGenerationUtil {
             log.info("{} Package name: {}", METHOD_PREFIX, packageName);
             generateComponent(basePath, modelPath.toString(), packageName,
                     request.getComponentName(), request.getComponentGroup(),
-                    request.getSuperType(), request.getFields());
+                    request.getSuperType(), request.getFields(),projectName);
             log.info("{} Successfully generated all files for project: {}", METHOD_PREFIX, projectName);
         } catch (Exception e) {
             log.info("FILEGEN: GENERATEALLFILES - Error generating files for project: {}", projectName, e);
@@ -125,7 +125,7 @@ public class FileGenerationUtil {
      * HTL templates, dialog structure, and the Sling model if applicable.
      */
     public static void generateComponent(String basePath, String modelBasePath, String packageName,
-                                         String componentName, String componentGroup, String superType, List<ComponentField> fields) throws Exception {
+                                         String componentName, String componentGroup, String superType, List<ComponentField> fields,String projectName) throws Exception {
         final String METHOD_PREFIX = "COMPONENT: GENERATECOMPONENT -";
         log.info("{} Generating component '{}'", METHOD_PREFIX, componentName);
         String componentFolder = basePath + "/" + componentName;
@@ -146,7 +146,8 @@ public class FileGenerationUtil {
             generateDialogContentXml(componentName, dialogFolder, superType, fields);
         }
         if (!extendsComponent || hasFields) {
-            generateSlingModel(modelBasePath, packageName, componentName, fields);
+
+            generateSlingModel(modelBasePath, packageName, componentName, fields,projectName);
         }
         log.info("{} Finished generating component '{}'", METHOD_PREFIX, componentName);
     }
@@ -653,7 +654,7 @@ public class FileGenerationUtil {
      * @param fields        list of dialog fields
      */
     private static void generateSlingModel(String modelBasePath, String packageName,
-                                           String componentName, List<ComponentField> fields) throws Exception {
+                                           String componentName, List<ComponentField> fields,String projectName) throws Exception {
 
 
         log.info("{} Generating Sling Model for component '{}'", MODEL_GEN_PREFIX, componentName);
@@ -666,17 +667,26 @@ public class FileGenerationUtil {
 
         Map<String, Object> config = ConfigLoader.loadConfig("slingmodel.json");
 
+        String project=PROJECTS_DIR + "/" + projectName+"/core/pom.xml" ;
 
+        Path projectPath=Paths.get(project);
+        boolean lombokEnabled = isLombokEnabled(projectPath);
         StringBuilder sb = new StringBuilder();
         sb.append(((Map<String, String>) config.get("classTemplate")).get("package").replace("{packageName}", packageName))
                 .append("\n\n")
-                .append(IMPORTS_BLOCK)
-                .append(MODEL_ANNOTATION)
-                .append(((Map<String, String>) config.get("classTemplate")).get("classDeclaration").replace("{className}", className))
+                .append(IMPORTS_BLOCK);
+        if (lombokEnabled) {
+            sb.append("import lombok.Getter;\n");
+        }
+        sb.append(MODEL_ANNOTATION);
+        if (lombokEnabled) {
+            sb.append("@Getter\n");
+        }
+                sb.append(((Map<String, String>) config.get("classTemplate")).get("classDeclaration").replace("{className}", className))
                 .append("\n\n");
 
 
-        List<ComponentField> generatedFields = addFieldsToModel(sb, modelBasePath, packageName, componentName, fields);
+        List<ComponentField> generatedFields = addFieldsToModel(sb, modelBasePath, packageName, componentName, fields,projectName);
         log.info("{} Fields processed: {}", MODEL_GEN_PREFIX, generatedFields);
 
 
@@ -732,7 +742,7 @@ public class FileGenerationUtil {
      * @throws Exception If file generation fails
      */
     private static List<ComponentField> addFieldsToModel(StringBuilder sb, String modelBasePath, String packageName,
-                                                         String componentName, List<ComponentField> fields) throws Exception {
+                                                         String componentName, List<ComponentField> fields,String projectName) throws Exception {
 
 
         List<ComponentField> generatedFields = new ArrayList<>();
@@ -752,7 +762,7 @@ public class FileGenerationUtil {
             // Handle "tabs": skip the tab itself, but process its children
             if (TYPE_TABS.equals(type)) {
                 log.info("MODEL: Skipping tab '{}' but processing nested fields", name);
-                List<ComponentField> nestedFields = addFieldsToModel(sb, modelBasePath, packageName, componentName, field.getNestedFields());
+                List<ComponentField> nestedFields = addFieldsToModel(sb, modelBasePath, packageName, componentName, field.getNestedFields(),projectName);
                 if (nestedFields != null) generatedFields.addAll(nestedFields);
                 continue;
             }
@@ -764,7 +774,7 @@ public class FileGenerationUtil {
             // Generate code based on field type
             switch (type) {
                 case TYPE_MULTIFIELD -> {
-                    generateChildModelClass(modelBasePath, packageName, componentName, field);
+                    generateChildModelClass(modelBasePath, packageName, componentName, field,projectName);
                     sb.append("    ").append(CHILD_RESOURCE_ANNOTATION)
                             .append("\n    private List<").append(capitalize(name)).append("> ").append(name).append(";\n\n");
                 }
@@ -788,7 +798,7 @@ public class FileGenerationUtil {
 
 
 // Inside addFieldsToModel
-            addGetter(sb, field, config);
+            addGetter(sb, field, config,projectName);
 
 
             // Add to generated list for isEmpty() check
@@ -815,10 +825,14 @@ public class FileGenerationUtil {
      * @throws Exception If file creation fails
      */
     private static void generateChildModelClass(String modelBasePath, String packageName,
-                                                String parentComponentName, ComponentField parentField) throws Exception {
+                                                String parentComponentName, ComponentField parentField,String projectName) throws Exception {
 
 
         String className = capitalize(parentField.getFieldName());
+        String project=PROJECTS_DIR + "/" + projectName+"/core/pom.xml" ;
+
+        Path projectPath=Paths.get(project);
+        boolean lombokEnabled = isLombokEnabled(projectPath);
         log.info("{} Generating Child Model for multifield '{}' in component '{}'",
                 MODEL_GEN_PREFIX, parentField.getFieldName(), parentComponentName);
 
@@ -831,15 +845,23 @@ public class FileGenerationUtil {
 
 
         sb.append(classTemplate.get("package").replace("{packageName}", packageName)).append("\n\n")
-                .append(IMPORTS_BLOCK)
-                .append(MODEL_ANNOTATION)
-                .append(classTemplate.get("classDeclaration").replace("{className}", className))
+                .append(IMPORTS_BLOCK);
+        if (lombokEnabled) {
+            sb.append("import lombok.Getter;\n\n");
+        }
+
+                sb.append(MODEL_ANNOTATION);
+
+        if (lombokEnabled) {
+            sb.append("@Getter\n");
+        }
+                sb.append(classTemplate.get("classDeclaration").replace("{className}", className))
                 .append("\n\n");
 
 
         // Recursively add fields from multifield
         List<ComponentField> generatedFields = addFieldsToModel(sb, modelBasePath, packageName,
-                parentComponentName, parentField.getNestedFields());
+                parentComponentName, parentField.getNestedFields(),projectName);
 
 
         sb.append(classTemplate.get("closingBrace"));
@@ -877,21 +899,27 @@ public class FileGenerationUtil {
      * @param field  ComponentField for which the getter is generated
      * @param config JSON configuration map containing getter templates
      */
-    private static void addGetter(StringBuilder sb, ComponentField field, Map<String, Object> config) {
-        String name = field.getFieldName();
-        String cap = capitalize(name);
-        String type = field.getFieldType().toLowerCase();
+    private static void addGetter(StringBuilder sb, ComponentField field, Map<String, Object> config,String projectName) throws Exception{
+        String project=PROJECTS_DIR + "/" + projectName+"/core/pom.xml" ;
+
+        Path projectPath=Paths.get(project);
+        boolean lombokEnabled = isLombokEnabled(projectPath);
+        if(!lombokEnabled) {
+            String name = field.getFieldName();
+            String cap = capitalize(name);
+            String type = field.getFieldType().toLowerCase();
 
 
-        Map<String, String> getterTemplates = (Map<String, String>) config.get("getterTemplates");
-        String template = getterTemplates.getOrDefault(type, getterTemplates.get("default"));
+            Map<String, String> getterTemplates = (Map<String, String>) config.get("getterTemplates");
+            String template = getterTemplates.getOrDefault(type, getterTemplates.get("default"));
 
 
-        String getterCode = template.replace("{name}", name).replace("{cap}", cap).replace("{type}", cap);
-        sb.append("    ").append(getterCode).append("\n\n");
+            String getterCode = template.replace("{name}", name).replace("{cap}", cap).replace("{type}", cap);
+            sb.append("    ").append(getterCode).append("\n\n");
 
 
-        log.debug("{} Getter generated for field '{}' of type '{}'", MODEL_GEN_PREFIX, name, type);
+            log.debug("{} Getter generated for field '{}' of type '{}'", MODEL_GEN_PREFIX, name, type);
+        }
     }
 
 

@@ -67,4 +67,6 @@ public interface TemplateService {
      */
     void updateTemplate(TemplateModel updatedModel, String projectName, String oldTemplateName)
             throws ParserConfigurationException, IOException, SAXException, TransformerException;
+
+    void deleteTemplate(String projectName, String templateName);
 }

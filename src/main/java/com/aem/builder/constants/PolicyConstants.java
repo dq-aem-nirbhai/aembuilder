@@ -30,6 +30,8 @@ public final class PolicyConstants {
     public static final String STYLES_NODE = "cq:styles";
     public static final String ROOT_NODE = "root";           // used in template mapping
     public static final String CONTAINER_NODE = "container"; // used in template mapping
+public static final String XML_ROOT="jcr:root";
+
 
     // ----------------- JCR attributes -----------------
     public static final String ATTR_PRIMARY_TYPE = "jcr:primaryType";
@@ -68,6 +70,7 @@ public final class PolicyConstants {
     public static final String COMPONENT_XFPAGE_PATH = "/components/xfpage";
     public static final String JCR_CONTENT_TAG = "jcr:content";
     public static final String ATTR_TEMPLATE_TYPE = "cq:templateType";
+    public static final String ATTR_TEMPLATE="cq:template";
     public static final String CONF_PATH = "/conf/";
     public static final String POLICIES_BASE_PATH = "generated-projects/%s/ui.content/src/main/content/jcr_root/conf/%s/settings/wcm/policies/.content.xml";
     public static final String GENERATED_PROJECTS_PATH = "generated-projects/";
@@ -75,6 +78,7 @@ public final class PolicyConstants {
     public static final String POLICIES_SUBPATH = "/policies/.content.xml";
     public static final String POLICIES_PATH = "/settings/wcm/policies/.content.xml";
 
+    public static final String CONTAINER_PATH="/components/container";
     // XML attribute constants
 
     public static final String TAG_STYLE_GROUPS = "cq:styleGroups";
@@ -94,5 +98,28 @@ public final class PolicyConstants {
     public static final String ATTR_STYLE_DEFAULT_ELEMENT = "cq:styleDefaultElement";
     public static final String STATUS="status";
     public static final String ATT_DESCRIPTION="jcr:description";
+
+
+    public static final String ATT_XMLNS_SLING="xmlns:sling";
+    public static final String ATT_XMLNS_CQ="xmlns:cq";
+    public static final String ATT_XMLNS_JCR="xmlns:jcr";
+    public static final String ATT_XMLNS_NT="xmlns:nt";
+    public static final String ATT_XMLNS_SLING_VALUE="http://sling.apache.org/jcr/sling/1.0";
+    public static final String ATT_XMLNS_CQ_VALUE="http://www.day.com/jcr/cq/1.0";
+    public static final String ATT_XMLNS_JCR_VALUE="http://www.jcp.org/jcr/1.0";
+    public static final String ATT_XMLNS_NT_VALUE="http://www.jcp.org/jcr/nt/1.0";
+    public static final String EXPERIENCE_HEADER="experiencefragment-header";
+    public static final String EXPERIENCEFRAGMENT_PATH = "/components/experiencefragment";
+    public static final String XF_HEADER_PATH = "/content/experience-fragments/%s/language-masters/en/site/header/master";
+    public static final String EDITABLE="editable";
+    public static final String COMPONENT_PAGE="/components/page";
+    public static final String LANGUAGE_MASTER="/language-masters/en/site/header/master";
+    public static final String EXP_FRAGMENT="/content/experience-fragments/";
+    public static final String EDITABLE_VALUE="{Boolean}true";
+    public static final String LAYOUT="layout";
+    public static final String LAYOUT_VALUE="responsiveGrid";
+    public static final String FRAG_VAR="fragmentVariationPath";
+    public static final String CONTENT_XML=".content.xml";
+
 
 }

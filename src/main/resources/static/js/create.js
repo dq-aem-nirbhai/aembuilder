@@ -10,24 +10,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let selectedComponents = [];
 
+  // --- Normalize backend values to strings safely ---
+  function normalizeItem(item) {
+    if (typeof item === "string") return item;
+    if (item && typeof item === "object") {
+      return item.name || JSON.stringify(item);
+    }
+    return String(item);
+  }
+
   // --- Project name formatting & package auto-generation ---
   projectInput.addEventListener("input", function () {
     let rawValue = this.value;
     rawValue = rawValue.replace(/^[^a-zA-Z_]+/, "");
     rawValue = rawValue.replace(/[^a-zA-Z0-9_]/g, "");
-    if (rawValue.length > 0) rawValue = rawValue.charAt(0).toUpperCase() + rawValue.slice(1);
+
+    if (rawValue.length > 0) {
+      rawValue = rawValue.charAt(0).toUpperCase() + rawValue.slice(1);
+    }
+
     rawValue = rawValue.replace(/_([a-zA-Z])/g, (_, l) => "_" + l.toUpperCase());
+
     this.value = rawValue;
-    packageInput.value = rawValue.length > 0 ? "com.aem." + rawValue.replace(/_/g, '').toLowerCase() : "";
+
+    packageInput.value = rawValue.length > 0 ? "com.aem." + rawValue.replace(/_/g, "").toLowerCase() : "";
+
     checkProjectAvailability(this.value);
   });
 
   // --- Project name availability check ---
   async function checkProjectAvailability(projectName) {
     if (!projectName) return;
+
     try {
       const response = await fetch(`/checkProjectName?name=${encodeURIComponent(projectName)}`);
       const result = await response.json();
+
       if (result.exists) {
         nameStatus.textContent = result.message;
         nameStatus.style.color = "red";
@@ -48,6 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- Update displayed components ---
   function updateComponentList() {
     selectedList.innerHTML = "";
+
     if (selectedComponents.length === 0) {
       const placeholder = document.createElement("li");
       placeholder.id = "noComponentText";
@@ -57,17 +76,21 @@ document.addEventListener("DOMContentLoaded", () => {
       selectedComponents.forEach(c => {
         const li = document.createElement("li");
         li.className = "component-item animate__animated animate__fadeIn";
+
         li.innerHTML = `
-          ${c} 
+          ${c}
           <button type="button" class="btn btn-sm btn-danger ms-2 remove-btn">×</button>
         `;
+
         li.querySelector(".remove-btn").addEventListener("click", () => {
           selectedComponents = selectedComponents.filter(item => item !== c);
           updateComponentList();
         });
+
         selectedList.appendChild(li);
       });
     }
+
     hiddenInput.value = selectedComponents.join(",");
   }
 
@@ -75,42 +98,53 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderList(containerId, dataList, selectedListArray) {
     const container = document.getElementById(containerId);
     if (!container) return;
-    container.innerHTML = '';
 
-    const unique = dataList.unique || [];
-    const duplicate = dataList.duplicate || [];
+    container.innerHTML = "";
+
+    const unique = (dataList.unique || []).map(normalizeItem);
+    const duplicate = (dataList.duplicate || []).map(normalizeItem);
+
     const allItems = [...new Set([...unique, ...duplicate, ...selectedListArray])];
 
     allItems.forEach(item => {
       const isAlreadyAdded = selectedListArray.includes(item);
       const isDuplicate = duplicate.includes(item);
 
-      let labelSuffix = '';
+      let labelSuffix = "";
       let isDisabled = false;
       let isChecked = false;
 
       if (isAlreadyAdded) {
-        labelSuffix = ' (Already Added)';
+        labelSuffix = " (Already Added)";
         isDisabled = true;
         isChecked = true;
       } else if (isDuplicate) {
-        labelSuffix = ' (Exists)';
+        labelSuffix = " (Exists)";
         isDisabled = true;
       }
 
-      container.insertAdjacentHTML('beforeend', `
+      container.insertAdjacentHTML(
+        "beforeend",
+        `
         <div class="col">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" value="${item}" ${isChecked ? 'checked' : ''} ${isDisabled ? 'disabled' : ''}>
-            <label class="form-check-label ${isDisabled ? 'text-muted' : ''}">${item}${labelSuffix}</label>
+            <input class="form-check-input" type="checkbox" value="${item}" 
+              ${isChecked ? "checked" : ""} 
+              ${isDisabled ? "disabled" : ""}>
+            <label class="form-check-label ${isDisabled ? "text-muted" : ""}">
+              ${item}${labelSuffix}
+            </label>
           </div>
-        </div>`);
+        </div>
+      `
+      );
     });
   }
 
   // --- Open component modal ---
-  window.openComponentModal = function() {
+  window.openComponentModal = function () {
     const projectName = projectInput.value.trim();
+
     if (!projectName) {
       alert("⚠️ Please enter a Project Name first.");
       return;
@@ -118,11 +152,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     fetch(`/fetch-components/${projectName}`)
       .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch components');
+        if (!res.ok) throw new Error("Failed to fetch components");
         return res.json();
       })
-      .then(data => renderList('componentList', data, selectedComponents))
-      .then(() => new bootstrap.Modal(document.getElementById('componentModal')).show())
+      .then(data => {
+        renderList("componentList", data, selectedComponents);
+
+        const modal = new bootstrap.Modal(document.getElementById("componentModal"));
+        modal.show();
+      })
       .catch(err => {
         console.error(err);
         document.getElementById("componentList").innerHTML =
@@ -130,45 +168,51 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   };
 
-  // --- Add selected components from modal ---
-  window.addSelectedComponents = function() {
-    const checkboxes = document.querySelectorAll("#componentList input[type=checkbox]:checked:not(:disabled)");
+  // --- Add components from modal ---
+  window.addSelectedComponents = function () {
+    const checkboxes = document.querySelectorAll("#componentList input[type=checkbox]:checked");
+
     checkboxes.forEach(cb => {
-      if (!selectedComponents.includes(cb.value)) selectedComponents.push(cb.value);
+      if (!selectedComponents.includes(cb.value)) {
+        selectedComponents.push(cb.value);
+      }
     });
+
     updateComponentList();
+
     const modalEl = document.getElementById("componentModal");
     bootstrap.Modal.getInstance(modalEl).hide();
   };
 
-  // --- Toggle overlay spinner on form submit ---
+  // --- Show loading overlay on form submit ---
   const form = document.querySelector("form");
   form.addEventListener("submit", () => {
     overlay.classList.add("active");
-    createBtn.disabled = true;
+    createBtn.setAttribute("disabled", "disabled");
   });
 
-  // --- ✅ Quick Tour Setup (Intro.js) ---
+  // --- Intro.js Quick Tour ---
   function startTour() {
-    introJs().setOptions({
-      steps: [
-        { intro: "👋 Welcome to the AEM Project Creator!" },
-        { element: document.querySelector("#projectName"), intro: "Start by entering your Project Name here." },
-        { element: document.querySelector("#packageName"), intro: "Your package name is auto-generated here." },
-        { element: document.querySelector("select"), intro: "Pick the AEM version you’re targeting." },
-        { element: document.querySelector(".component-wrapper"), intro: "Add components you want to include in your project." },
-        { element: document.querySelector("button[type='submit']"), intro: "Finally, click Create Project to generate it!" },
-      ],
-      showProgress: true,
-      exitOnOverlayClick: false,
-      showButtons: true,
-      nextLabel: "Next →",
-      prevLabel: "← Back",
-      doneLabel: "Got it!",
-    }).start();
+    introJs()
+      .setOptions({
+        steps: [
+          { intro: "👋 Welcome to the AEM Project Creator!" },
+          { element: document.querySelector("#projectName"), intro: "Enter your Project Name here." },
+          { element: document.querySelector("#packageName"), intro: "Your package name is auto-generated." },
+          { element: document.querySelector("select"), intro: "Select the AEM version." },
+          { element: document.querySelector(".component-wrapper"), intro: "Add components for your project." },
+          { element: document.querySelector("button[type='submit']"), intro: "Click Create Project to generate!" }
+        ],
+        showProgress: true,
+        exitOnOverlayClick: false,
+        showButtons: true,
+        nextLabel: "Next →",
+        prevLabel: "← Back",
+        doneLabel: "Got it!"
+      })
+      .start();
   }
 
-  // Auto-run once per user
   if (!localStorage.getItem("aemCreateTourDone")) {
     setTimeout(() => {
       startTour();
