@@ -67,7 +67,7 @@
   </style>
 </head>
 <body>
-<header>Deployment Logs for [[${projectName}]]</header>
+<header>Deployment Logs for [[${projectName}]] — <small th:text="${deployType}"></small></header>
 <main>
   <div id="logOutput" aria-live="polite" aria-atomic="true" role="log"></div>
   <button id="closeBtn" aria-label="Close deployment logs and go back">Close</button>
@@ -75,7 +75,8 @@
 
 <script>
   const projectName = '[[${projectName}]]';
-  const eventSource = new EventSource(`/${encodeURIComponent(projectName)}/deploy/logs`);
+  const deployType = '[[${deployType}]]' || 'full';
+  const eventSource = new EventSource(`/${encodeURIComponent(projectName)}/deploy/logs?type=${encodeURIComponent(deployType)}`);
   const logOutput = document.getElementById('logOutput');
   const closeBtn = document.getElementById('closeBtn');
 

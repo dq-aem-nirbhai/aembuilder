@@ -1,6 +1,7 @@
 package com.aem.builder.util;
 
 import com.aem.builder.config.ConfigLoader;
+import com.aem.builder.jUnits.JunitsForSlingModels;
 import com.aem.builder.model.DTO.ComponentField;
 import com.aem.builder.model.DTO.ComponentRequest;
 import com.aem.builder.model.DTO.OptionItem;
@@ -37,6 +38,7 @@ import java.util.stream.Stream;
 
 import static com.aem.builder.constants.ComponentConstants.*;
 import static com.aem.builder.constants.ModelAttributeKeys.PROJECTS_DIR;
+import static com.aem.builder.jUnits.JunitsForSlingModels.generateJUnitTestForModel;
 import static com.aem.builder.util.XmlUtil.formatXml;
 
 /**
@@ -44,7 +46,6 @@ import static com.aem.builder.util.XmlUtil.formatXml;
  */
 @Slf4j
 public class FileGenerationUtil {
-
 
     /**
      * Generates all files required for a component in the given project.
@@ -82,7 +83,7 @@ public class FileGenerationUtil {
             log.info("{} Package name: {}", METHOD_PREFIX, packageName);
             generateComponent(basePath, modelPath.toString(), packageName,
                     request.getComponentName(), request.getComponentGroup(),
-                    request.getSuperType(), request.getFields());
+                    request.getSuperType(), request.getFields(),projectName);
             log.info("{} Successfully generated all files for project: {}", METHOD_PREFIX, projectName);
         } catch (Exception e) {
             log.info("FILEGEN: GENERATEALLFILES - Error generating files for project: {}", projectName, e);
@@ -124,7 +125,7 @@ public class FileGenerationUtil {
      * HTL templates, dialog structure, and the Sling model if applicable.
      */
     public static void generateComponent(String basePath, String modelBasePath, String packageName,
-                                         String componentName, String componentGroup, String superType, List<ComponentField> fields) throws Exception {
+                                         String componentName, String componentGroup, String superType, List<ComponentField> fields,String projectName) throws Exception {
         final String METHOD_PREFIX = "COMPONENT: GENERATECOMPONENT -";
         log.info("{} Generating component '{}'", METHOD_PREFIX, componentName);
         String componentFolder = basePath + "/" + componentName;
@@ -145,7 +146,8 @@ public class FileGenerationUtil {
             generateDialogContentXml(componentName, dialogFolder, superType, fields);
         }
         if (!extendsComponent || hasFields) {
-            generateSlingModel(modelBasePath, packageName, componentName, fields);
+
+            generateSlingModel(modelBasePath, packageName, componentName, fields,projectName);
         }
         log.info("{} Finished generating component '{}'", METHOD_PREFIX, componentName);
     }
@@ -646,12 +648,13 @@ public class FileGenerationUtil {
      * </p>
      *
      * @param modelBasePath output folder path
+     * @param modelBasePath output folder path
      * @param packageName   Java package
      * @param componentName component name (used for class name)
      * @param fields        list of dialog fields
      */
     private static void generateSlingModel(String modelBasePath, String packageName,
-                                           String componentName, List<ComponentField> fields) throws Exception {
+                                           String componentName, List<ComponentField> fields,String projectName) throws Exception {
 
 
         log.info("{} Generating Sling Model for component '{}'", MODEL_GEN_PREFIX, componentName);
@@ -664,17 +667,26 @@ public class FileGenerationUtil {
 
         Map<String, Object> config = ConfigLoader.loadConfig("slingmodel.json");
 
+        String project=PROJECTS_DIR + "/" + projectName+"/core/pom.xml" ;
 
+        Path projectPath=Paths.get(project);
+        boolean lombokEnabled = isLombokEnabled(projectPath);
         StringBuilder sb = new StringBuilder();
         sb.append(((Map<String, String>) config.get("classTemplate")).get("package").replace("{packageName}", packageName))
                 .append("\n\n")
-                .append(IMPORTS_BLOCK)
-                .append(MODEL_ANNOTATION)
-                .append(((Map<String, String>) config.get("classTemplate")).get("classDeclaration").replace("{className}", className))
+                .append(IMPORTS_BLOCK);
+        if (lombokEnabled) {
+            sb.append("import lombok.Getter;\n");
+        }
+        sb.append(MODEL_ANNOTATION);
+        if (lombokEnabled) {
+            sb.append("@Getter\n");
+        }
+                sb.append(((Map<String, String>) config.get("classTemplate")).get("classDeclaration").replace("{className}", className))
                 .append("\n\n");
 
 
-        List<ComponentField> generatedFields = addFieldsToModel(sb, modelBasePath, packageName, componentName, fields);
+        List<ComponentField> generatedFields = addFieldsToModel(sb, modelBasePath, packageName, componentName, fields,projectName);
         log.info("{} Fields processed: {}", MODEL_GEN_PREFIX, generatedFields);
 
 
@@ -703,8 +715,18 @@ public class FileGenerationUtil {
 
 
         log.info("{} Sling Model generated at {}/{}.java", MODEL_GEN_PREFIX, modelBasePath, className);
-    }
 
+        try {
+
+            String projectName = packageName.split("\\.")[2];
+            String testBasePath = modelBasePath.replace("main", "test");
+            log.info("{} testBasePath :"+ testBasePath);
+            JunitsForSlingModels.generateJUnitTestForModel(projectName, modelBasePath, testBasePath, packageName, className);
+
+        } catch (Exception e) {
+            log.info("{} Failed to generate JUnit test for {}", MODEL_GEN_PREFIX, className, e);
+        }
+    }
 
     /**
      * Recursively adds fields to the Sling Model class.
@@ -720,7 +742,7 @@ public class FileGenerationUtil {
      * @throws Exception If file generation fails
      */
     private static List<ComponentField> addFieldsToModel(StringBuilder sb, String modelBasePath, String packageName,
-                                                         String componentName, List<ComponentField> fields) throws Exception {
+                                                         String componentName, List<ComponentField> fields,String projectName) throws Exception {
 
 
         List<ComponentField> generatedFields = new ArrayList<>();
@@ -740,7 +762,7 @@ public class FileGenerationUtil {
             // Handle "tabs": skip the tab itself, but process its children
             if (TYPE_TABS.equals(type)) {
                 log.info("MODEL: Skipping tab '{}' but processing nested fields", name);
-                List<ComponentField> nestedFields = addFieldsToModel(sb, modelBasePath, packageName, componentName, field.getNestedFields());
+                List<ComponentField> nestedFields = addFieldsToModel(sb, modelBasePath, packageName, componentName, field.getNestedFields(),projectName);
                 if (nestedFields != null) generatedFields.addAll(nestedFields);
                 continue;
             }
@@ -752,7 +774,7 @@ public class FileGenerationUtil {
             // Generate code based on field type
             switch (type) {
                 case TYPE_MULTIFIELD -> {
-                    generateChildModelClass(modelBasePath, packageName, componentName, field);
+                    generateChildModelClass(modelBasePath, packageName, componentName, field,projectName);
                     sb.append("    ").append(CHILD_RESOURCE_ANNOTATION)
                             .append("\n    private List<").append(capitalize(name)).append("> ").append(name).append(";\n\n");
                 }
@@ -776,7 +798,7 @@ public class FileGenerationUtil {
 
 
 // Inside addFieldsToModel
-            addGetter(sb, field, config);
+            addGetter(sb, field, config,projectName);
 
 
             // Add to generated list for isEmpty() check
@@ -803,10 +825,14 @@ public class FileGenerationUtil {
      * @throws Exception If file creation fails
      */
     private static void generateChildModelClass(String modelBasePath, String packageName,
-                                                String parentComponentName, ComponentField parentField) throws Exception {
+                                                String parentComponentName, ComponentField parentField,String projectName) throws Exception {
 
 
         String className = capitalize(parentField.getFieldName());
+        String project=PROJECTS_DIR + "/" + projectName+"/core/pom.xml" ;
+
+        Path projectPath=Paths.get(project);
+        boolean lombokEnabled = isLombokEnabled(projectPath);
         log.info("{} Generating Child Model for multifield '{}' in component '{}'",
                 MODEL_GEN_PREFIX, parentField.getFieldName(), parentComponentName);
 
@@ -819,15 +845,23 @@ public class FileGenerationUtil {
 
 
         sb.append(classTemplate.get("package").replace("{packageName}", packageName)).append("\n\n")
-                .append(IMPORTS_BLOCK)
-                .append(MODEL_ANNOTATION)
-                .append(classTemplate.get("classDeclaration").replace("{className}", className))
+                .append(IMPORTS_BLOCK);
+        if (lombokEnabled) {
+            sb.append("import lombok.Getter;\n\n");
+        }
+
+                sb.append(MODEL_ANNOTATION);
+
+        if (lombokEnabled) {
+            sb.append("@Getter\n");
+        }
+                sb.append(classTemplate.get("classDeclaration").replace("{className}", className))
                 .append("\n\n");
 
 
         // Recursively add fields from multifield
         List<ComponentField> generatedFields = addFieldsToModel(sb, modelBasePath, packageName,
-                parentComponentName, parentField.getNestedFields());
+                parentComponentName, parentField.getNestedFields(),projectName);
 
 
         sb.append(classTemplate.get("closingBrace"));
@@ -839,6 +873,19 @@ public class FileGenerationUtil {
 
         log.info("{} Child Model '{}' generated at {}/{}.java with {} fields",
                 MODEL_GEN_PREFIX, className, modelBasePath, className, generatedFields.size());
+
+        try {
+
+            String projectName = packageName.split("\\.")[2];
+            String testBasePath = modelBasePath.replace("main", "test");
+
+            JunitsForSlingModels.generateJUnitTestForModel(projectName, modelBasePath, testBasePath, packageName, className);
+
+            log.info("{} JUnit Test generated for multifield model '{}'", MODEL_GEN_PREFIX, className);
+        } catch (Exception e) {
+            log.warn("{} Failed to generate JUnit test for multifield '{}'", MODEL_GEN_PREFIX, className, e);
+        }
+
     }
 
 
@@ -852,21 +899,27 @@ public class FileGenerationUtil {
      * @param field  ComponentField for which the getter is generated
      * @param config JSON configuration map containing getter templates
      */
-    private static void addGetter(StringBuilder sb, ComponentField field, Map<String, Object> config) {
-        String name = field.getFieldName();
-        String cap = capitalize(name);
-        String type = field.getFieldType().toLowerCase();
+    private static void addGetter(StringBuilder sb, ComponentField field, Map<String, Object> config,String projectName) throws Exception{
+        String project=PROJECTS_DIR + "/" + projectName+"/core/pom.xml" ;
+
+        Path projectPath=Paths.get(project);
+        boolean lombokEnabled = isLombokEnabled(projectPath);
+        if(!lombokEnabled) {
+            String name = field.getFieldName();
+            String cap = capitalize(name);
+            String type = field.getFieldType().toLowerCase();
 
 
-        Map<String, String> getterTemplates = (Map<String, String>) config.get("getterTemplates");
-        String template = getterTemplates.getOrDefault(type, getterTemplates.get("default"));
+            Map<String, String> getterTemplates = (Map<String, String>) config.get("getterTemplates");
+            String template = getterTemplates.getOrDefault(type, getterTemplates.get("default"));
 
 
-        String getterCode = template.replace("{name}", name).replace("{cap}", cap).replace("{type}", cap);
-        sb.append("    ").append(getterCode).append("\n\n");
+            String getterCode = template.replace("{name}", name).replace("{cap}", cap).replace("{type}", cap);
+            sb.append("    ").append(getterCode).append("\n\n");
 
 
-        log.debug("{} Getter generated for field '{}' of type '{}'", MODEL_GEN_PREFIX, name, type);
+            log.debug("{} Getter generated for field '{}' of type '{}'", MODEL_GEN_PREFIX, name, type);
+        }
     }
 
 
@@ -1184,7 +1237,6 @@ public class FileGenerationUtil {
         log.info("{}: Deepest <items> position found at {}", METHOD, deepestPos);
         return deepestPos != -1 ? deepestPos : xml.length();
     }
-
 
     //-------------------- update files --------------------
 
@@ -1882,22 +1934,21 @@ public class FileGenerationUtil {
         log.info("patchSlingModel Method called....!!");
 
         String content = Files.readString(javaFile);
-        log.info("patchSlingModel content ...!!" + content);
 
-        // 1️⃣ Extract existing fields
+        // Extract existing fields
         Map<String, String> existingFields = extractFieldMap(content);
         log.info("patchSlingModel existingFields ...!!" + existingFields);
 
-        // 2️⃣ Remove fields that no longer exist
+        // Remove fields that no longer exist
         for (String fieldName : new HashSet<>(existingFields.keySet())) {
             if (fields.stream().noneMatch(f -> f.getFieldName().equals(fieldName))) {
                 content = removeField(content, fieldName);
-                // 2️⃣ Try deleting nested multifield class (if exists)
+                // Try deleting nested multifield class (if exists)
                 deleteMultifieldClassIfExists(projectName, basePackage, fieldName);
             }
         }
 
-        // 3️⃣ Add or update fields
+        // Add or update fields
         for (ComponentField field : fields) {
 
             // If tab → add nested fields directly to main class
@@ -1917,6 +1968,7 @@ public class FileGenerationUtil {
                 }
                 continue; // skip creating a field for the tab itself
             }
+
 
             // Regular field
             if (fieldExists(content, field.getFieldName())) {
@@ -1938,6 +1990,42 @@ public class FileGenerationUtil {
         content = updateIsEmpty(content, fields);
 
         Files.writeString(javaFile, content);
+        // Format the updated Sling Model file
+        log.info("Formatted Sling Model: {}", javaFile.getFileName());
+
+        try {
+            // Define correct base paths
+            String modelBasePath = Paths.get("generated-projects", projectName, "core/src/main/java").toString();
+            String testBasePath = Paths.get("generated-projects", projectName, "core/src/test/java").toString();
+            log.info("modelBasePath : {}", modelBasePath);
+            log.info("testBasePath : {}", testBasePath);
+
+            // Extract class name (e.g., Snitch1Model)
+            String className = javaFile.getFileName().toString().replace(".java", "");
+            log.info("className : {}", className);
+
+            // Build proper model base path for tests (includes package)
+            String modelBasePathForTests = Paths.get(testBasePath, basePackage.replace(".", "/")).toString();
+            log.info("modelBasePathForTests : {}", modelBasePathForTests);
+
+            // Ensure package directories exist
+            Files.createDirectories(Paths.get(modelBasePathForTests));
+
+            // Generate/Update JUnit and JSON
+            JunitsForSlingModels.generateJUnitTestForModel(
+                    projectName,
+                    modelBasePath,
+                    testBasePath,
+                    basePackage,
+                    className
+            );
+
+            log.info("JUnit generated/updated for model: {} at {}", className, modelBasePathForTests);
+
+        } catch (Exception e) {
+            log.warn("Failed to generate or update JUnit for model {}: {}", javaFile.getFileName(), e.getMessage());
+        }
+
     }
     
     /**
@@ -1956,44 +2044,55 @@ public class FileGenerationUtil {
             } else {
                 log.info("No nested Sling Model found for multifield '{}'", fieldName);
             }
+
+            JunitsForSlingModels.deleteJUnitForModel(projectName, basePackage, nestedClassName);
+
         } catch (Exception e) {
             log.warn("Failed to delete nested Sling Model for field '{}': {}", fieldName, e.getMessage());
         }
     }
 
-
     private static String insertField(String content, ComponentField field,
                                       String packageName, String projectName) {
 
         String capName = capitalize(field.getFieldName());
+        String fieldCode;
 
-        // 1️⃣ Multifield / child element → List<NestedClass>
+        // Handle multifield or child
         if ("multifield".equalsIgnoreCase(field.getFieldType()) ||
                 "child".equalsIgnoreCase(field.getFieldType())) {
 
             String nestedClassName = capName;
-            String fieldCode =
+            fieldCode =
                     "    @ChildResource\n" +
                             "    private List<" + nestedClassName + "> " + field.getFieldName() + ";\n\n" +
                             "    public List<" + nestedClassName + "> get" + nestedClassName + "() {\n" +
                             "        return " + field.getFieldName() + ";\n" +
                             "    }\n\n";
-
-            int insertPos = content.lastIndexOf("}");
-            return content.substring(0, insertPos) + fieldCode + "}\n";
+        } else {
+            String type = mapFieldTypeToJavaType(field.getFieldType());
+            fieldCode =
+                    "    @ValueMapValue\n" +
+                            "    private " + type + " " + field.getFieldName() + ";\n\n" +
+                            "    public " + type + " get" + capName + "() {\n" +
+                            "        return " + field.getFieldName() + ";\n" +
+                            "    }\n\n";
         }
 
-        // 2️⃣ Single-value field → ValueMapValue
-        String type = mapFieldTypeToJavaType(field.getFieldType());
-        String fieldCode =
-                "    @ValueMapValue\n" +
-                        "    private " + type + " " + field.getFieldName() + ";\n\n" +
-                        "    public " + type + " get" + capName + "() {\n" +
-                        "        return " + field.getFieldName() + ";\n" +
-                        "    }\n\n";
+        // Find where to insert (before isEmpty() or its comment)
+        Pattern commentPattern = Pattern.compile("/\\*\\*\\s*\\*\\s*Checks if all fields.*?\\*/", Pattern.DOTALL);
+        Matcher matcher = commentPattern.matcher(content);
 
-        int insertPos = content.lastIndexOf("}");
-        return content.substring(0, insertPos) + fieldCode + "}\n";
+        int insertPos;
+        if (matcher.find()) {
+            insertPos = matcher.start(); // Insert before the comment
+        } else {
+            // fallback if comment not found
+            insertPos = content.lastIndexOf("}");
+        }
+
+        // Insert field code before isEmpty() comment/method
+        return content.substring(0, insertPos) + fieldCode + content.substring(insertPos);
     }
 
     private static boolean fieldExists(String content, String fieldName) {
@@ -2030,7 +2129,10 @@ public class FileGenerationUtil {
                 ""
         );
 
-        return content;
+        // Clean up any excessive blank lines left
+        content = content.replaceAll("(?m)(\\n\\s*){3,}", "\n\n");
+
+        return content.trim() + "\n";
     }
 
     // Update existing field type/annotation if needed
@@ -2064,7 +2166,6 @@ public class FileGenerationUtil {
         return content;
     }
 
-    // Rebuild isEmpty()
 
     /**
      * Recursive generator for multifield classes
@@ -2123,6 +2224,24 @@ public class FileGenerationUtil {
         content = updateIsEmpty(content, nestedFields);
 
         Files.writeString(javaFile, content);
+        log.info("Formatted nested multifield Sling Model: {}", javaFile.getFileName());
+
+        // ---- Generate or Update corresponding JUnit Test class ----
+        try {
+            String testBasePath = Paths.get("generated-projects", projectName,
+                    "core/src/test/java").toString();
+
+            String modelBasePath = Paths.get("generated-projects", projectName,
+                    "core/src/main/java", packageName.replace(".", "/")).toString();
+
+            // Always generate/update JUnit (even if it already exists)
+            generateJUnitTestForModel(projectName, modelBasePath,testBasePath, packageName, className);
+
+            log.info("JUnit generated/updated for multifield model: {}", className);
+        } catch (Exception e) {
+            log.warn("Failed to generate/update JUnit for multifield model {}: {}", className, e.getMessage());
+        }
+
     }
 
     private static String updateIsEmpty(String content, List<ComponentField> fields) {
@@ -2269,126 +2388,6 @@ public class FileGenerationUtil {
         FileUtils.writeStringToFile(htlFile, finalHTL, StandardCharsets.UTF_8);
         log.info("HTL updated successfully for component '{}'", request.getComponentName());
     }
-
-
-    //*************** another way of updation (component Dialog recreating instead of updating )
-    public static void updateDialogContentXml(String componentName, String dialogFolder,
-                                              String superType, List<ComponentField> fields,
-                                              String projectName) {
-        if (fields == null || fields.isEmpty()) {
-            log.info("UPDATE: Skipping dialog update for component '{}' as no fields defined", componentName);
-            return;
-        }
-        log.info("UPDATE: Starting dialog update for component '{}'", componentName);
-
-        try (InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream("dialog-content-xml.json")) {
-            if (is == null) throw new FileNotFoundException("dialog-content-xml.json not found in resources");
-            JSONObject config = new JSONObject(new String(is.readAllBytes(), StandardCharsets.UTF_8));
-            String dialogTitle = componentName + " Dialog";
-
-            // Split fields by tabs
-            List<ComponentField> tabFields = new ArrayList<>();
-            List<ComponentField> nonTabFields = new ArrayList<>();
-            for (ComponentField f : fields) {
-                if ("tabs".equalsIgnoreCase(f.getFieldType())) tabFields.add(f);
-                else nonTabFields.add(f);
-            }
-
-            // Detect explicit Main tab
-            ComponentField explicitMainTab = tabFields.stream()
-                    .filter(tf -> "main".equalsIgnoreCase(safeNodeName(tf.getFieldName(), "tab")) ||
-                            (tf.getFieldLabel() != null && tf.getFieldLabel().trim().equalsIgnoreCase("Main")))
-                    .findFirst().orElse(null);
-            boolean willAutoCreateMain = explicitMainTab == null && !nonTabFields.isEmpty();
-
-            StringBuilder sb = new StringBuilder();
-
-            // Dialog header
-            sb.append(config.getJSONObject("declarations").getString("header")
-                            .replace("${dialogTitle}", dialogTitle)
-                            .replace("${superTypeAttr}", (superType != null && !superType.isBlank()) ?
-                                    "sling:resourceSuperType=\"" + superType + "\"" : ""))
-                    .append("\n");
-
-            // Start content container
-            sb.append("<content jcr:primaryType=\"nt:unstructured\" " +
-                    "sling:resourceType=\"granite/ui/components/coral/foundation/container\">\n");
-            sb.append("  <layout jcr:primaryType=\"nt:unstructured\" " +
-                    "sling:resourceType=\"granite/ui/components/coral/foundation/layouts/fixedcolumns\"/>\n");
-            sb.append("  <items jcr:primaryType=\"nt:unstructured\">\n");
-
-            // Insert non-tab fields if no tabs exist
-            if (tabFields.isEmpty()) {
-                for (ComponentField f : nonTabFields) {
-                    sb.append(generateFieldXml(safeNodeName(f.getFieldName(), "field"), f));
-                }
-            } else {
-                // Tabs exist
-                StringBuilder tabsBuilder = new StringBuilder();
-                tabsBuilder.append("<tabs jcr:primaryType=\"nt:unstructured\" ")
-                        .append("sling:resourceType=\"granite/ui/components/coral/foundation/tabs\">\n")
-                        .append("  <items jcr:primaryType=\"nt:unstructured\">\n");
-
-                Set<String> processedTabs = new HashSet<>();
-                for (ComponentField tabField : tabFields) {
-                    String tabNodeName = safeNodeName(tabField.getFieldName(), "tab");
-                    if (!processedTabs.add(tabNodeName.toLowerCase())) continue;
-
-                    StringBuilder fieldsBuilder = new StringBuilder();
-                    if (tabField.getNestedFields() != null) {
-                        for (ComponentField nf : tabField.getNestedFields()) {
-                            fieldsBuilder.append(generateFieldXml(safeNodeName(nf.getFieldName(), "field"), nf));
-                        }
-                    }
-
-                    // Add non-tab fields to explicit Main tab
-                    if (explicitMainTab == tabField && !nonTabFields.isEmpty()) {
-                        for (ComponentField f : nonTabFields) {
-                            fieldsBuilder.append(generateFieldXml(safeNodeName(f.getFieldName(), "field"), f));
-                        }
-                    }
-
-                    String tabXml = config.getString("tabTemplate")
-                            .replace("${tabNodeName}", tabNodeName)
-                            .replace("${tabTitle}", tabField.getFieldLabel() != null ? tabField.getFieldLabel() : tabNodeName)
-                            .replace("${resourceType}", getResourceType("tabs"))
-                            .replace("${fields}", fieldsBuilder.toString());
-
-                    tabsBuilder.append(tabXml).append("\n");
-                }
-
-                // Auto-create Main tab if needed
-                if (willAutoCreateMain) {
-                    String mainFieldsXml = nonTabFields.stream()
-                            .map(f -> generateFieldXml(safeNodeName(f.getFieldName(), "field"), f))
-                            .collect(Collectors.joining());
-
-                    String autoXml = config.getString("autoMainTabTemplate")
-                            .replace("${tabNodeName}", "main")
-                            .replace("${resourceType}", getResourceType("tabs"))
-                            .replace("${fields}", mainFieldsXml);
-
-                    tabsBuilder.append(autoXml).append("\n");
-                }
-
-                tabsBuilder.append("  </items>\n</tabs>\n");
-                sb.append(tabsBuilder.toString());
-            }
-
-            // Close content container
-            sb.append("  </items>\n</content>\n");
-            sb.append(config.getJSONObject("declarations").getString("footer")).append("\n");
-
-            // Write updated dialog
-            File out = new File(dialogFolder, ".content.xml");
-            FileUtils.writeStringToFile(out, formatXml(sb.toString()), StandardCharsets.UTF_8);
-            log.info("UPDATE: Dialog .content.xml updated successfully at {}", out.getAbsolutePath());
-
-        } catch (Exception e) {
-            log.error("UPDATE: Error updating dialog for '{}': {}", componentName, e.getMessage(), e);
-        }
-    }
-
 
 
 }

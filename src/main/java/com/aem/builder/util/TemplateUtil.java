@@ -5,25 +5,31 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.aem.builder.constants.AemProjectConstants.*;
 import static com.aem.builder.constants.PolicyConstants.*;
 import static com.aem.builder.util.AemUtil.getAppId;
-
+@Slf4j
 public class TemplateUtil {
 
     /**
@@ -468,21 +474,21 @@ public class TemplateUtil {
             Document doc = builder.parse(new File(filePath));
             doc.getDocumentElement().normalize();
 
-            String newPolicyPath = projectName + "/components/container/" + newPolicyId;
+            String newPolicyPath = projectName + CONTAINER_PATH+"/" + newPolicyId;
 
             if ("page".equalsIgnoreCase(templateType)) {
                 // Find <container> node
-                NodeList containerNodes = doc.getElementsByTagName("container");
+                NodeList containerNodes = doc.getElementsByTagName(CONTAINER_NODE);
                 if (containerNodes.getLength() > 0) {
                     Element containerElement = (Element) containerNodes.item(0);
-                    containerElement.setAttribute("cq:policy", newPolicyPath);
+                    containerElement.setAttribute(ATTR_POLICY, newPolicyPath);
                 }
             } else if ("xf".equalsIgnoreCase(templateType)) {
                 // Find <root> node
-                NodeList rootNodes = doc.getElementsByTagName("root");
+                NodeList rootNodes = doc.getElementsByTagName(ROOT_NODE);
                 if (rootNodes.getLength() > 0) {
                     Element rootElement = (Element) rootNodes.item(0);
-                    rootElement.setAttribute("cq:policy", newPolicyPath);
+                    rootElement.setAttribute(ATTR_POLICY, newPolicyPath);
                 }
             }
 
@@ -496,11 +502,172 @@ public class TemplateUtil {
             StreamResult result = new StreamResult(new File(filePath));
             transformer.transform(source, result);
 
-            System.out.println("Policy updated successfully!");
+            log.info("Policy updated successfully!");
 
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
+    /**
+     * Updates the .content.xml file when the template type changes.
+     * Handles both transitions:
+     *   1. page → xf
+     *   2. xf → page
+     */
+    public static void updateStructureXml(File structureFile, String oldType, String newType, String projectName,String oldTemplateName,String newTemplateName) throws Exception {
+        log.info("old template name -> {}, new template name -> {}",oldTemplateName,newTemplateName);
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document doc = builder.parse(structureFile);
+        doc.getDocumentElement().normalize();
+
+        Element contentEl = (Element) doc.getElementsByTagName(JCR_CONTENT_TAG).item(0);
+        // Handle transitions
+        if (!oldTemplateName.equalsIgnoreCase(newTemplateName)) {
+            log.info("Template name changed → {}", newTemplateName);
+            setcqTempatepath(contentEl, projectName, newTemplateName);
+        }
+        if (!oldType.equals(newType)) {
+
+            if (contentEl == null) {
+                log.warn("⚠️ No <jcr:content> found in XML.");
+                return;
+            }
+            Element rootEl = (Element) contentEl.getElementsByTagName(ROOT_NODE).item(0);
+            if (rootEl == null) {
+                log.warn("⚠️ No <root> found in XML.");
+                return;
+            }
+
+// ✅ Update cq:template when name changes
+            if (!oldTemplateName.equalsIgnoreCase(newTemplateName)) {
+                log.info("Template name changed → {}", newTemplateName);
+                setcqTempatepath(contentEl, projectName, newTemplateName);
+            }
+
+// ✅ Handle type conversion if needed
+            if (!oldType.equals(newType)) {
+                if ("page".equals(oldType) && "xf".equals(newType)) {
+                    convertPageToXf(doc, contentEl, rootEl, projectName);
+                } else if ("xf".equals(oldType) && "page".equals(newType)) {
+                    convertXfToPage(doc, contentEl, rootEl, projectName);
+                }
+            }
+
+
+        }
+        saveXml(doc, structureFile);
+    }
+
+    /**
+     * Converts structure from Page → XF type.
+     * Removes experiencefragment-header and inner container nodes.
+     */
+    private static void convertPageToXf(Document doc, Element contentEl, Element rootEl, String projectName) {
+     log.info("🔁 Converting structure from PAGE → XF");
+
+        // Update resource type
+        contentEl.setAttribute(ATTR_SLING_RESOURCE_TYPE, projectName + COMPONENT_XFPAGE_PATH);
+        // Remove header + container nodes
+        NodeList children = rootEl.getChildNodes();
+        List<Node> toRemove = new ArrayList<>();
+
+        for (int i = 0; i < children.getLength(); i++) {
+            Node node = children.item(i);
+            if (node.getNodeType() == Node.ELEMENT_NODE) {
+                String name = node.getNodeName();
+                if (EXPERIENCE_HEADER.equals(name) || CONTAINER_NODE.equals(name)) {
+                    toRemove.add(node);
+                }
+            }
+        }
+
+        for (Node node : toRemove) {
+            rootEl.removeChild(node);
+           log.info("[convertPageToXf]:   Removed node:{} " , node.getNodeName());
+        }
+
+        // Ensure root attributes are correct
+        rootEl.setAttribute(EDITABLE, EDITABLE_VALUE);
+    }
+
+    private static void setcqTempatepath( Element contentEl,String projectName,String templateName){
+        String newTemplatePath = CONF_PATH + projectName + TEMPLATES_SUBPATH  + templateName;
+        contentEl.setAttribute(ATTR_TEMPLATE, newTemplatePath);
+    }
+    /**
+     * Converts structure from XF → Page type.
+     * Adds experiencefragment-header and inner container nodes.
+     */
+    private static void convertXfToPage(Document doc, Element contentEl, Element rootEl, String projectName) {
+        log.info("[convertXfToPage]: Converting structure from XF → PAGE");
+        rootEl.removeAttribute(EDITABLE);
+        // Update resource type
+        contentEl.setAttribute(ATTR_SLING_RESOURCE_TYPE, projectName + COMPONENT_PAGE);
+        // Remove existing children
+        NodeList children = rootEl.getChildNodes();
+        List<Node> toRemove = new ArrayList<>();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node node = children.item(i);
+            if (node.getNodeType() == Node.ELEMENT_NODE) {
+                toRemove.add(node);
+            }
+        }
+        for (Node n : toRemove) {
+            rootEl.removeChild(n);
+        }
+
+        // Add <experiencefragment-header>
+
+        Element xfHeader = doc.createElement(EXPERIENCE_HEADER);
+        xfHeader.setAttribute(ATTR_JCR_PRIMARY_TYPE, NT_UNSTRUCTURED);
+        xfHeader.setAttribute(ATTR_SLING_RESOURCE_TYPE, projectName + EXPERIENCEFRAGMENT_PATH);
+        xfHeader.setAttribute(FRAG_VAR,
+                EXP_FRAGMENT + projectName + LANGUAGE_MASTER);
+        rootEl.appendChild(xfHeader);
+
+        // Add <container>
+        Element containerEl = doc.createElement(CONTAINER_NODE);
+        containerEl.setAttribute(ATTR_JCR_PRIMARY_TYPE, NT_UNSTRUCTURED);
+        containerEl.setAttribute(ATTR_SLING_RESOURCE_TYPE, projectName + CONTAINER_PATH);
+        containerEl.setAttribute(EDITABLE, EDITABLE_VALUE);
+        containerEl.setAttribute(LAYOUT, LAYOUT_VALUE);
+        rootEl.appendChild(containerEl);
+    }
+
+    /**
+     * Saves XML document to file with proper indentation.
+     */
+    public static void saveXml(Document doc, File file) throws Exception {
+        Transformer transformer = TransformerFactory.newInstance().newTransformer();
+        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+        transformer.setOutputProperty(OutputKeys.METHOD, "xml");
+        transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+        transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
+        transformer.setOutputProperty(OutputKeys.STANDALONE, "no");
+        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
+
+        // ✅ Ensure jcr:root has all AEM-required namespaces
+        Element root = doc.getDocumentElement();
+        if (!root.hasAttribute(ATT_XMLNS_SLING))
+            root.setAttribute(ATT_XMLNS_SLING, ATT_XMLNS_SLING_VALUE);
+        if (!root.hasAttribute(ATT_XMLNS_CQ))
+            root.setAttribute(ATT_XMLNS_CQ, ATT_XMLNS_CQ_VALUE);
+        if (!root.hasAttribute(ATT_XMLNS_JCR))
+            root.setAttribute(ATT_XMLNS_JCR, ATT_XMLNS_JCR_VALUE);
+        if (!root.hasAttribute(ATT_XMLNS_NT))
+            root.setAttribute(ATT_XMLNS_NT, ATT_XMLNS_NT_VALUE);
+
+        // ✅ Always use FileOutputStream
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            transformer.transform(new DOMSource(doc), new StreamResult(fos));
+        }
+
+        log.info("[saveXml]: XML structure updated successfully at: {}", file.getAbsolutePath());
+    }
+
+
 
 }
