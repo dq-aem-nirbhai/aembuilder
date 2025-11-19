@@ -39,7 +39,6 @@ import java.util.stream.Stream;
 import static com.aem.builder.constants.ComponentConstants.*;
 import static com.aem.builder.constants.ModelAttributeKeys.PROJECTS_DIR;
 import static com.aem.builder.jUnits.JunitsForSlingModels.generateJUnitTestForModel;
-import static com.aem.builder.util.JavaFormatterUtil.cleanAndFormatJavaFile;
 import static com.aem.builder.util.XmlUtil.formatXml;
 
 /**
@@ -707,23 +706,12 @@ public class FileGenerationUtil {
 
         log.info("{} Sling Model generated at {}/{}.java", MODEL_GEN_PREFIX, modelBasePath, className);
 
-
-        // AUTO-GENERATE JUNIT TEST FOR THIS MODEL
         try {
 
             String projectName = packageName.split("\\.")[2];
             String testBasePath = modelBasePath.replace("main", "test");
             log.info("{} testBasePath :"+ testBasePath);
             JunitsForSlingModels.generateJUnitTestForModel(projectName, modelBasePath, testBasePath, packageName, className);
-
-            // generateJUnitTestForModel(modelBasePath, packageName, className, fields);
-
-          /*  String testBasePath = modelBasePath.replace("main", "test");
-            log.info("{} testBasePath :"+ testBasePath);
-            log.info("{} modelBasePath :"+ modelBasePath);
-            log.info("{} packageName :"+ packageName);
-            log.info("{} className :"+ className);
-            JunitsForSlingModels.generateJUnitTestForModel(modelBasePath, testBasePath, packageName, className);*/
 
         } catch (Exception e) {
             log.info("{} Failed to generate JUnit test for {}", MODEL_GEN_PREFIX, className, e);
@@ -870,10 +858,6 @@ public class FileGenerationUtil {
             String testBasePath = modelBasePath.replace("main", "test");
 
             JunitsForSlingModels.generateJUnitTestForModel(projectName, modelBasePath, testBasePath, packageName, className);
-
-           /*// generateJUnitTestForModel(modelBasePath, packageName, className, generatedFields);
-            String testBasePath = modelBasePath.replace("main", "test");
-            JunitsForSlingModels.generateJUnitTestForModel(modelBasePath, testBasePath, packageName, className);*/
 
             log.info("{} JUnit Test generated for multifield model '{}'", MODEL_GEN_PREFIX, className);
         } catch (Exception e) {
@@ -1923,20 +1907,20 @@ public class FileGenerationUtil {
 
         String content = Files.readString(javaFile);
 
-        // 1️⃣ Extract existing fields
+        // Extract existing fields
         Map<String, String> existingFields = extractFieldMap(content);
         log.info("patchSlingModel existingFields ...!!" + existingFields);
 
-        // 2️⃣ Remove fields that no longer exist
+        // Remove fields that no longer exist
         for (String fieldName : new HashSet<>(existingFields.keySet())) {
             if (fields.stream().noneMatch(f -> f.getFieldName().equals(fieldName))) {
                 content = removeField(content, fieldName);
-                // 2️⃣ Try deleting nested multifield class (if exists)
+                // Try deleting nested multifield class (if exists)
                 deleteMultifieldClassIfExists(projectName, basePackage, fieldName);
             }
         }
 
-        // 3️⃣ Add or update fields
+        // Add or update fields
         for (ComponentField field : fields) {
 
             // If tab → add nested fields directly to main class
@@ -1979,28 +1963,27 @@ public class FileGenerationUtil {
 
         Files.writeString(javaFile, content);
         // Format the updated Sling Model file
-        cleanAndFormatJavaFile(javaFile.toFile());
         log.info("Formatted Sling Model: {}", javaFile.getFileName());
 
         try {
-            // ✅ 1. Define correct base paths
+            // Define correct base paths
             String modelBasePath = Paths.get("generated-projects", projectName, "core/src/main/java").toString();
             String testBasePath = Paths.get("generated-projects", projectName, "core/src/test/java").toString();
             log.info("modelBasePath : {}", modelBasePath);
             log.info("testBasePath : {}", testBasePath);
 
-            // ✅ 2. Extract class name (e.g., Snitch1Model)
+            // Extract class name (e.g., Snitch1Model)
             String className = javaFile.getFileName().toString().replace(".java", "");
             log.info("className : {}", className);
 
-            // ✅ 3. Build proper model base path for tests (includes package)
+            // Build proper model base path for tests (includes package)
             String modelBasePathForTests = Paths.get(testBasePath, basePackage.replace(".", "/")).toString();
             log.info("modelBasePathForTests : {}", modelBasePathForTests);
 
-            // ✅ 4. Ensure package directories exist
+            // Ensure package directories exist
             Files.createDirectories(Paths.get(modelBasePathForTests));
 
-            // ✅ 5. Generate/Update JUnit and JSON
+            // Generate/Update JUnit and JSON
             JunitsForSlingModels.generateJUnitTestForModel(
                     projectName,
                     modelBasePath,
@@ -2068,7 +2051,7 @@ public class FileGenerationUtil {
                             "    }\n\n";
         }
 
-        // 🔍 Find where to insert (before isEmpty() or its comment)
+        // Find where to insert (before isEmpty() or its comment)
         Pattern commentPattern = Pattern.compile("/\\*\\*\\s*\\*\\s*Checks if all fields.*?\\*/", Pattern.DOTALL);
         Matcher matcher = commentPattern.matcher(content);
 
@@ -2213,7 +2196,6 @@ public class FileGenerationUtil {
         content = updateIsEmpty(content, nestedFields);
 
         Files.writeString(javaFile, content);
-        cleanAndFormatJavaFile(javaFile.toFile());
         log.info("Formatted nested multifield Sling Model: {}", javaFile.getFileName());
 
         // ---- Generate or Update corresponding JUnit Test class ----
