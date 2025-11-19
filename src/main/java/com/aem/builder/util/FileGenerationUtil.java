@@ -718,7 +718,6 @@ public class FileGenerationUtil {
 
         try {
 
-            String projectName = packageName.split("\\.")[2];
             String testBasePath = modelBasePath.replace("main", "test");
             log.info("{} testBasePath :"+ testBasePath);
             JunitsForSlingModels.generateJUnitTestForModel(projectName, modelBasePath, testBasePath, packageName, className);
@@ -876,7 +875,6 @@ public class FileGenerationUtil {
 
         try {
 
-            String projectName = packageName.split("\\.")[2];
             String testBasePath = modelBasePath.replace("main", "test");
 
             JunitsForSlingModels.generateJUnitTestForModel(projectName, modelBasePath, testBasePath, packageName, className);
