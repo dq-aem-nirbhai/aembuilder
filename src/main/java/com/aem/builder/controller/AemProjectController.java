@@ -62,14 +62,16 @@ public class AemProjectController {
     /**
      * Save and generate a new AEM project.
      */
-    @PostMapping(SAVE_PROJECT_URL)
+    @PostMapping(value = {SAVE_PROJECT_URL, "/save"})
     public String saveConfig(@ModelAttribute AemProjectModel aemProjectModel,
+                             @RequestParam(value = "lombokEnabled", required = false) String lombokFlag,
                              Model model,
                              RedirectAttributes redirectAttributes) {
         log.info("[SAVE_PROJECT] Received request to create project '{}'", aemProjectModel.getProjectName());
 
         try {
-            aemProjectService.generateProject(aemProjectModel);
+            boolean lombok = lombokFlag != null;
+            aemProjectService.generateProject(aemProjectModel, lombok);
 
             String successMessage = aemProjectModel.getProjectName() + " Project created successfully.";
             redirectAttributes.addFlashAttribute(MESSAGE, successMessage);

@@ -26,8 +26,6 @@
 <div class="container py-4 animate__animated animate__fadeIn">
   <div class="d-flex justify-content-between align-items-center">
     <a th:href="@{'/dashboard'}" class="btn btn-outline-secondary">← Back to Dashboard</a>
-    <!-- Help / Quick Tour Button -->
-
   </div>
 </div>
 
@@ -76,6 +74,12 @@
     </div>
 
     <input type="hidden" name="selectedComponents" id="selectedComponentsInput" />
+
+    <!-- Lombok checkbox -->
+    <div class="form-check mb-3">
+      <input class="form-check-input" type="checkbox" id="lombokEnabled" name="lombokEnabled" />
+      <label class="form-check-label" for="lombokEnabled">Add Lombok Dependency</label>
+    </div>
 
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">

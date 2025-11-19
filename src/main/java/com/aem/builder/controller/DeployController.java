@@ -15,6 +15,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import reactor.core.publisher.Flux;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -104,12 +105,14 @@ public class DeployController {
 
     /**
      * Serve deployment logs page.
+     * Accepts optional 'type' query param ("core" or "full") - defaults to "full".
      */
     @GetMapping(DEPLOY_PROJECT_URL)
-    public String deployProject(@PathVariable String projectName, Model model) {
-        log.info("[deployProject] Opening deploy logs page for '{}'", projectName);
+    public String deployProject(@PathVariable String projectName, @RequestParam(name = "type", defaultValue = "full") String type, Model model) {
+        log.info("[deployProject] Opening deploy logs page for '{}' with type '{}'", projectName, type);
         try {
             model.addAttribute(PROJECT_NAME, projectName);
+            model.addAttribute("deployType", type);
         } catch (Exception e) {
             log.error("[deployProject] Failed to prepare deploy logs page for '{}'", projectName, e);
             model.addAttribute(ERROR, "Unable to open deployment logs for project: " + projectName);
@@ -120,13 +123,14 @@ public class DeployController {
 
     /**
      * Stream deployment logs live as SSE.
+     * Accepts optional 'type' query param to choose deployment variant.
      */
     @GetMapping(value = DEPLOY_LOGS_URL, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> streamLogs(@PathVariable String projectName) {
-        log.info("[streamLogs] Streaming logs for '{}'", projectName);
+    public Flux<String> streamLogs(@PathVariable String projectName, @RequestParam(name = "type", defaultValue = "full") String type) {
+        log.info("[streamLogs] Streaming logs for '{}' with type '{}'", projectName, type);
         try {
-            return deployService.deployProjectLive(projectName)
-                    .doOnComplete(() -> log.info("[streamLogs] Completed log streaming for '{}'", projectName))
+            return deployService.deployProjectLive(projectName, type)
+                    .doOnComplete(() -> log.info("[streamLogs] Completed log streaming for '{}' (type={})", projectName, type))
                     .doOnError(err -> log.error("[streamLogs] Error while streaming logs for '{}'", projectName, err));
         } catch (Exception e) {
             log.error("[streamLogs] Failed to initiate log streaming for '{}'", projectName, e);
