@@ -1,5 +1,3 @@
-// /js/project-details.js
-
 /* global bootstrap */
 
 let selectedComponents = [];
@@ -26,17 +24,18 @@ function setDeployDisabled(disabled) {
     }
 }
 
+/* renderList, openComponentModal, openTemplateModal, addSelected, removeItem, saveAll ... */
+/* (kept identical to your original implementation) */
+
 function renderList(containerId, dataList, selectedList, type) {
     const container = document.getElementById(containerId);
     if (!container) return;
     container.innerHTML = '';
 
-    // Expecting dataList = { unique: [...], duplicate: [...] } OR an array fallback
     const unique = (dataList && Array.isArray(dataList.unique)) ? dataList.unique
                  : (Array.isArray(dataList) ? dataList : []);
     const duplicate = (dataList && Array.isArray(dataList.duplicate)) ? dataList.duplicate : [];
 
-    // combine unique+duplicate+currently selected
     const allItems = [...new Set([...unique, ...duplicate, ...selectedList])];
 
     if (allItems.length === 0) {
@@ -61,7 +60,6 @@ function renderList(containerId, dataList, selectedList, type) {
             isDisabled = true;
         }
 
-        // Use data attributes for better safety (avoid duplicate IDs)
         const escapedItem = String(item).replace(/"/g, '&quot;');
 
         container.insertAdjacentHTML('beforeend', `
@@ -83,7 +81,6 @@ function openComponentModal() {
             return res.json();
         })
         .then(data => {
-            // data should be { unique: [...], duplicate: [...] } or array
             renderList('componentList', data, selectedComponents, 'component');
             const modal = new bootstrap.Modal(document.getElementById('componentModal'));
             modal.show();
@@ -129,10 +126,8 @@ function addSelected(type) {
     selected.forEach(item => {
         if (!list.includes(item)) list.push(item);
 
-        // create UI tile for added item
         const col = document.createElement('div');
         col.className = 'col';
-        // set data-item-name attribute for easy removal
         col.innerHTML = `
             <div class="border rounded p-2 bg-light text-center shadow-sm removable-item" data-item-name="${item}">
                 <span class="d-block">${item}</span>
@@ -141,14 +136,12 @@ function addSelected(type) {
         if (container) container.appendChild(col);
     });
 
-    // show containers
     const mainContainerId = type === 'component' ? 'newComponentsContainer' : 'newTemplatesContainer';
     const mainContainer = document.getElementById(mainContainerId);
     if (mainContainer) mainContainer.style.display = 'block';
 
     showSave();
 
-    // hide modal instance
     const modalEl = document.getElementById(type + 'Modal');
     const instance = bootstrap.Modal.getInstance(modalEl);
     if (instance) instance.hide();
@@ -166,14 +159,12 @@ function removeItem(name, type) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
-    // find element by data-item-name (use attribute selector)
     const escaped = CSS && CSS.escape ? CSS.escape(name) : name;
     const itemEl = container.querySelector(`[data-item-name="${escaped}"]`);
     if (itemEl) {
         const col = itemEl.closest('.col') || itemEl;
         col.remove();
     } else {
-        // fallback: try to find by text match
         const fallback = Array.from(container.querySelectorAll('.removable-item')).find(el => el.textContent && el.textContent.includes(name));
         if (fallback) fallback.closest('.col').remove();
     }
@@ -231,7 +222,6 @@ function saveAll() {
             const anyBad = responses.some(r => !r.ok);
             if (anyBad) throw new Error('One or more requests failed');
 
-            // show success message and reload
             const msg = document.getElementById('successMessage');
             if (msg) {
                 msg.style.display = 'block';
@@ -240,7 +230,6 @@ function saveAll() {
                     window.location.reload();
                 }, 1200);
             } else {
-                // fallback
                 alert('Save successful!');
                 window.location.reload();
             }
@@ -254,13 +243,11 @@ function saveAll() {
 
 /**
  * New: starts deploy navigation with selected deploy type.
- * It will respect restricted-branch checks (same UX as other actions).
  */
 function startDeploy() {
     const projectName = getProjectName();
     if (!projectName) return false;
 
-    // respect branch restrictions
     if (!checkRestrictedBranch('deploy this project')) {
         return false;
     }
@@ -268,15 +255,12 @@ function startDeploy() {
     const select = document.getElementById('deployTypeSelect');
     const type = select ? select.value : 'full';
 
-    // navigate to deploy page, which will render deploy-logs and pass deployType to SSE endpoint
     const url = `/${encodeURIComponent(projectName)}/deploy?type=${encodeURIComponent(type)}`;
-    // open in same tab (original behavior). If you prefer new tab, use window.open(url, '_blank').
     window.location.href = url;
-    return false; // prevent default anchor navigation
+    return false;
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-    // hide flash message after 5s
     const flash = document.getElementById("flashMessage");
     if (flash) {
         setTimeout(() => {

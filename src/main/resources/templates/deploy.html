@@ -30,8 +30,9 @@
         const projectName = document.getElementById("projectNameHidden").value;
         const deployType = document.getElementById("deployTypeSelect").value;
 
-        const url = `/${projectName}/deploy?type=${deployType}`;
+        const url = `/${encodeURIComponent(projectName)}/deploy?type=${encodeURIComponent(deployType)}`;
 
+        // navigate to deploy logs page (the page will open and SSE will start at /deploy/logs)
         window.location.href = url;
         return false;
     }
@@ -77,25 +78,23 @@
             <span th:text="${message}"></span>
         </div>
 
-        <!-- Success Message (hidden by default) -->
+        <!-- Save Success (hidden by default but used by JS) -->
         <div id="successMessage" class="alert alert-success" role="alert" style="display:none;">
             Saved successfully.
         </div>
 
         <!-- Action Buttons -->
         <div class="d-flex justify-content-end mb-3 align-items-center">
-
             <button id="saveBtn" class="btn btn-outline-success me-2" style="display:none" onclick="saveAll()">Save</button>
 
-            <!-- NEW DROPDOWN FOR CORE / FULL -->
-            <div class="input-group input-group-sm me-2" style="width: 200px;">
-                <select id="deployTypeSelect" class="form-select">
+            <div class="input-group input-group-sm me-2" style="width: 220px;">
+                <select id="deployTypeSelect" class="form-select" title="Choose deploy type">
                     <option value="full" selected>Full Deploy</option>
                     <option value="core">Core Deploy</option>
+                    <option value="ui">UI Content Deploy</option>
                 </select>
             </div>
 
-            <!-- Deploy button (JS will handle redirection with type) -->
             <a id="deployBtn"
                href="#"
                class="btn btn-warning"
@@ -107,8 +106,6 @@
         </div>
 
         <!-- Components & Templates -->
-        <!-- (THIS SECTION IS UNCHANGED, EVERYTHING BELOW IS YOUR ORIGINAL CODE) -->
-
         <div class="row g-4">
             <!-- Components -->
             <div class="col-md-6">

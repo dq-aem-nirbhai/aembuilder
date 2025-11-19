@@ -4,9 +4,10 @@ import static com.aem.builder.constants.AemProjectConstants.PROJECTS_DIR;
 import static com.aem.builder.constants.ModelAttributeKeys.*;
 import static com.aem.builder.constants.UrlMappings.*;
 import static com.aem.builder.constants.ViewNames.*;
+
+import com.aem.builder.service.DeployService;
 import com.aem.builder.service.GitBranchService;
 import com.aem.builder.service.impl.ComponentServiceImpl;
-import com.aem.builder.service.impl.DeployServiceImpl;
 import com.aem.builder.service.impl.TemplateServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import reactor.core.publisher.Flux;
+
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
@@ -31,12 +33,9 @@ public class DeployController {
 
     private final ComponentServiceImpl componentService;
     private final TemplateServiceImpl templateService;
-    private final DeployServiceImpl deployService;
+    private final DeployService deployService;
     private final GitBranchService gitBranchService;
 
-    /**
-     * Fetch project details and render deploy page.
-     */
     @GetMapping(VIEW_PROJECT_URL)
     public String projectDetails(@PathVariable String projectName, Model model) {
         log.info("[projectDetails] Fetching project details for '{}'", projectName);
@@ -73,11 +72,9 @@ public class DeployController {
             appTitle = projectName;
         }
 
-        // Editable components logic moved to service
         List<String> editable = componentService.getEditableComponents(compMap, appTitle);
         log.info("[projectDetails] Editable components for '{}': {}", projectName, editable);
 
-        // Git details
         Path projectPath = Paths.get(PROJECTS_DIR, projectName);
         String branch = "unknown";
         List<String> branches = Collections.emptyList();
@@ -104,11 +101,12 @@ public class DeployController {
     }
 
     /**
-     * Serve deployment logs page.
-     * Accepts optional 'type' query param ("core" or "full") - defaults to "full".
+     * Render deploy logs page only (no streaming here). Accepts 'type' query param.
      */
     @GetMapping(DEPLOY_PROJECT_URL)
-    public String deployProject(@PathVariable String projectName, @RequestParam(name = "type", defaultValue = "full") String type, Model model) {
+    public String deployProject(@PathVariable String projectName,
+                                @RequestParam(name = "type", defaultValue = "full") String type,
+                                Model model) {
         log.info("[deployProject] Opening deploy logs page for '{}' with type '{}'", projectName, type);
         try {
             model.addAttribute(PROJECT_NAME, projectName);
@@ -122,11 +120,11 @@ public class DeployController {
     }
 
     /**
-     * Stream deployment logs live as SSE.
-     * Accepts optional 'type' query param to choose deployment variant.
+     * SSE endpoint that actually starts the build.
      */
     @GetMapping(value = DEPLOY_LOGS_URL, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> streamLogs(@PathVariable String projectName, @RequestParam(name = "type", defaultValue = "full") String type) {
+    public Flux<String> streamLogs(@PathVariable String projectName,
+                                   @RequestParam(name = "type", defaultValue = "full") String type) {
         log.info("[streamLogs] Streaming logs for '{}' with type '{}'", projectName, type);
         try {
             return deployService.deployProjectLive(projectName, type)
