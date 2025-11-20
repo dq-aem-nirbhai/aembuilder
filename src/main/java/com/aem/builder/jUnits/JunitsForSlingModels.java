@@ -36,7 +36,7 @@ public class JunitsForSlingModels {
             String projectName, String modelBasePath, String testBasePath, String packageName, String className) {
 
         log.info("FILEGEN: Starting JUnit/JSON generation for model: {}", className);
-        log.debug("FILEGEN: modelBasePath={}, testBasePath={}, package={}",
+        log.info("FILEGEN: modelBasePath={}, testBasePath={}, package={}",
                 modelBasePath, testBasePath, packageName);
         try {
             Path modelFilePath = resolveModelPath(modelBasePath, packageName, className);
@@ -158,13 +158,13 @@ public class JunitsForSlingModels {
      */
     private static Path resolveModelPath(String modelBasePath, String packageName, String className) {
 
-        log.debug("FILEGEN: Resolving model path for {} in {}", className, modelBasePath);
+        log.info("FILEGEN: Resolving model path for {} in {}", className, modelBasePath);
         Path path1 = Paths.get(modelBasePath, className + ".java");
         Path path2 = Paths.get(modelBasePath, packageName.replace(".", "/"), className + ".java");
 
         Path chosen = Files.exists(path1) ? path1 : path2;
 
-        log.debug("FILEGEN: Model path resolved to: {}", chosen);
+        log.info("FILEGEN: Model path resolved to: {}", chosen);
         return chosen;
     }
 
@@ -180,7 +180,7 @@ public class JunitsForSlingModels {
      */
     private static Path resolveTestFolderPath(String testBasePath, String packageName) {
 
-        log.debug("FILEGEN: Resolving test folder path. base={}, package={}",
+        log.info("FILEGEN: Resolving test folder path. base={}, package={}",
                 testBasePath, packageName);
 
         String packagePath = packageName.replace(".", "/");
@@ -188,7 +188,7 @@ public class JunitsForSlingModels {
                 ? Paths.get(testBasePath)
                 : Paths.get(testBasePath, packagePath);
 
-        log.debug("FILEGEN: Test folder resolved to {}", resolved);
+        log.info("FILEGEN: Test folder resolved to {}", resolved);
 
         return resolved;
     }
@@ -212,7 +212,7 @@ public class JunitsForSlingModels {
     private static String buildJUnitTestContent(String packageName, String className, Map<String, String> fieldTypes) throws IOException {
 
         log.info("FILEGEN: Building new JUnit content for model: {}", className);
-        log.debug("FILEGEN: Total fields detected = {}", fieldTypes.size());
+        log.info("FILEGEN: Total fields detected = {}", fieldTypes.size());
 
         StringBuilder modelTest = new StringBuilder();
         modelTest.append("    @Test\n    void test").append(className).append("Model() {\n")
@@ -317,7 +317,7 @@ public class JunitsForSlingModels {
     private static String rebuildJUnitContent(String existing, String className, Map<String, String> fieldTypes) {
 
         log.info("FILEGEN: Rebuilding JUnit content for model: {}", className);
-        log.debug("FILEGEN: Updating {} fields in existing test file", fieldTypes.size());
+        log.info("FILEGEN: Updating {} fields in existing test file", fieldTypes.size());
 
         // 1. Build new main model test method
         StringBuilder newMainMethod = new StringBuilder();
@@ -402,7 +402,7 @@ public class JunitsForSlingModels {
             throws IOException {
 
         log.info("FILEGEN: Building JSON test content for model: {}", className);
-        log.debug("FILEGEN: Total fields for JSON = {}", fieldTypes.size());
+        log.info("FILEGEN: Total fields for JSON = {}", fieldTypes.size());
 
         StringBuilder json = new StringBuilder("{\n");
         json.append("  \"jcr:primaryType\": \"nt:unstructured\",\n");
@@ -455,7 +455,7 @@ public class JunitsForSlingModels {
      */
     private static int getExistingItemCount(String json, String fieldName) {
 
-        log.debug("FILEGEN: Checking existing multifield item count for {}", fieldName);
+        log.info("FILEGEN: Checking existing multifield item count for {}", fieldName);
 
         // Find full object block of the multifield
         Matcher m = Pattern.compile("\"" + fieldName + "\"\\s*:\\s*\\{([\\s\\S]*?)\\}").matcher(json);
@@ -474,7 +474,7 @@ public class JunitsForSlingModels {
 
         int result = (max == -1) ? 2 : max + 1;
 
-        log.debug("FILEGEN: Existing item count = {}", result);
+        log.info("FILEGEN: Existing item count = {}", result);
 
         return result;
     }
@@ -503,7 +503,7 @@ public class JunitsForSlingModels {
                                              Map<String, String> fieldTypes) throws IOException {
 
         log.info("FILEGEN: Refreshing JSON for model: {}", className);
-        log.debug("FILEGEN: Fields to sync = {}", fieldTypes.size());
+        log.info("FILEGEN: Fields to sync = {}", fieldTypes.size());
 
         ObjectMapper mapper = new ObjectMapper();
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
@@ -594,13 +594,13 @@ public class JunitsForSlingModels {
      */
     private static Map<String, String> extractFieldTypes(String content) {
 
-        log.debug("FILEGEN: Extracting fields from model source ({} chars)", content.length());
+        log.info("FILEGEN: Extracting fields from model source ({} chars)", content.length());
 
         Map<String, String> map = new LinkedHashMap<>();
         Matcher m = Pattern.compile("private\\s+([\\w<>.,\\s]+)\\s+([a-zA-Z0-9_]+)\\s*;").matcher(content);
         while (m.find()) map.put(m.group(2), m.group(1));
 
-        log.debug("FILEGEN: Total extracted fields = {}", map.size());
+        log.info("FILEGEN: Total extracted fields = {}", map.size());
         return map;
     }
 
@@ -715,7 +715,7 @@ public class JunitsForSlingModels {
     private static String buildMultifieldJson(String fieldName, String childClass,
                                               String modelBasePath, int itemCount) throws IOException {
 
-        log.debug("FILEGEN: Building multifield JSON for {} with {} items", fieldName, itemCount);
+        log.info("FILEGEN: Building multifield JSON for {} with {} items", fieldName, itemCount);
 
         StringBuilder json = new StringBuilder("  \"" + fieldName + "\": {\n");
 

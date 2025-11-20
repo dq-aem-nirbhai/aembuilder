@@ -25,6 +25,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.*;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -1338,7 +1339,7 @@ public class FileGenerationUtil {
 
     // -------------------- update content.xml --------------------
 
-    public static void updateContentXml(String projectName, ComponentRequest request) throws IOException {
+ /*   public static void updateContentXml(String projectName, ComponentRequest request) throws IOException {
         // Path to the actual component .content.xml
         log.info("FILEGEN: updateContentXml method called : " );
         File contentXml = new File(PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
@@ -1366,11 +1367,85 @@ public class FileGenerationUtil {
 
         FileUtils.writeStringToFile(contentXml, xmlContent, StandardCharsets.UTF_8);
     }
+*/
 
+    public static void updateContentXml(String projectName, ComponentRequest request) throws IOException {
+        log.info("FILEGEN: updateContentXml method called!");
+
+        // Path to existing content.xml
+        File contentXml = new File(PROJECTS_DIR + "/" + projectName +
+                "/ui.apps/src/main/content/jcr_root/apps/" +
+                projectName + "/components/" + request.getComponentName() +
+                "/.content.xml");
+
+        log.info("updateContentXml path: " + contentXml);
+
+        if (!contentXml.exists()) {
+            log.warn("content.xml does NOT exist. Skipping update.");
+            return;
+        }
+
+        // Read existing xml file
+        String xmlContent = FileUtils.readFileToString(contentXml, StandardCharsets.UTF_8);
+
+        // ---- Load JSON config ----
+        ObjectMapper mapper = new ObjectMapper();
+
+        JsonNode config = mapper.readTree(
+                FileGenerationUtil.class.getClassLoader()
+                        .getResourceAsStream("component-content-xml.json")
+        );
+
+        JsonNode attributesNode = config.get("attributes");
+
+        // Update each attribute defined in the JSON file
+        Iterator<String> fieldNames = attributesNode.fieldNames();
+
+        while (fieldNames.hasNext()) {
+            String xmlAttribute = fieldNames.next();                 // e.g., "jcr:title", "componentGroup"
+            String requestGetter = attributesNode.get(xmlAttribute).asText(); // maps to request fields
+
+            // Get value from request object using reflection
+            String updatedValue = getValueFromRequest(request, requestGetter);
+
+            if (updatedValue == null || updatedValue.trim().isEmpty()) {
+                continue; // skip null values
+            }
+
+            // Pattern: key="oldValue"
+            String regex = xmlAttribute + "=\"[^\"]*\"";
+            String replacement = xmlAttribute + "=\"" + updatedValue + "\"";
+
+            if (xmlContent.contains(xmlAttribute + "=")) {
+                // Update existing attribute
+                xmlContent = xmlContent.replaceAll(regex, replacement);
+            } else {
+                // Insert new attribute after jcr:primaryType
+                xmlContent = xmlContent.replaceFirst("jcr:primaryType=\"[^\"]*\"",
+                        "$0 " + replacement);
+            }
+        }
+
+        // Write updated XML
+        FileUtils.writeStringToFile(contentXml, xmlContent, StandardCharsets.UTF_8);
+
+        log.info("FILEGEN: content.xml updated successfully using JSON config!");
+    }
+
+    private static String getValueFromRequest(ComponentRequest request, String fieldName) {
+        try {
+            Field field = request.getClass().getDeclaredField(fieldName);
+            field.setAccessible(true);
+            Object value = field.get(request);
+            return value != null ? value.toString() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     // -------------------- update Dialog content.xml --------------------
 
-    public static void updateDialog(String projectName, ComponentRequest request) throws Exception {
+  /*  public static void updateDialog(String projectName, ComponentRequest request) throws Exception {
         log.info("FILEGEN: updateDialog method called !!!");
 
         String dialogPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
@@ -1551,6 +1626,131 @@ public class FileGenerationUtil {
         }
 
         log.info("FILEGEN: Dialog .content.xml updated and formatted at {}", dialogFile.getAbsolutePath());
+    }*/
+
+    public static void updateDialog(String projectName, ComponentRequest request) throws Exception {
+        log.info("Updating dialog using JSON templates for component: {}", request.getComponentName());
+
+        Path dialogPath = Paths.get(PROJECTS_DIR, projectName, "ui.apps/src/main/content/jcr_root/apps",
+                projectName, "components", request.getComponentName(), "_cq_dialog", ".content.xml");
+
+        if (!Files.exists(dialogPath)) {
+            throw new FileNotFoundException("Dialog file not found at: " + dialogPath);
+        }
+
+        // Load JSON templates
+        JSONObject dialogJson = new JSONObject(Files.readString(Paths.get("src/main/resources/dialog-content-xml.json")));
+        JSONObject fieldTemplates = new JSONObject(Files.readString(Paths.get("src/main/resources/component-fields.json")));
+
+        // Load existing XML
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document doc = builder.parse(dialogPath.toFile());
+        doc.getDocumentElement().normalize();
+
+        // Determine if tabs exist
+        boolean hasTabs = request.getFields().stream()
+                .anyMatch(f -> "tabs".equalsIgnoreCase(f.getFieldType()));
+
+        // Ensure content and layout
+        Element content = ensureChild(doc, doc.getDocumentElement(), "content", null);
+        Element layout = ensureChild(doc, content, "layout", null);
+        layout.setAttribute("jcr:primaryType", "nt:unstructured");
+        layout.setAttribute("sling:resourceType", hasTabs ?
+                "granite/ui/components/coral/foundation/layouts/tabs" :
+                "granite/ui/components/coral/foundation/layouts/fixedcolumns");
+
+        Element itemsElement = ensureChild(doc, content, "items", null);
+
+        // Remove old fields not present in new request
+        List<String> incomingNames = request.getFields().stream()
+                .map(ComponentField::getFieldName).collect(Collectors.toList());
+        cleanUpDeletedFields(itemsElement, incomingNames);
+
+        // Handle Tabs vs Flat
+        List<ComponentField> tabFields = request.getFields().stream()
+                .filter(f -> "tabs".equalsIgnoreCase(f.getFieldType())).toList();
+
+        List<ComponentField> nonTabFields = request.getFields().stream()
+                .filter(f -> !"tabs".equalsIgnoreCase(f.getFieldType())).toList();
+
+        if (hasTabs) {
+            Element tabsNode = ensureChild(doc, itemsElement, "tabs", null);
+            tabsNode.setAttribute("jcr:primaryType", "nt:unstructured");
+            tabsNode.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/tabs");
+            Element tabsItems = ensureChild(doc, tabsNode, "items", null);
+
+            // Create tab containers
+            for (ComponentField tab : tabFields) {
+                Element tabNode = ensureChild(doc, tabsItems, tab.getFieldName(), null);
+                tabNode.setAttribute("jcr:primaryType", "nt:unstructured");
+                tabNode.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/container");
+                tabNode.setAttribute("jcr:title", tab.getFieldLabel());
+
+                Element tabInnerItems = ensureChild(doc, tabNode, "items", null);
+                handleNestedFieldsWithJson(doc, tabInnerItems, tab.getNestedFields(), fieldTemplates);
+            }
+
+            // Non-tab fields go under "Main" tab
+            if (!nonTabFields.isEmpty()) {
+                Element mainTab = ensureChild(doc, tabsItems, "main", null);
+                mainTab.setAttribute("jcr:primaryType", "nt:unstructured");
+                mainTab.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/container");
+                mainTab.setAttribute("jcr:title", "Main");
+
+                Element mainItems = ensureChild(doc, mainTab, "items", null);
+                handleNestedFieldsWithJson(doc, mainItems, nonTabFields, fieldTemplates);
+            }
+
+        } else {
+            // Flat layout: fields under a single column
+            Element column = ensureChild(doc, itemsElement, "column", null);
+            column.setAttribute("jcr:primaryType", "nt:unstructured");
+            column.setAttribute("sling:resourceType", "granite/ui/components/coral/foundation/container");
+
+            Element columnItems = ensureChild(doc, column, "items", null);
+            handleNestedFieldsWithJson(doc, columnItems, nonTabFields, fieldTemplates);
+        }
+
+        // Save XML
+        Transformer transformer = TransformerFactory.newInstance().newTransformer();
+        transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
+        transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+
+        StringWriter writer = new StringWriter();
+        transformer.transform(new DOMSource(doc), new StreamResult(writer));
+        String formattedXml = XmlUtil.formatXml(writer.toString());
+
+        Files.writeString(dialogPath, formattedXml, StandardOpenOption.TRUNCATE_EXISTING);
+        log.info("Dialog updated successfully at {}", dialogPath);
+    }
+
+    private static void handleNestedFieldsWithJson(Document doc, Element parent, List<ComponentField> nestedFields, JSONObject fieldTemplates) {
+        if (nestedFields == null || nestedFields.isEmpty()) return;
+
+        for (ComponentField field : nestedFields) {
+            String type = field.getFieldType().toLowerCase();
+            JSONObject template = fieldTemplates.getJSONArray("fields").toList().stream()
+                    .map(o -> new JSONObject((Map<?, ?>) o))
+                    .filter(f -> f.getString("type").equalsIgnoreCase(type))
+                    .findFirst()
+                    .orElse(null);
+
+            if (template != null) {
+                Element node = updateFieldNode(doc, parent, field); // reuse your method for field attributes
+                if (!parentHasChild(parent, node)) {
+                    parent.appendChild(node);
+                }
+            }
+        }
+    }
+
+    private static boolean parentHasChild(Element parent, Element node) {
+        NodeList children = parent.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            if (children.item(i).isSameNode(node)) return true;
+        }
+        return false;
     }
 
     /**
@@ -1870,7 +2070,7 @@ public class FileGenerationUtil {
 
     // -------------------- update Sling model --------------------
 
-    public static void updateSlingModel(ComponentRequest request) throws IOException {
+    /*public static void updateSlingModel(ComponentRequest request) throws IOException {
         log.info("FILEGEN: updateSlingModel method called !!! " );
         // 1. Derive HTL path
         Path htlPath = Paths.get("generated-projects", request.getProjectName(),
@@ -1898,8 +2098,150 @@ public class FileGenerationUtil {
 
         // 5. Patch Sling Model with fields from ComponentRequest
         patchSlingModel(javaFilePath, request.getFields(), basePackage, request.getProjectName());
+    }*/
+
+    public static void updateSlingModel(ComponentRequest request) throws IOException {
+        log.info("updateSlingModelFromJson called for component: {}", request.getComponentName());
+
+        // 1. Locate Sling Model class
+        Path htlPath = Paths.get(PROJECTS_DIR, request.getProjectName(),
+                "ui.apps/src/main/content/jcr_root/apps",
+                request.getProjectName(), "components", request.getComponentName(),
+                request.getComponentName() + ".html");
+
+        String htlContent = Files.readString(htlPath);
+        String slingModelClass = extractSlingModelClass(htlContent);
+        if (slingModelClass == null) throw new RuntimeException("No Sling Model found in HTL!");
+
+        Path javaFilePath = locateJavaFile(request.getProjectName(), slingModelClass);
+        if (javaFilePath == null) throw new RuntimeException("Sling Model file not found!");
+
+        String basePackage = slingModelClass.substring(0, slingModelClass.lastIndexOf("."));
+
+        // 2. Load fields template JSON
+        ObjectMapper mapper = new ObjectMapper();
+        File fieldsJson = Paths.get("src/main/resources/component-fields.json").toFile();
+        JsonNode fieldsConfig = mapper.readTree(fieldsJson).path("fields");
+
+        // 3. Patch the Sling Model
+        patchSlingModelUsingJson(javaFilePath, request.getFields(), fieldsConfig, basePackage, request.getProjectName());
     }
 
+    private static void patchSlingModelUsingJson(Path javaFile, List<ComponentField> fields, JsonNode fieldTemplates,
+                                                 String basePackage, String projectName) throws IOException {
+
+        String content = Files.readString(javaFile);
+
+        // Remove old fields
+        Map<String, String> existingFields = extractFieldMap(content);
+        for (String oldField : new HashSet<>(existingFields.keySet())) {
+            if (fields.stream().noneMatch(f -> f.getFieldName().equals(oldField))) {
+                content = removeField(content, oldField);
+            }
+        }
+
+        // Insert/update fields based on JSON templates
+        for (ComponentField f : fields) {
+
+            // Handle tabs: flatten inner fields directly
+            if ("tabs".equalsIgnoreCase(f.getFieldType()) && f.getNestedFields() != null) {
+                for (ComponentField inner : f.getNestedFields()) {
+                    JsonNode template = findTemplateForField(inner.getFieldType(), fieldTemplates);
+                    if (template == null) continue;
+
+                    if (fieldExists(content, inner.getFieldName())) {
+                        content = updateField(content, inner);
+                    } else {
+                        content = insertFieldFromJson(content, inner, template, basePackage, projectName);
+                    }
+
+                    // Nested multifield/child inside tab
+                    if ("multifield".equalsIgnoreCase(inner.getFieldType()) || "child".equalsIgnoreCase(inner.getFieldType())) {
+                        generateOrUpdateMultifieldClass(projectName, basePackage,
+                                capitalize(inner.getFieldName()), inner.getNestedFields());
+                    }
+                }
+                continue; // skip creating field for tab itself
+            }
+
+            // Normal field
+            JsonNode template = findTemplateForField(f.getFieldType(), fieldTemplates);
+            if (template == null) continue;
+
+            if (fieldExists(content, f.getFieldName())) {
+                content = updateField(content, f);
+            } else {
+                content = insertFieldFromJson(content, f, template, basePackage, projectName);
+            }
+
+            // Nested multifield/child
+            if ("multifield".equalsIgnoreCase(f.getFieldType()) || "child".equalsIgnoreCase(f.getFieldType())) {
+                generateOrUpdateMultifieldClass(projectName, basePackage,
+                        capitalize(f.getFieldName()), f.getNestedFields());
+            }
+        }
+
+        // Rebuild isEmpty()
+        content = updateIsEmpty(content, fields);
+
+        Files.writeString(javaFile, content);
+        log.info("Sling Model updated from JSON (tabs handled): {}", javaFile.getFileName());
+
+        try {
+            // Define correct base paths
+            String modelBasePath = Paths.get("generated-projects", projectName, "core/src/main/java").toString();
+            String testBasePath = Paths.get("generated-projects", projectName, "core/src/test/java").toString();
+            log.info("modelBasePath : {}", modelBasePath);
+            log.info("testBasePath : {}", testBasePath);
+
+            // Extract class name (e.g., Snitch1Model)
+            String className = javaFile.getFileName().toString().replace(".java", "");
+            log.info("className : {}", className);
+
+            // Build proper model base path for tests (includes package)
+            String modelBasePathForTests = Paths.get(testBasePath, basePackage.replace(".", "/")).toString();
+            log.info("modelBasePathForTests : {}", modelBasePathForTests);
+
+            // Ensure package directories exist
+            Files.createDirectories(Paths.get(modelBasePathForTests));
+
+            // Generate/Update JUnit and JSON
+            JunitsForSlingModels.generateJUnitTestForModel(
+                    projectName,
+                    modelBasePath,
+                    testBasePath,
+                    basePackage,
+                    className
+            );
+
+            log.info("JUnit generated/updated for model: {} at {}", className, modelBasePathForTests);
+
+        } catch (Exception e) {
+            log.warn("Failed to generate or update JUnit for model {}: {}", javaFile.getFileName(), e.getMessage());
+        }
+    }
+
+
+    private static JsonNode findTemplateForField(String type, JsonNode templates) {
+        for (JsonNode t : templates) {
+            if (type.equalsIgnoreCase(t.path("type").asText())) return t;
+        }
+        return null;
+    }
+
+    private static String insertFieldFromJson(String content, ComponentField field, JsonNode template,
+                                              String packageName, String projectName) {
+
+        String xmlTemplate = template.path("xml").asText();
+
+        // In Java, we only need type + getter
+        if ("multifield".equalsIgnoreCase(field.getFieldType()) || "child".equalsIgnoreCase(field.getFieldType())) {
+            String nestedClass = capitalize(field.getFieldName());
+            return insertField(content, field, packageName, projectName); // reuse your existing insertField logic
+        } else {
+            return insertField(content, field, packageName, projectName);
+        }
+    }
 
     public static String extractSlingModelClass(String htlContent) {
         Pattern p = Pattern.compile("data-sly-use\\.\\w+\\s*=\\s*\"([^\"]+)\"");
@@ -1926,7 +2268,7 @@ public class FileGenerationUtil {
     /**
      * Patch-update Sling Model file based on ComponentRequest fields.
      */
-    private static void patchSlingModel(Path javaFile, List<ComponentField> fields,
+    /*private static void patchSlingModel(Path javaFile, List<ComponentField> fields,
                                         String basePackage, String projectName) throws IOException {
 
         log.info("patchSlingModel Method called....!!");
@@ -2024,12 +2366,12 @@ public class FileGenerationUtil {
             log.warn("Failed to generate or update JUnit for model {}: {}", javaFile.getFileName(), e.getMessage());
         }
 
-    }
+    }*/
     
     /**
      * Deletes the corresponding multifield nested Sling Model class if it exists.
      */
-    private static void deleteMultifieldClassIfExists(String projectName, String basePackage, String fieldName) {
+   /* private static void deleteMultifieldClassIfExists(String projectName, String basePackage, String fieldName) {
         try {
             String nestedClassName = capitalize(fieldName);
             Path modelDir = Paths.get("generated-projects", projectName,
@@ -2048,7 +2390,7 @@ public class FileGenerationUtil {
         } catch (Exception e) {
             log.warn("Failed to delete nested Sling Model for field '{}': {}", fieldName, e.getMessage());
         }
-    }
+    }*/
 
     private static String insertField(String content, ComponentField field,
                                       String packageName, String projectName) {
@@ -2069,12 +2411,23 @@ public class FileGenerationUtil {
                             "    }\n\n";
         } else {
             String type = mapFieldTypeToJavaType(field.getFieldType());
-            fieldCode =
+            /*fieldCode =
                     "    @ValueMapValue\n" +
                             "    private " + type + " " + field.getFieldName() + ";\n\n" +
                             "    public " + type + " get" + capName + "() {\n" +
                             "        return " + field.getFieldName() + ";\n" +
+                            "    }\n\n";*/
+            String getterName = "checkbox".equalsIgnoreCase(field.getFieldType())
+                    ? "is" + capName
+                    : "get" + capName;
+
+            fieldCode =
+                    "    @ValueMapValue\n" +
+                            "    private " + type + " " + field.getFieldName() + ";\n\n" +
+                            "    public " + type + " " + getterName + "() {\n" +
+                            "        return " + field.getFieldName() + ";\n" +
                             "    }\n\n";
+
         }
 
         // Find where to insert (before isEmpty() or its comment)
@@ -2155,10 +2508,19 @@ public class FileGenerationUtil {
                 annotation + "\n private " + type + " " + fieldName + ";"
         );
 
-        // Replace getter return type
+        /*// Replace getter return type
         content = content.replaceAll(
                 "(?s)public\\s+[\\w<>\\[\\]]+\\s+(get|is)" + capName + "\\s*\\(",
                 "public " + type + " get" + capName + "("
+        );*/
+
+        String getterName = "checkbox".equalsIgnoreCase(field.getFieldType())
+                ? "is" + capName
+                : "get" + capName;
+
+        content = content.replaceAll(
+                "(?s)public\\s+[\\w<>\\[\\]]+\\s+(get|is)" + capName + "\\s*\\(",
+                "public " + type + " " + getterName + "("
         );
 
         return content;
@@ -2327,7 +2689,7 @@ public class FileGenerationUtil {
 
     // -------------------- update HTL --------------------
 
-    public static void updateHTL(String projectName, ComponentRequest request, String packageName) throws Exception {
+   /* public static void updateHTL(String projectName, ComponentRequest request, String packageName) throws Exception {
         String htlPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
                 + projectName + "/components/" + request.getComponentName() + "/" + request.getComponentName() + ".html";
 
@@ -2385,6 +2747,52 @@ public class FileGenerationUtil {
         // Write updated HTL
         FileUtils.writeStringToFile(htlFile, finalHTL, StandardCharsets.UTF_8);
         log.info("HTL updated successfully for component '{}'", request.getComponentName());
+    }*/
+
+    public static void updateHTL(String projectName, ComponentRequest request, String packageName) throws Exception {
+        String htlPath = PROJECTS_DIR + "/" + projectName + "/ui.apps/src/main/content/jcr_root/apps/"
+                + projectName + "/components/" + request.getComponentName() + "/" + request.getComponentName() + ".html";
+
+        File htlFile = new File(htlPath);
+
+        ObjectMapper mapper = new ObjectMapper();
+        File htlJsonFile = Paths.get("src/main/resources/component-htl.json").toFile();
+        JsonNode config = mapper.readTree(htlJsonFile);
+        JsonNode fieldTemplates = config.path("fieldTemplates");
+
+        String modelClassName = capitalize(request.getComponentName()) + "Model";
+
+
+// assuming fieldTemplates is JsonNode
+        ObjectMapper mappers = new ObjectMapper();
+        String fieldTemplatesStr = mappers.writeValueAsString(fieldTemplates);
+        // If HTL doesn’t exist → create fresh
+        if (!htlFile.exists()) {
+            generateHTL(htlFile.getParent(), request.getFields(), packageName, request.getComponentName(), fieldTemplatesStr);
+            return;
+        }
+
+        String existingHTL = FileUtils.readFileToString(htlFile, StandardCharsets.UTF_8);
+
+        int mainStart = existingHTL.indexOf("<sly data-sly-test.hasContent");
+        int mainEnd = existingHTL.lastIndexOf("</sly>");
+
+        String preHTL = mainStart > 0 ? existingHTL.substring(0, mainStart) : "";
+        String postHTL = mainEnd > 0 ? existingHTL.substring(mainEnd) : "";
+
+        StringBuilder innerHTL = new StringBuilder();
+        for (ComponentField field : request.getFields()) {
+            appendFieldHTL(innerHTL, field, "model", fieldTemplates, packageName, modelClassName, null, "  ", 0);
+        }
+
+        String finalHTL = preHTL
+                + "<sly data-sly-test.hasContent=\"${!model.empty}\">\n"
+                + innerHTL
+                + "</sly>\n"
+                + postHTL;
+
+        FileUtils.writeStringToFile(htlFile, finalHTL, StandardCharsets.UTF_8);
+        log.info("HTL updated successfully from JSON for component '{}'", request.getComponentName());
     }
 
 
